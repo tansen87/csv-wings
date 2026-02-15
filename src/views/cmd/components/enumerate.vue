@@ -1,0 +1,146 @@
+<script setup lang="ts">
+import { ref } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import type { Event } from "@tauri-apps/api/event";
+import { Files, FolderOpened, SwitchButton } from "@element-plus/icons-vue";
+import { useDynamicHeight } from "@/utils/utils";
+import { viewOpenFile, toJson } from "@/utils/view";
+import { message } from "@/utils/message";
+import { mdEnumer, useMarkdown } from "@/utils/markdown";
+import {
+  useFlexible,
+  useProgress,
+  useQuoting,
+  useSkiprows
+} from "@/store/modules/options";
+
+const path = ref("");
+const [currentRows, totalRows] = [ref(0), ref(0)];
+const [dialog, isLoading] = [ref(false), ref(false)];
+const [tableColumn, tableData] = [ref([]), ref([])];
+const { dynamicHeight } = useDynamicHeight(98);
+const { mdShow } = useMarkdown(mdEnumer);
+const quotingStore = useQuoting();
+const skiprowsStore = useSkiprows();
+const progressStore = useProgress();
+const flexibleStore = useFlexible();
+
+listen("update-rows", (event: Event<number>) => {
+  currentRows.value = event.payload;
+});
+listen("total-rows", (event: Event<number>) => {
+  totalRows.value = event.payload;
+});
+
+async function selectFile() {
+  path.value = await viewOpenFile(false, "csv", ["*"]);
+  if (path.value === null) {
+    path.value = "";
+    return;
+  }
+
+  totalRows.value = 0;
+
+  try {
+    const { columnView, dataView } = await toJson(
+      path.value,
+      skiprowsStore.skiprows
+    );
+    tableColumn.value = columnView;
+    tableData.value = dataView;
+  } catch (err) {
+    message(err.toString(), { type: "error" });
+  }
+}
+
+// invoke enumer
+async function enumerate() {
+  if (path.value === "") {
+    message("File not selected", { type: "warning" });
+    return;
+  }
+
+  try {
+    isLoading.value = true;
+    const rtime: string = await invoke("enumer", {
+      path: path.value,
+      progress: progressStore.progress,
+      quoting: quotingStore.quoting,
+      skiprows: skiprowsStore.skiprows,
+      flexible: flexibleStore.flexible
+    });
+    message(`Enumerate done, elapsed time: ${rtime} s`, { type: "success" });
+  } catch (err) {
+    message(err.toString(), { type: "error" });
+  }
+  isLoading.value = false;
+}
+</script>
+
+<template>
+  <el-form class="page-container">
+    <el-splitter>
+      <el-splitter-panel size="180" :resizable="false">
+        <div class="splitter-container">
+          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+            Open File
+          </el-button>
+
+          <div class="flex flex-col mt-auto">
+            <el-progress
+              v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mb-2 ml-2"
+            />
+            <el-link @click="dialog = true">
+              <span class="link-text">Enumerate</span>
+            </el-link>
+          </div>
+        </div>
+      </el-splitter-panel>
+
+      <el-splitter-panel>
+        <el-button
+          @click="enumerate()"
+          :loading="isLoading"
+          :icon="SwitchButton"
+          text
+          round
+          >Run
+        </el-button>
+
+        <el-table
+          :data="tableData"
+          :height="dynamicHeight"
+          show-overflow-tooltip
+          tooltip-effect="light"
+        >
+          <el-table-column
+            v-for="column in tableColumn"
+            :prop="column.prop"
+            :label="column.label"
+            :key="column.prop"
+          />
+        </el-table>
+
+        <el-text>
+          <el-icon class="ml-2">
+            <Files />
+          </el-icon>
+          {{ path }}
+        </el-text>
+      </el-splitter-panel>
+    </el-splitter>
+
+    <el-dialog
+      v-model="dialog"
+      title="Enumerate - Add a new column enumerating the lines of a CSV"
+      width="70%"
+    >
+      <el-scrollbar :height="dynamicHeight * 0.7">
+        <div v-html="mdShow" />
+      </el-scrollbar>
+    </el-dialog>
+  </el-form>
+</template>

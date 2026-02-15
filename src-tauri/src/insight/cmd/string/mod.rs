@@ -1,0 +1,113 @@
+use std::time::Instant;
+
+use tauri::AppHandle;
+
+pub mod pad;
+pub mod slice;
+pub mod split;
+
+#[tauri::command]
+pub async fn str_slice(
+  path: String,
+  column: String,
+  n: String,
+  length: String,
+  reverse: bool,
+  mode: String,
+  quoting: bool,
+  progress: bool,
+  skiprows: usize,
+  app_handle: AppHandle,
+) -> Result<String, String> {
+  let start_time = Instant::now();
+
+  let slice_mode: slice::SliceMode = mode.as_str().into();
+
+  match slice::perform_slice(
+    path,
+    column.as_str(),
+    n.parse::<i32>().map_err(|e| e.to_string())?,
+    crate::utils::parse_usize(&length, "length")?,
+    reverse,
+    slice_mode,
+    quoting,
+    progress,
+    skiprows,
+    app_handle,
+  )
+  .await
+  {
+    Ok(_) => {
+      let end_time = Instant::now();
+      let elapsed_time = end_time.duration_since(start_time).as_secs_f64();
+      Ok(format!("{elapsed_time:.2}"))
+    }
+    Err(err) => Err(format!("{err}")),
+  }
+}
+
+#[tauri::command]
+pub async fn str_split(
+  path: String,
+  column: String,
+  n: String,
+  by: String,
+  mode: String,
+  quoting: bool,
+  progress: bool,
+  skiprows: usize,
+  app_handle: AppHandle,
+) -> Result<String, String> {
+  let start_time = Instant::now();
+
+  let split_mode: split::SplitMode = mode.as_str().into();
+
+  match split::split(
+    path,
+    column,
+    n.parse::<i32>().map_err(|e| e.to_string())?,
+    by,
+    split_mode,
+    quoting,
+    progress,
+    skiprows,
+    app_handle,
+  )
+  .await
+  {
+    Ok(_) => {
+      let end_time = Instant::now();
+      let elapsed_time = end_time.duration_since(start_time).as_secs_f64();
+      Ok(format!("{elapsed_time:.2}"))
+    }
+    Err(err) => Err(format!("{err}")),
+  }
+}
+
+#[tauri::command]
+pub async fn str_pad(
+  path: String,
+  column: String,
+  length: String,
+  fill_char: String,
+  mode: String,
+  quoting: bool,
+  progress: bool,
+  skiprows: usize,
+  app_handle: AppHandle,
+) -> Result<String, String> {
+  let start_time = Instant::now();
+
+  match pad::pad(
+    path, &column, length, fill_char, mode, quoting, progress, skiprows, app_handle,
+  )
+  .await
+  {
+    Ok(_) => {
+      let end_time = Instant::now();
+      let elapsed_time = end_time.duration_since(start_time).as_secs_f64();
+      Ok(format!("{elapsed_time:.2}"))
+    }
+    Err(err) => Err(format!("{err}")),
+  }
+}
