@@ -13,7 +13,7 @@ use crate::tojson;
 pub async fn from_headers(path: String, skiprows: usize) -> Result<Vec<String>, String> {
   let mut opts = CsvOptions::new(path);
   opts.set_skiprows(skiprows);
-  
+
   async { opts.from_headers().map_err(|e| e.to_string()) }.await
 }
 
@@ -87,6 +87,18 @@ pub async fn dupli_headers(
 #[tauri::command]
 pub async fn to_json(path: String, skiprows: usize) -> Result<String, String> {
   match async { tojson::csv_to_json(path, skiprows) }.await {
+    Ok(result) => Ok(result),
+    Err(err) => Err(format!("{err}")),
+  }
+}
+
+#[tauri::command]
+pub async fn xlsx_to_json(
+  path: String,
+  sheet_name: String,
+  nrows: usize,
+) -> Result<String, String> {
+  match async { tojson::excel_to_json(path, sheet_name, nrows) }.await {
     Ok(result) => Ok(result),
     Err(err) => Err(format!("{err}")),
   }

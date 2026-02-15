@@ -6,7 +6,9 @@ import { addIcon } from "@iconify/vue/dist/offline";
 
 // 本地菜单图标，后端在路由的icon中返回对应的图标字符串并且前端在此处使用addIcon添加即可渲染菜单图标
 import Command from "@iconify-icons/ri/code-box-line";
+import fileExcel from "@iconify-icons/ri/file-excel-2-line";
 import FlowChart from "@iconify-icons/ri/flow-chart";
 
 addIcon("command", Command);
+addIcon("fileExcel", fileExcel);
 addIcon("flowChart", FlowChart);

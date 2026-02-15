@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { shortFileName } from "./utils";
+import { message } from "./message";
 
 export async function viewOpenFile(
   multiple: boolean,
@@ -82,6 +83,42 @@ export async function toJson(path: string, skiprows: number) {
     })),
     dataView: arrayData
   };
+}
+
+export async function xlsxToJson(
+  path: string,
+  sheetName: string,
+  nrows: number
+) {
+  try {
+    const result: string = await invoke("xlsx_to_json", {
+      path,
+      sheetName: sheetName,
+      nrows
+    });
+
+    const jsonData = JSON.parse(result);
+    const arrayData = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+    if (arrayData.length === 0) {
+      return { columnView: [], dataView: [] };
+    }
+
+    const keys = Object.keys(arrayData[0]);
+    const columnView = keys.map(key => ({
+      name: key,
+      label: key,
+      prop: key
+    }));
+
+    return {
+      columnView,
+      dataView: arrayData
+    };
+  } catch (err) {
+    message(`Failed to preview XLSX: ${err}`, { type: "error" });
+    throw err;
+  }
 }
 
 export async function mapHeaders(path: string, skiprows: number) {

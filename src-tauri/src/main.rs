@@ -69,6 +69,7 @@ fn main() {
       command::inter_headers,
       command::dupli_headers,
       command::to_json,
+      command::xlsx_to_json,
       flow::flow,
       apply::apply,
       cat::cat_csv,

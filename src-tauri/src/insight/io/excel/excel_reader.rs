@@ -59,23 +59,45 @@ impl FastExcelReader {
     Ok(FastExcelReader { fast_workbook })
   }
 
-  /// Get the first n rows of xlsx
-  /// It's very fast
-  pub fn n_rows(&mut self, n: usize) -> Result<Vec<String>> {
+  /// Preview the first `n` rows of a specified sheet (or the first sheet if none given)
+  pub fn preview_sheet(&mut self, sheet_name: Option<&str>, n: usize) -> Result<Vec<String>> {
     let worksheets = self.fast_workbook.sheets();
-    let first_sheet_name = match worksheets.by_name().get(0) {
-      Some(sheet) => *sheet,
-      None => "Sheet1",
+    let sheet_names = worksheets.by_name();
+
+    // Step 1: Determine which sheet to use
+    let target_sheet_name = match sheet_name {
+      Some(name) => {
+        // Check if the requested sheet exists
+        if !sheet_names.contains(&name) {
+          return Err(anyhow!(
+            "Sheet '{}' not found. Available sheets: {:?}",
+            name,
+            sheet_names.iter().map(|s| *s).collect::<Vec<_>>()
+          ));
+        }
+        name
+      }
+      None => sheet_names
+        .get(0)
+        .copied()
+        .ok_or_else(|| anyhow!("No worksheets found in the Excel file"))?,
     };
-    let sheet = if let Some(s) = worksheets.get(first_sheet_name) {
-      s
-    } else {
-      return Err(anyhow!("worksheet is empty"));
-    };
+
+    let sheet = worksheets
+      .get(target_sheet_name)
+      .ok_or_else(|| anyhow!("Failed to load sheet: {}", target_sheet_name))?;
+
     let nrows: Vec<String> = sheet
       .rows(&mut self.fast_workbook)
-      .take(n + 1)
-      .map(|row| row.to_string().replace(",", "|").replace("\"", ""))
+      .take(n + 1) // +1: include header as first row
+      .map(|row| {
+        // Optional: improve formatting (e.g., handle commas/quotes safely)
+        row
+          .to_string()
+          .replace("|", "-")
+          .replace(",", "|") // replace delimiter
+          .replace("\"", "") // remove double quotes
+      })
       .collect();
 
     Ok(nrows)

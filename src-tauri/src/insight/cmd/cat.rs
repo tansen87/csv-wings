@@ -158,7 +158,6 @@ pub async fn cat_with_excel(
         csv_paths.push(temp_csv);
       }
     } else {
-      // === 使用你已有的 get_sheetname_by_filename ===
       let sheet_name = get_sheetname_by_filename(&sheet_mapping, filename);
 
       let clean_sheet = sheet_name
