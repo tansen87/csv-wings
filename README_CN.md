@@ -2,13 +2,10 @@
 
 [English](./README.md) | 中文
 
-> insight-x是一个基于Tauri的数据处理工具箱，旨在简化数据操作和管理。它提供了一个直观的图形用户界面(GUI)。支持多种文件格式的处理，包括 Excel、CSV 和 Parquet 等。用户可以通过简单的操作完成复杂的数据处理任务，如数据查询、转换、合并、连接、排序、切片、格式转换等。
+> insight-x是一个基于Tauri的数据处理工具箱，旨在简化数据操作和管理。它提供了一个直观的图形用户界面(GUI)。支持多种文件格式的处理，包括 Excel、CSV 等。用户可以通过简单的操作完成复杂的数据处理任务，如数据查询、转换、合并、连接、排序、切片、格式转换等。
 
 
 ## 📷截图
-* Polars SQL for query
-  ![sqlp.gif](/docs/img/sqlp.gif)
-
 * Flow
   ![flow.gif](/docs/img/flow.gif)
 
@@ -19,7 +16,6 @@
 ## ✨Features
 | Function | Description |
 | ------- | ----------- |
-| [SQL](./src-tauri/src/lib/cmd/sqlp.rs) | 对多个文件执行Polars SQL查询 (支持Excel, CSV, Parquet, Json, Jsonl) |
 | [Flow](./src-tauri/src/lib/flow/mod.rs) | CSV工作流 |
 | [Apply](./docs/apply.md) | 对CSV的列操作 |
 | [Cat](./docs/cat.md) | 将多个CSV或Excel文件合并为一个CSV或xlsx文件 |

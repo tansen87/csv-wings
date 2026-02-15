@@ -2,13 +2,10 @@
 
 English | [中文](./README_CN.md)
 
-> insight-x is a Tauri based data processing toolbox designed to simplify data operations and management. It provides an intuitive graphical user interface (GUI). Supports processing of multiple file formats, including Excel, CSV, Parquet, etc. Users can complete complex data processing tasks such as data queries, transformations, merges, joins, sorts, slices, format conversions, etc. through simple operations.
+> insight-x is a Tauri based data processing toolbox designed to simplify data operations and management. It provides an intuitive graphical user interface (GUI). Supports processing of multiple file formats, including Excel, CSV, etc. Users can complete complex data processing tasks such as data queries, transformations, merges, joins, sorts, slices, format conversions, etc. through simple operations.
 
 
 ## 📷ScreenShot
-* Polars SQL for query
-  ![sqlp.gif](/docs/img/sqlp.gif)
-
 * Flow
   ![flow.gif](/docs/img/flow.gif)
 
@@ -19,7 +16,6 @@ English | [中文](./README_CN.md)
 ## ✨Features
 | Function | Description |
 | ------- | ----------- |
-| [SQL](./src-tauri/src/lib/cmd/sqlp.rs) | Execute Polars SQL queries against several files (Support Excel, CSV, Parquet, Json, Jsonl) |
 | [Flow](./src-tauri/src/lib/flow/mod.rs) | Csv Flow |
 | [Apply](./docs/apply.md) | Apply series of string, math transformations to given CSV column/s |
 | [Cat](./docs/cat.md) | Merge multiple CSV or Excel files into one CSV or xlsx file (Support Polars and CSV engine) |
