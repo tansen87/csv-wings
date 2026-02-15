@@ -71,7 +71,8 @@ fn main() {
       command::to_json,
       flow::flow,
       apply::apply,
-      cat::concat,
+      cat::cat_csv,
+      cat::cat_excel,
       convert::excel_to_csv::map_excel_sheets,
       #[cfg(target_os = "windows")]
       convert::perform::access2csv,

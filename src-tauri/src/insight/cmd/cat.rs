@@ -1,10 +1,14 @@
-use std::{fs::File, io::BufWriter, time::Instant};
+use std::{collections::{HashMap, HashSet}, fs::File, io::BufWriter, path::Path, time::Instant};
 
 use anyhow::{Result, anyhow};
 use csv::{ByteRecord, ReaderBuilder, WriterBuilder};
 use indexmap::IndexSet;
 
-use crate::{io::csv::options::CsvOptions, utils::WTR_BUFFER_SIZE};
+use crate::{
+  cmd::convert::excel_to_csv::{self, get_sheetname_by_filename},
+  io::csv::options::CsvOptions,
+  utils::WTR_BUFFER_SIZE,
+};
 
 pub async fn cat_with_csv(
   path: String,
@@ -92,20 +96,142 @@ pub async fn cat_with_csv(
   Ok(wtr.flush()?)
 }
 
+fn sanitize_name(s: &str) -> String {
+  s.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0'], "_")
+    .replace(|c: char| c.is_control(), "_")
+    .chars()
+    .take(50)
+    .collect::<String>()
+    .trim_matches(|c| c == '.' || c == ' ')
+    .to_string()
+}
+
+pub async fn cat_with_excel(
+  path: String,
+  output_path: String,
+  skiprows: usize,
+  quoting: bool,
+  sheet_mapping: Vec<HashMap<String, String>>,
+  all_sheets: bool,
+) -> Result<()> {
+  let temp_dir = tempfile::TempDir::new()?;
+  let mut csv_paths = Vec::new();
+  let paths: Vec<&str> = path.split('|').filter(|s| !s.is_empty()).collect();
+
+  for (file_idx, &file_path) in paths.iter().enumerate() {
+    let filename = Path::new(file_path)
+      .file_name()
+      .and_then(|n| n.to_str())
+      .unwrap_or("");
+
+    let base_name = Path::new(file_path)
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or("unknown");
+    let clean_base = sanitize_name(base_name);
+
+    if all_sheets {
+      let sheet_names: HashSet<String> = excel_to_csv::get_all_sheetnames(file_path).await;
+      let sheet_vec: Vec<String> = sheet_names.into_iter().collect();
+
+      if sheet_vec.is_empty() {
+        eprintln!("Warning: No sheets found in {}", file_path);
+        continue;
+      }
+
+      for (sheet_idx, sheet_name) in sheet_vec.iter().enumerate() {
+        let clean_sheet = sanitize_name(sheet_name);
+        let temp_csv = temp_dir.path().join(format!(
+          "{}_{}_{}_{}.csv",
+          clean_base, clean_sheet, file_idx, sheet_idx
+        ));
+
+        excel_to_csv::excel_to_csv(
+          file_path,
+          skiprows,
+          Some(sheet_name.as_str().to_string()),
+          &temp_csv,
+          1,
+        )
+        .await?;
+
+        csv_paths.push(temp_csv);
+      }
+    } else {
+      // === 使用你已有的 get_sheetname_by_filename ===
+      let sheet_name = get_sheetname_by_filename(&sheet_mapping, filename);
+
+      let clean_sheet = sheet_name
+        .as_ref()
+        .map(|s| sanitize_name(s))
+        .unwrap_or_else(|| "default".to_string());
+
+      let temp_csv = temp_dir
+        .path()
+        .join(format!("{}_{}_{}.csv", clean_base, clean_sheet, file_idx));
+
+      excel_to_csv::excel_to_csv(file_path, skiprows, sheet_name, &temp_csv, 1).await?;
+
+      csv_paths.push(temp_csv);
+    }
+  }
+
+  if csv_paths.is_empty() {
+    return Err(anyhow::anyhow!("No CSV files generated from Excel inputs"));
+  }
+
+  let csv_path_str = csv_paths
+    .iter()
+    .map(|p| p.to_str().unwrap())
+    .collect::<Vec<_>>()
+    .join("|");
+
+  // excel_to_csv已处理skiprows
+  cat_with_csv(csv_path_str, output_path, quoting, 0).await?;
+
+  Ok(())
+}
+
 #[tauri::command]
-pub async fn concat(
+pub async fn cat_csv(
   path: String,
   output_path: String,
   quoting: bool,
   skiprows: usize,
 ) -> Result<String, String> {
   let start_time = Instant::now();
-
   match cat_with_csv(path, output_path, quoting, skiprows).await {
     Ok(()) => {
-      let end_time = Instant::now();
-      let elapsed_time = end_time.duration_since(start_time).as_secs_f64();
-      Ok(format!("{elapsed_time:.0}"))
+      let elapsed = Instant::now().duration_since(start_time).as_secs_f64();
+      Ok(format!("{elapsed:.0}"))
+    }
+    Err(err) => Err(format!("{err}")),
+  }
+}
+
+#[tauri::command]
+pub async fn cat_excel(
+  path: String,
+  output_path: String,
+  quoting: bool,
+  skiprows: usize,
+  sheet_mapping: Vec<HashMap<String, String>>,
+  all_sheets: bool,
+) -> Result<String, String> {
+  let start_time = Instant::now();
+  match cat_with_excel(
+    path,
+    output_path,
+    skiprows,
+    quoting,
+    sheet_mapping,
+    all_sheets,
+  )
+  .await
+  {
+    Ok(()) => {
+      let elapsed = Instant::now().duration_since(start_time).as_secs_f64();
+      Ok(format!("{elapsed:.0}"))
     }
     Err(err) => Err(format!("{err}")),
   }
