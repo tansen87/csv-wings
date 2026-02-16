@@ -22,7 +22,7 @@ function navigateToCommand(route) {
 
 <template>
   <div>
-    <el-input
+    <SiliconeInput
       placeholder="Search for command..."
       v-model="searchText"
       class="search-input"
@@ -37,19 +37,17 @@ function navigateToCommand(route) {
         v-for="(item, index) in filteredCommands"
         :key="index"
       >
-        <el-card
+        <SiliconeCard
           class="box-card"
           shadow="hover"
           @click="navigateToCommand(item.route)"
         >
-          <div class="card-content">
-            <div class="header-row">
-              <Icon :icon="item.icon" width="20" height="20" />
-              <span class="title-color">{{ item.title }}</span>
-            </div>
-            <p class="description-color">{{ item.description }}</p>
+          <div class="header-row">
+            <Icon :icon="item.icon" width="20" height="20" />
+            <span class="title">{{ item.title }}</span>
           </div>
-        </el-card>
+          <p class="description">{{ item.description }}</p>
+        </SiliconeCard>
       </el-col>
     </el-row>
   </div>
@@ -64,22 +62,16 @@ function navigateToCommand(route) {
   top: 0;
   z-index: 500;
   padding: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .box-card {
   margin-bottom: 16px;
 }
-.title-color {
+.title {
   font-weight: bold;
   font-size: 30px;
 }
-.description-color {
+.description {
   font-size: 15px;
-}
-.card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 .header-row {
   display: flex;
