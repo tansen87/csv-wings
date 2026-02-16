@@ -36,6 +36,18 @@ app.component("IconifyIconOffline", IconifyIconOffline);
 app.component("IconifyIconOnline", IconifyIconOnline);
 app.component("FontIcon", FontIcon);
 
+// 全局注册自定义组件样式
+import SiliconeButton from "@/layout/silicone/siliconeButton.vue";
+import SiliconeSelect from "@/layout/silicone/siliconeSelect.vue";
+import SiliconeInput from "@/layout/silicone/siliconeInput.vue";
+import SiliconeProgress from "@/layout/silicone/siliconeProgress.vue";
+import SiliconeTable from "@/layout/silicone/siliconeTable.vue";
+app.component("SiliconeButton", SiliconeButton);
+app.component("SiliconeSelect", SiliconeSelect);
+app.component("SiliconeInput", SiliconeInput);
+app.component("SiliconeProgress", SiliconeProgress);
+app.component("SiliconeTable", SiliconeTable);
+
 // 全局注册按钮级别权限组件
 import { Auth } from "@/components/ReAuth";
 app.component("Auth", Auth);

@@ -7,7 +7,8 @@ import {
   Files,
   FolderOpened,
   SwitchButton,
-  CloseBold
+  CloseBold,
+  Plus
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import { useDynamicHeight } from "@/utils/utils";
@@ -20,6 +21,7 @@ import {
   useSkiprows,
   useThreads
 } from "@/store/modules/options";
+import SiliconeSelect from "@/layout/silicone/siliconeSelect.vue";
 
 interface ColumnConfig {
   column: string;
@@ -35,7 +37,7 @@ const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
 const [dialog, isLoading] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(106);
 const { mdShow } = useMarkdown(mdSearch);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
@@ -142,26 +144,34 @@ async function searchData() {
     <el-splitter>
       <el-splitter-panel size="320" :resizable="false">
         <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
-            Open File
-          </el-button>
-
-          <el-button @click="addColumn()" class="mt-2 ml-2 mr-2" size="small">
-            + Add Filter
-          </el-button>
+          <div class="flex justify-center">
+            <SiliconeButton
+              @click="selectFile()"
+              :icon="FolderOpened"
+              style="width: 145px"
+              text
+            >
+              Open File
+            </SiliconeButton>
+            <SiliconeButton
+              @click="addColumn()"
+              :icon="Plus"
+              style="width: 145px"
+              text
+            >
+              Add Filter
+            </SiliconeButton>
+          </div>
 
           <div
             v-for="(cfg, index) in columnConfigs"
             :key="index"
             class="mt-2 ml-2 mr-2 p-2 border rounded"
+            style="border-color: rgba(0, 0, 0, 0.1)"
           >
-            <div class="flex justify-between items-center mb-2">
-              <el-text v-if="cfg.column" type="primary" class="font-medium">
-                {{ cfg.column }}
-              </el-text>
-              <el-text v-else class="text-gray-400">No column selected</el-text>
-
-              <el-button
+            <div class="flex items-center mb-2">
+              <SiliconeButton
+                class="ml-auto mr-auto"
                 @click="removeColumn(index)"
                 size="small"
                 circle
@@ -169,11 +179,11 @@ async function searchData() {
                 type="danger"
               >
                 <el-icon><CloseBold /></el-icon>
-              </el-button>
+              </SiliconeButton>
             </div>
 
             <div class="flex gap-2 mb-2">
-              <el-select
+              <SiliconeSelect
                 v-model="cfg.column"
                 filterable
                 placeholder="Select column"
@@ -185,9 +195,9 @@ async function searchData() {
                   :label="item.label"
                   :value="item.value"
                 />
-              </el-select>
+              </SiliconeSelect>
 
-              <el-select
+              <SiliconeSelect
                 v-model="cfg.mode"
                 filterable
                 placeholder="Mode"
@@ -209,30 +219,28 @@ async function searchData() {
                 <el-option label="lt(<)" value="lt" />
                 <el-option label="le(≤)" value="le" />
                 <el-option label="between" value="between" />
-              </el-select>
+              </SiliconeSelect>
             </div>
 
-            <el-input
+            <SiliconeInput
               v-model="cfg.condition"
               placeholder="Condition (use | for multiple values, e.g. tom|jerry)"
               class="mb-2"
               type="textarea"
-              :autosize="{ minRows: 2, maxRows: 2 }"
-              resize="none"
             />
 
-            <el-select
+            <SiliconeSelect
               v-if="index < columnConfigs.length - 1"
               v-model="logics[index]"
               placeholder="logic"
             >
               <el-option label="AND" value="and" />
               <el-option label="OR" value="or" />
-            </el-select>
+            </SiliconeSelect>
           </div>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
@@ -246,21 +254,22 @@ async function searchData() {
 
       <el-splitter-panel>
         <div class="flex justify-between items-center">
-          <el-button
+          <SiliconeButton
             @click="searchData()"
             :loading="isLoading"
             :icon="SwitchButton"
+            style="width: 120px"
+            class="ml-2 mb-2"
             text
-            round
           >
             Run
-          </el-button>
+          </SiliconeButton>
           <el-text v-if="matchRows" style="margin-right: 8px">
             match rows: {{ matchRows }}
           </el-text>
         </div>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -272,7 +281,7 @@ async function searchData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
         <el-text>
           <el-icon class="ml-2"><Files /></el-icon>
