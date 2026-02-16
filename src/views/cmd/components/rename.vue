@@ -19,12 +19,12 @@ const tableData = ref([]);
 const [search, path] = [ref(""), ref("")];
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [dialog, isLoading] = [ref(false), ref(false)];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdRename);
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
 const filterTableData = computed(() =>
   tableData.value.filter(
     (data: any) =>
@@ -54,7 +54,7 @@ async function selectFile() {
   try {
     const headers: string[] = await invoke("from_headers", {
       path: path.value,
-      skiprows: skiprowsStore.skiprows
+      skiprows: skiprows.skiprows
     });
     for (let i = 0; i < headers.length; i++) {
       const colData = {
@@ -82,10 +82,10 @@ async function renameData() {
     const rtime: string = await invoke("rename", {
       path: path.value,
       headers: headersString,
-      progress: progressStore.progress,
-      quoting: quotingStore.quoting,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible
+      progress: progress.progress,
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible
     });
     message(`Rename done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -103,35 +103,35 @@ async function headerEdit(row: any) {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Rename</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Rename</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="renameData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="filterTableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -140,28 +140,29 @@ async function headerEdit(row: any) {
           <el-table-column prop="col1" label="headers" />
           <el-table-column prop="col2" label="new headers">
             <template #default="{ row }">
-              <el-input
+              <SiliconeInput
                 v-model="row.col2"
                 placeholder="new header"
                 @blur="headerEdit(row)"
+                class="mb-[1px]"
               />
             </template>
           </el-table-column>
           <el-table-column>
             <template #header>
-              <el-input
+              <SiliconeInput
                 v-model="search"
                 size="small"
                 placeholder="Type to search headers"
+                class="mb-[1px]"
               />
             </template>
           </el-table-column>
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

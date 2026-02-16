@@ -25,13 +25,13 @@ const [currentRows, totalRows] = [ref(0), ref(0)];
 const [columns, path] = [ref(""), ref("")];
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdPinyin);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -50,10 +50,10 @@ async function selectFile() {
   totalRows.value = 0;
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -79,11 +79,11 @@ async function chineseToPinyin() {
     const rtime: string = await invoke("pinyin", {
       path: path.value,
       columns: cols,
-      progress: progressStore.progress,
+      progress: progress.progress,
       pinyinStyle: pinyinStyle.value,
-      quoting: quotingStore.quoting,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible
     });
     message(`Convert done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -97,13 +97,13 @@ async function chineseToPinyin() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
           <el-tooltip content="pinyin style" effect="light" placement="right">
-            <div class="mode-toggle mt-2 w-40">
+            <div class="mode-toggle mt-2 mb-2">
               <span
                 v-for="item in pyOptions"
                 :key="item.value"
@@ -119,13 +119,11 @@ async function chineseToPinyin() {
             </div>
           </el-tooltip>
 
-          <el-select
+          <SiliconeSelect
             v-model="columns"
             multiple
             filterable
             placeholder="Select columns"
-            class="mt-2 ml-2"
-            style="width: 160px"
           >
             <el-option
               v-for="item in tableHeader"
@@ -133,32 +131,32 @@ async function chineseToPinyin() {
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Pinyin</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Pinyin</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="chineseToPinyin()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -170,14 +168,11 @@ async function chineseToPinyin() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2">
-            <Files />
-          </el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

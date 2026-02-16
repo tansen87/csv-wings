@@ -19,12 +19,12 @@ const path = ref("");
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [dialog, isLoading] = [ref(false), ref(false)];
 const [tableColumn, tableData] = [ref([]), ref([])];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdEnumer);
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -45,7 +45,7 @@ async function selectFile() {
   try {
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -65,10 +65,10 @@ async function enumerate() {
     isLoading.value = true;
     const rtime: string = await invoke("enumer", {
       path: path.value,
-      progress: progressStore.progress,
-      quoting: quotingStore.quoting,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible
+      progress: progress.progress,
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible
     });
     message(`Enumerate done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -82,35 +82,35 @@ async function enumerate() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Enumerate</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Enumerate</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="enumerate()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -122,14 +122,11 @@ async function enumerate() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2">
-            <Files />
-          </el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

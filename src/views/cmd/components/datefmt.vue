@@ -100,7 +100,7 @@ const dateFormats = [
 // 输出格式
 const outputDateFormats = dateFormats.filter(fmt => fmt.value !== "");
 
-const { dynamicHeight } = useDynamicHeight(106);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdFill);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
@@ -208,18 +208,17 @@ async function convertDates() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="300" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <el-select
+          <SiliconeSelect
             v-model="columns"
             multiple
             filterable
             placeholder="Select date columns"
-            class="mt-2 ml-2"
-            style="width: 280px"
+            class="mt-2"
           >
             <el-option
               v-for="item in tableHeader"
@@ -227,7 +226,7 @@ async function convertDates() {
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
           <div v-for="col in columns" :key="col" class="mt-2 ml-2 mr-2">
             <el-tooltip
@@ -240,7 +239,7 @@ async function convertDates() {
                   <span class="text-[10px] text-blue-500 font-medium mb-1">
                     IN
                   </span>
-                  <el-select
+                  <SiliconeSelect
                     v-model="inputFormats[col]"
                     filterable
                     placeholder="Auto"
@@ -252,60 +251,55 @@ async function convertDates() {
                       :label="fmt.label"
                       :value="fmt.value"
                     />
-                  </el-select>
+                  </SiliconeSelect>
                 </div>
 
                 <div class="flex flex-col items-start">
                   <span class="text-[10px] text-green-600 font-medium mb-1">
                     OUT
                   </span>
-                  <el-select
-                    v-model="outputFormats[col]"
-                    filterable
-                    style="width: 135px"
-                  >
+                  <SiliconeSelect v-model="outputFormats[col]" filterable>
                     <el-option
                       v-for="fmt in outputDateFormats"
                       :key="fmt.value"
                       :label="fmt.label"
                       :value="fmt.value"
                     />
-                  </el-select>
+                  </SiliconeSelect>
                 </div>
               </div>
             </el-tooltip>
           </div>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows > 0"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Date Format</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Date Format</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="convertDates()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
         >
           Convert Dates
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
           tooltip-effect="light"
-          class="mt-2"
         >
           <el-table-column
             v-for="column in tableColumn"
@@ -313,12 +307,11 @@ async function convertDates() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text class="mt-2">
-          <el-icon><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

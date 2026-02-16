@@ -14,7 +14,7 @@ const isPath = ref(false);
 const [tableColumn, tableData] = [ref([]), ref([])];
 const headerStore = useHeaders();
 const pathStore = usePath();
-const skiprowsStore = useSkiprows();
+const skiprows = useSkiprows();
 
 const props = defineProps<{ id: string }>();
 
@@ -32,11 +32,11 @@ async function selectFile() {
   pathStore.path = path.value;
   isPath.value = true;
   try {
-    const headers: any = await mapHeaders(path.value, skiprowsStore.skiprows);
+    const headers: any = await mapHeaders(path.value, skiprows.skiprows);
     headerStore.headers = headers;
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -48,26 +48,27 @@ async function selectFile() {
 
 <template>
   <div class="page-container node-container w-[400px]">
-    <div class="text-center p-[5px]">
-      <el-button
-        circle
-        link
-        @click="deleteBtn"
-        :icon="CloseBold"
-        size="small"
-        class="absolute top-[-2.5px] right-[-2.5px] z-10"
-      />
-      <span class="block font-bold"> Start </span>
-      <el-button @click="selectFile()" :icon="FolderOpened">
+    <div class="flex justify-between items-center mb-1 w-full">
+      <span class="font-bold"> Start </span>
+      <SiliconeButton
+        @click="selectFile()"
+        :icon="FolderOpened"
+        text
+        class="mb-1"
+      >
         <span v-if="isPath">
           <el-tooltip :content="path" effect="light">
             <span>{{ shortFileName(path) }}</span>
           </el-tooltip>
         </span>
         <span v-else>Open File</span>
-      </el-button>
+      </SiliconeButton>
+      <SiliconeButton circle text @click="deleteBtn" size="small">
+        <el-icon><CloseBold /></el-icon>
+      </SiliconeButton>
     </div>
-    <el-table
+
+    <SiliconeTable
       :data="tableData"
       show-overflow-tooltip
       tooltip-effect="light"
@@ -79,7 +80,7 @@ async function selectFile() {
         :label="column.label"
         :key="column.prop"
       />
-    </el-table>
+    </SiliconeTable>
     <Handle
       type="source"
       :position="Position.Right"

@@ -11,11 +11,11 @@ import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 const path = ref("");
 const [tableColumn, tableData] = [ref([]), ref([])];
 const [isLoading, dialog] = [ref(false), ref(false)];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdReverse);
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const flexible = useFlexible();
 
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
@@ -27,7 +27,7 @@ async function selectFile() {
   try {
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -47,9 +47,9 @@ async function reverseData() {
     isLoading.value = true;
     const rtime: string = await invoke("reverse", {
       path: path.value,
-      quoting: quotingStore.quoting,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible
     });
     message(`Reverse done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -63,28 +63,28 @@ async function reverseData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span class="link-text">Reverse</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Reverse</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="reverseData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -96,12 +96,11 @@ async function reverseData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

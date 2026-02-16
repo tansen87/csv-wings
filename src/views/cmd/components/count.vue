@@ -26,10 +26,10 @@ const modeOptions = [
 const path = ref("");
 const [dialog, isLoading] = [ref(false), ref(false)];
 const fileSelect = ref([]);
-const { dynamicHeight } = useDynamicHeight(74);
+const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdCount);
 const { isDark } = useDark();
-const skiprowsStore = useSkiprows();
+const skiprows = useSkiprows();
 
 listen("info", (event: Event<string>) => {
   const filename = event.payload;
@@ -87,7 +87,7 @@ async function countData() {
     const rtime: string = await invoke("count", {
       path: path.value,
       mode: mode.value,
-      skiprows: skiprowsStore.skiprows
+      skiprows: skiprows.skiprows
     });
     message(`${mode.value} done, elapsed time: ${rtime} s`, {
       type: "success"
@@ -103,12 +103,12 @@ async function countData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="200" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File(s)
-          </el-button>
+          </SiliconeButton>
 
-          <div class="mode-toggle w-[180px]">
+          <div class="mode-toggle mt-2">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -123,24 +123,24 @@ async function countData() {
             </span>
           </div>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span class="link-text">Count</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Count</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="countData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="mb-2 ml-1"
         >
           Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -171,7 +171,7 @@ async function countData() {
               </span>
             </template>
           </el-table-column>
-        </el-table>
+        </SiliconeTable>
       </el-splitter-panel>
     </el-splitter>
 

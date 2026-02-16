@@ -31,13 +31,13 @@ const [isLoading, dialog, checkAll, indeterminate] = [
   ref(false),
   ref(false)
 ];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSelect);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
 const selColumns = ref<CheckboxValueType[]>([]);
 
 watch(selColumns, val => {
@@ -79,13 +79,10 @@ async function selectFile() {
   }
 
   try {
-    originalColumns.value = await mapHeaders(
-      path.value,
-      skiprowsStore.skiprows
-    );
+    originalColumns.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -112,10 +109,10 @@ async function selectColumns() {
       path: path.value,
       selCols: selCols,
       selMode: selMode.value,
-      progress: progressStore.progress,
-      quoting: quotingStore.quoting,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible
+      progress: progress.progress,
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible
     });
     message(`Select done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -129,12 +126,12 @@ async function selectColumns() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="220" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <div class="mode-toggle w-[200px]">
+          <div class="mode-toggle mt-2">
             <span
               v-for="item in selModeOptions"
               :key="item.value"
@@ -149,13 +146,12 @@ async function selectColumns() {
             </span>
           </div>
 
-          <el-select
+          <SiliconeSelect
             v-model="selColumns"
             multiple
             filterable
             placeholder="Select columns"
-            class="mt-2 ml-2"
-            style="width: 200px"
+            class="mt-2"
           >
             <template #header>
               <el-checkbox
@@ -172,32 +168,32 @@ async function selectColumns() {
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Select</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Select</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="selectColumns()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -209,14 +205,12 @@ async function selectColumns() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2">
-            <Files />
-          </el-icon>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>
           {{ path }}
-        </el-text>
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

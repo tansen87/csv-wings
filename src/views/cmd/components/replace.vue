@@ -25,13 +25,13 @@ const [column, path, regexPattern, replacement] = [
   ref(""),
   ref("")
 ];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdReplace);
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
-const threadsStore = useThreads();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
+const threads = useThreads();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -50,10 +50,10 @@ async function selectFile() {
   totalRows.value = 0;
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -72,7 +72,7 @@ async function replaceData() {
     message("Column not selected", { type: "warning" });
     return;
   }
-  if (skiprowsStore.skiprows > 0 && threadsStore.threads !== 1) {
+  if (skiprows.skiprows > 0 && threads.threads !== 1) {
     message("threads only support skiprows = 0", { type: "warning" });
     return;
   }
@@ -84,11 +84,11 @@ async function replaceData() {
       column: column.value,
       regexPattern: regexPattern.value,
       replacement: replacement.value,
-      quoting: quotingStore.quoting,
-      progress: progressStore.progress,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible,
-      threads: threadsStore.threads
+      quoting: quoting.quoting,
+      progress: progress.progress,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible,
+      threads: threads.threads
     });
     matchRows.value = Number(res[0]);
     message(`Replaced ${res[0]} rows, elapsed time: ${res[1]} s`, {
@@ -105,34 +105,38 @@ async function replaceData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <div class="ml-2 w-40 space-y-2">
-            <el-select v-model="column" filterable placeholder="Select column">
+          <div class="mt-2 space-y-2">
+            <SiliconeSelect
+              v-model="column"
+              filterable
+              placeholder="Select column"
+            >
               <el-option
                 v-for="item in tableHeader"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
               />
-            </el-select>
+            </SiliconeSelect>
 
-            <el-input v-model="regexPattern" placeholder="regex pattern" />
+            <SiliconeInput v-model="regexPattern" placeholder="regex pattern" />
 
-            <el-input v-model="replacement" placeholder="replacement" />
+            <SiliconeInput v-model="replacement" placeholder="replacement" />
           </div>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Replace</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Replace</SiliconeText>
             </el-link>
           </div>
         </div>
@@ -140,21 +144,21 @@ async function replaceData() {
 
       <el-splitter-panel>
         <div class="flex justify-between items-center">
-          <el-button
+          <SiliconeButton
             @click="replaceData()"
             :loading="isLoading"
             :icon="SwitchButton"
             text
-            round
+            class="ml-1 mb-2"
             >Run
-          </el-button>
+          </SiliconeButton>
 
           <el-text v-if="matchRows" style="margin-right: 8px">
             replaced rows: {{ matchRows }}
           </el-text>
         </div>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -166,12 +170,11 @@ async function replaceData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

@@ -24,13 +24,13 @@ const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
 const [column, path, condition] = [ref(""), ref(""), ref("")];
 const [dialog, isLoading] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSearch);
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
-const threadsStore = useThreads();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
+const threads = useThreads();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -49,10 +49,10 @@ async function selectFile() {
   totalRows.value = 0;
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -72,8 +72,8 @@ async function searchData() {
     return;
   }
   if (
-    skiprowsStore.skiprows > 0 &&
-    threadsStore.threads !== 1 &&
+    skiprows.skiprows > 0 &&
+    threads.threads !== 1 &&
     mode.value !== "irregular_regex"
   ) {
     message("threads only support skiprows = 0", { type: "warning" });
@@ -87,11 +87,11 @@ async function searchData() {
       column: column.value,
       mode: mode.value,
       condition: condition.value,
-      progress: progressStore.progress,
-      quoting: quotingStore.quoting,
-      flexible: flexibleStore.flexible,
-      skiprows: skiprowsStore.skiprows,
-      threads: threadsStore.threads
+      progress: progress.progress,
+      quoting: quoting.quoting,
+      flexible: flexible.flexible,
+      skiprows: skiprows.skiprows,
+      threads: threads.threads
     });
     matchRows.value = Number(res[0]);
     message(`Match ${res[0]} rows, elapsed time: ${res[1]} s`, {
@@ -108,17 +108,16 @@ async function searchData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="260" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <el-select
+          <SiliconeSelect
             v-model="column"
             filterable
             placeholder="Select column"
-            class="mt-2 ml-2"
-            style="width: 240px"
+            class="mt-2"
           >
             <el-option
               v-for="item in tableHeader"
@@ -126,15 +125,10 @@ async function searchData() {
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
           <el-tooltip content="Search mode" effect="light" placement="right">
-            <el-select
-              v-model="mode"
-              filterable
-              class="mt-2 ml-2"
-              style="width: 240px"
-            >
+            <SiliconeSelect v-model="mode" filterable class="mt-2">
               <el-option label="equal" value="equal" />
               <el-option label="equal_multi" value="equal_multi" />
               <el-option label="not_equal" value="not_equal" />
@@ -156,28 +150,25 @@ async function searchData() {
               <el-option label="le(≤)" value="le" />
               <el-option label="between" value="between" />
               <el-option label="irregular_regex" value="irregular_regex" />
-            </el-select>
+            </SiliconeSelect>
           </el-tooltip>
 
-          <el-input
+          <SiliconeInput
             v-model="condition"
             :autosize="{ minRows: 12, maxRows: 12 }"
             type="textarea"
             :placeholder="placeholderText"
-            class="mt-2 ml-2"
-            style="width: 240px"
-            resize="none"
+            class="mt-2"
           />
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
-              class="mb-2 ml-2"
+              class="mb-2 ml-1"
             />
-
-            <el-link @click="dialog = true">
-              <span class="link-text">Search</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Search</SiliconeText>
             </el-link>
           </div>
         </div>
@@ -185,21 +176,21 @@ async function searchData() {
 
       <el-splitter-panel>
         <div class="flex justify-between items-center">
-          <el-button
+          <SiliconeButton
             @click="searchData()"
             :loading="isLoading"
             :icon="SwitchButton"
             text
-            round
+            class="ml-1 mb-2"
             >Run
-          </el-button>
+          </SiliconeButton>
 
-          <el-text v-if="matchRows" style="margin-right: 8px">
+          <SiliconeText v-if="matchRows" style="margin-right: 4px">
             match rows: {{ matchRows }}
-          </el-text>
+          </SiliconeText>
         </div>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -211,12 +202,11 @@ async function searchData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

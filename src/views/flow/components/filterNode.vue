@@ -54,56 +54,52 @@ function deleteBtn() {
         id="input"
         class="handle-style"
       />
-      <div class="text-center p-[5px]">
-        <el-button
-          circle
-          link
-          @click="deleteBtn"
-          :icon="CloseBold"
-          size="small"
-          class="absolute top-[-2.5px] right-[-2.5px] z-10"
-        />
-        <span class="block font-bold"> Filter </span>
-        <el-select
-          v-model="columns"
-          filterable
-          placeholder="Select column"
-          style="margin-bottom: 6px"
-        >
-          <el-option
-            v-for="item in headerStore.headers"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
-        <el-select v-model="mode" filterable style="margin-bottom: 6px">
-          <el-option label="Equal" value="equal" />
-          <el-option label="NotEqual" value="not_equal" />
-          <el-option label="Contains" value="contains" />
-          <el-option label="NotContains" value="not_contains" />
-          <el-option label="StartsWith" value="starts_with" />
-          <el-option label="NotStartsWith" value="not_starts_with" />
-          <el-option label="EndsWith" value="ends_with" />
-          <el-option label="NotEndsWith" value="not_ends_with" />
-          <el-option label="IsNull" value="is_null" />
-          <el-option label="IsNotNull" value="is_not_null" />
-          <el-option label="gt(>)" value="gt" />
-          <el-option label="ge(≥)" value="ge" />
-          <el-option label="lt(<)" value="lt" />
-          <el-option label="le(≤)" value="le" />
-          <el-option label="Between" value="between" />
-        </el-select>
-        <el-input
-          v-if="mode !== 'is_null' && mode !== 'is_not_null'"
-          v-model="condition"
-          placeholder="Filter conditions"
-        />
-        <el-select v-model="logic" style="margin-top: 6px">
-          <el-option label="OR" value="or" />
-          <el-option label="AND" value="and" />
-        </el-select>
+      <div class="flex justify-between items-center mb-1 w-full">
+        <span class="font-bold"> Filter </span>
+        <SiliconeButton circle text @click="deleteBtn" size="small">
+          <el-icon><CloseBold /></el-icon>
+        </SiliconeButton>
       </div>
+      <SiliconeSelect
+        v-model="columns"
+        filterable
+        placeholder="Select column"
+        style="margin-bottom: 6px"
+      >
+        <el-option
+          v-for="item in headerStore.headers"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </SiliconeSelect>
+      <SiliconeSelect v-model="mode" filterable style="margin-bottom: 6px">
+        <el-option label="Equal" value="equal" />
+        <el-option label="NotEqual" value="not_equal" />
+        <el-option label="Contains" value="contains" />
+        <el-option label="NotContains" value="not_contains" />
+        <el-option label="StartsWith" value="starts_with" />
+        <el-option label="NotStartsWith" value="not_starts_with" />
+        <el-option label="EndsWith" value="ends_with" />
+        <el-option label="NotEndsWith" value="not_ends_with" />
+        <el-option label="IsNull" value="is_null" />
+        <el-option label="IsNotNull" value="is_not_null" />
+        <el-option label="gt(>)" value="gt" />
+        <el-option label="ge(≥)" value="ge" />
+        <el-option label="lt(<)" value="lt" />
+        <el-option label="le(≤)" value="le" />
+        <el-option label="Between" value="between" />
+      </SiliconeSelect>
+      <SiliconeInput
+        v-if="mode !== 'is_null' && mode !== 'is_not_null'"
+        v-model="condition"
+        placeholder="Filter conditions"
+      />
+      <SiliconeSelect v-model="logic" style="margin-top: 6px">
+        <el-option label="OR" value="or" />
+        <el-option label="AND" value="and" />
+      </SiliconeSelect>
+
       <Handle
         type="source"
         :position="Position.Right"

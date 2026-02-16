@@ -20,9 +20,9 @@ const path = ref("");
 const fileSelect = ref([]);
 const skipRows = ref("1");
 const [dialog, isLoading] = [ref(false), ref(false)];
-const { dynamicHeight } = useDynamicHeight(74);
+const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdSkip);
-const progressStore = useProgress();
+const progress = useProgress();
 
 listen("update-msg", (event: Event<string>) => {
   const [filename, rows] = event.payload.split("|");
@@ -79,7 +79,7 @@ async function skipLines() {
     const result: string = await invoke("skip", {
       path: path.value,
       skipRows: skipRows.value,
-      progress: progressStore.progress
+      progress: progress.progress
     });
     message(`Skip done, elapsed time: ${result} s`, { type: "success" });
   } catch (err) {
@@ -93,36 +93,32 @@ async function skipLines() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File(s)
-          </el-button>
+          </SiliconeButton>
 
           <el-tooltip content="skip rows" effect="light" placement="right">
-            <el-input
-              v-model="skipRows"
-              class="mt-2 ml-2"
-              style="width: 160px"
-            />
+            <SiliconeInput v-model="skipRows" class="mt-2" />
           </el-tooltip>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span class="link-text">Skip</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Skip</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="skipLines()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -151,7 +147,7 @@ async function skipLines() {
               <span v-if="scope.row.status === 'error'">
                 {{ scope.row.message }}
               </span>
-              <el-progress
+              <SiliconeProgress
                 v-if="
                   scope.row.totalRows !== 0 &&
                   isFinite(scope.row.currentRows / scope.row.totalRows)
@@ -164,7 +160,7 @@ async function skipLines() {
               />
             </template>
           </el-table-column>
-        </el-table>
+        </SiliconeTable>
       </el-splitter-panel>
     </el-splitter>
 

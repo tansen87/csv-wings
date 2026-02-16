@@ -6,7 +6,6 @@ import {
   CirclePlus,
   Remove,
   Files,
-  Check,
   SwitchButton
 } from "@element-plus/icons-vue";
 import { useDark } from "@pureadmin/utils";
@@ -52,7 +51,7 @@ const modeOptions = [
 const placeholderText = ref("format str... \nExample: {col1} + {col2}");
 const columnContent = ref("no column");
 const columns = ref<CheckboxValueType[]>([]);
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { isDark } = useDark();
 watch(columns, val => {
   if (val.length === 0) {
@@ -74,10 +73,10 @@ const handleCheckAll = (val: CheckboxValueType) => {
   }
 };
 const { mdShow } = useMarkdown(mdApply);
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const flexibleStore = useFlexible();
-const threadsStore = useThreads();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const flexible = useFlexible();
+const threads = useThreads();
 
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
@@ -90,10 +89,10 @@ async function selectFile() {
   backendInfo.value = "";
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -134,10 +133,10 @@ async function applyData() {
       replacement: replacement.value,
       formatstr: formatstr.value,
       newColumn: newColumn.value,
-      quoting: quotingStore.quoting,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible,
-      threads: threadsStore.threads
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible,
+      threads: threads.threads
     });
     backendCompleted.value = true;
     backendInfo.value = `Apply done, elapsed time: ${result} s`;
@@ -170,17 +169,22 @@ watch(mode, newMode => {
 <template>
   <el-form class="page-container">
     <el-splitter>
-      <el-splitter-panel size="260" :resizable="false">
-        <div class="splitter-container">
-          <div>
-            <el-button @click="selectFile()" :icon="FolderOpened" text round>
+      <el-splitter-panel size="280" :resizable="false">
+        <div class="splitter-container mr-1">
+          <div class="mb-2">
+            <SiliconeButton
+              @click="selectFile()"
+              :icon="FolderOpened"
+              text
+              style="width: 132px"
+            >
               Open File
-            </el-button>
+            </SiliconeButton>
 
-            <el-button
+            <SiliconeButton
               @click="addNewColumn"
               text
-              round
+              style="width: 130px"
               :disabled="mode === 'cat' || mode === 'calcconv'"
             >
               <el-icon>
@@ -188,10 +192,10 @@ watch(mode, newMode => {
                 <Remove v-else />
               </el-icon>
               {{ columnContent }}
-            </el-button>
+            </SiliconeButton>
           </div>
 
-          <div class="mode-toggle w-60">
+          <div class="mode-toggle">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -206,8 +210,8 @@ watch(mode, newMode => {
             </span>
           </div>
 
-          <div class="mt-2 ml-2 w-60 space-y-2">
-            <el-select
+          <div class="mt-2 space-y-2">
+            <SiliconeSelect
               v-if="mode === 'operations'"
               v-model="columns"
               filterable
@@ -229,9 +233,9 @@ watch(mode, newMode => {
                 :label="item.label"
                 :value="item.value"
               />
-            </el-select>
+            </SiliconeSelect>
 
-            <el-select
+            <SiliconeSelect
               v-if="mode === 'operations'"
               v-model="operations"
               filterable
@@ -253,7 +257,7 @@ watch(mode, newMode => {
               <el-option label="Abs" value="abs" />
               <el-option label="Neg" value="neg" />
               <el-option label="Normalize" value="normalize" />
-            </el-select>
+            </SiliconeSelect>
 
             <template
               v-if="
@@ -261,50 +265,56 @@ watch(mode, newMode => {
               "
             >
               <el-tooltip content="old" effect="light" placement="right">
-                <el-input v-model="comparand" placeholder="replace - from" />
+                <SiliconeInput
+                  v-model="comparand"
+                  placeholder="replace - from"
+                />
               </el-tooltip>
               <el-tooltip content="new" effect="light" placement="right">
-                <el-input v-model="replacement" placeholder="replace - to" />
+                <SiliconeInput
+                  v-model="replacement"
+                  placeholder="replace - to"
+                />
               </el-tooltip>
             </template>
 
             <template v-if="['cat', 'calcconv'].includes(mode)">
-              <el-input
+              <SiliconeInput
                 v-model="formatstr"
                 :autosize="{ minRows: 8, maxRows: 8 }"
                 type="textarea"
-                style="width: 240px"
                 :placeholder="placeholderText"
               />
             </template>
           </div>
 
-          <el-link @click="dialog = true" class="mt-auto">
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
             <template v-if="backendCompleted">
-              <el-icon><Check /></el-icon>
-              <span>{{ backendInfo }}</span>
+              <SiliconeText class="mb-[1px]">{{ backendInfo }}</SiliconeText>
             </template>
             <template v-else>
-              <span class="link-text">Apply</span>
+              <SiliconeText>Apply</SiliconeText>
             </template>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="applyData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
           round
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
+          tooltip-effect="light"
+          class="mt-2"
         >
           <el-table-column
             v-for="column in tableColumn"
@@ -312,12 +322,11 @@ watch(mode, newMode => {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText truncated :max-lines="1" class="mt-2">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

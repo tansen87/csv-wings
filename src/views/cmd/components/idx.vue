@@ -20,7 +20,7 @@ import { useQuoting, useSkiprows } from "@/store/modules/options";
 const path = ref("");
 const [dialog, isLoading] = [ref(false), ref(false)];
 const fileSelect = ref([]);
-const { dynamicHeight } = useDynamicHeight(74);
+const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdIndex);
 const skiprowsStore = useSkiprows();
 const quotingStore = useQuoting();
@@ -97,29 +97,29 @@ async function createIndex() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="200" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File(s)
-          </el-button>
+          </SiliconeButton>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span class="link-text">Index</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Index</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="createIndex()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
         >
           Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -150,7 +150,7 @@ async function createIndex() {
               </span>
             </template>
           </el-table-column>
-        </el-table>
+        </SiliconeTable>
       </el-splitter-panel>
     </el-splitter>
 

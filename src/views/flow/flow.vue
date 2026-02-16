@@ -15,7 +15,7 @@ import {
   Delete,
   Download,
   Upload,
-  ArrowRight
+  SwitchButton
 } from "@element-plus/icons-vue";
 import SelectNode from "@/views/flow/components/selectNode.vue";
 import FilterNode from "@/views/flow/components/filterNode.vue";
@@ -54,7 +54,7 @@ const filterStore = useFilter();
 const selectStore = useSelect();
 const strStore = useStr();
 const renameStore = useRename();
-const quotingStore = useQuoting();
+const quoting = useQuoting();
 
 const { getNodes, getEdges } = useVueFlow();
 
@@ -172,7 +172,7 @@ async function runWorkflow() {
     const rtime: string = await invoke("flow", {
       path: pathStore.path,
       jsonConfig: jsonConfig,
-      quoting: quotingStore.quoting
+      quoting: quoting.quoting
     });
     isLoading.value = false;
     message(`Flow done, elapsed time: ${rtime} s`, { type: "success" });
@@ -186,8 +186,10 @@ async function runWorkflow() {
 <template>
   <div class="page-container flex flex-col h-[calc(100vh-36px)]">
     <div class="p-2 border-b flex items-center">
-      <el-button @click="createWorkflow" :icon="Plus" text> New </el-button>
-      <el-button
+      <SiliconeButton @click="createWorkflow" :icon="Plus" text>
+        New
+      </SiliconeButton>
+      <SiliconeButton
         v-if="workflowStore.currentId && workflowStore.list.length > 1"
         @click="deleteWorkflow"
         :icon="Delete"
@@ -195,24 +197,24 @@ async function runWorkflow() {
         text
       >
         Delete
-      </el-button>
-      <el-button @click="exportWorkflow" :icon="Download" text>
+      </SiliconeButton>
+      <SiliconeButton @click="exportWorkflow" :icon="Download" text>
         Export
-      </el-button>
-      <el-button @click="importWorkflow" :icon="Upload" text>
+      </SiliconeButton>
+      <SiliconeButton @click="importWorkflow" :icon="Upload" text>
         Import
-      </el-button>
-      <el-button
+      </SiliconeButton>
+      <SiliconeButton
         @click="runWorkflow"
-        :icon="ArrowRight"
+        :icon="SwitchButton"
         type="success"
         text
         :loading="isLoading"
       >
         Run
-      </el-button>
+      </SiliconeButton>
 
-      <el-select
+      <SiliconeSelect
         v-if="workflowStore.list.length > 0"
         v-model="workflowStore.currentId"
         style="width: 120px"
@@ -224,7 +226,7 @@ async function runWorkflow() {
           :label="wf.name"
           :value="wf.id"
         />
-      </el-select>
+      </SiliconeSelect>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -260,16 +262,39 @@ async function runWorkflow() {
 
 <style scoped>
 .draggable-node {
-  padding: 5px;
+  padding: 8px 16px;
   margin-bottom: 10px;
-  border: 1px solid #ccc;
-  cursor: grab;
-  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
   text-align: center;
   user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  background-color: #f0f0f0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
 }
 .draggable-node:hover {
-  background-color: #f0e6e6;
-  transform: scale(1.02);
+  background-color: #e9e9e9;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15), 0 2px 5px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* 暗色模式 */
+.dark .draggable-node {
+  color: #d3d3d3;
+  background-color: #333;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.dark .draggable-node:hover {
+  background-color: #3a3a3a;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.15),
+    0 2px 5px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
 }
 </style>

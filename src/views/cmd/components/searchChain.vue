@@ -37,7 +37,7 @@ const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
 const [dialog, isLoading] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 
-const { dynamicHeight } = useDynamicHeight(106);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSearch);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
@@ -167,7 +167,7 @@ async function searchData() {
             v-for="(cfg, index) in columnConfigs"
             :key="index"
             class="mt-2 ml-2 mr-2 p-2 border rounded"
-            style="border-color: rgba(0, 0, 0, 0.1)"
+            style="border-color: rgba(0, 0, 0, 0.1); border-radius: 12px"
           >
             <div class="flex items-center mb-2">
               <SiliconeButton
@@ -245,8 +245,8 @@ async function searchData() {
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Search Chain</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Search Chain</SiliconeText>
             </el-link>
           </div>
         </div>
@@ -283,10 +283,9 @@ async function searchData() {
           />
         </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

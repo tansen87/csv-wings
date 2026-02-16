@@ -14,7 +14,7 @@ const nrows = ref(20);
 
 const [tableColumn, tableData] = [ref<any[]>([]), ref<any[]>([])];
 const isLoading = ref(false);
-const { dynamicHeight } = useDynamicHeight(66);
+const { dynamicHeight } = useDynamicHeight(80);
 
 async function selectFile() {
   const selected = await viewOpenFile(false, "xlsx", ["xlsx"]);
@@ -96,18 +96,17 @@ watch(nrows, () => {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open xlsx
-          </el-button>
+          </SiliconeButton>
 
-          <div v-if="sheets.length > 0" class="mt-2 ml-2">
-            <el-text class="mb-1">Sheet:</el-text>
-            <el-select
+          <div v-if="sheets.length > 0" class="mt-2">
+            <el-text>Sheet:</el-text>
+            <SiliconeSelect
               v-model="selectedSheet"
               placeholder="Select sheet"
               filterable
-              style="width: 160px"
             >
               <el-option
                 v-for="sheet in sheets"
@@ -115,17 +114,17 @@ watch(nrows, () => {
                 :label="sheet"
                 :value="sheet"
               />
-            </el-select>
+            </SiliconeSelect>
           </div>
 
-          <div v-if="sheets.length > 0" class="mt-2 ml-2">
+          <div v-if="sheets.length > 0" class="mt-2">
             <el-text class="mb-1">Preview Rows:</el-text>
-            <el-input-number
+            <SiliconeInputNumber
               v-model="nrows"
               :min="1"
               :max="1000"
               controls-position="right"
-              style="width: 160px"
+              style="width: 176px"
             />
           </div>
 
@@ -139,7 +138,7 @@ watch(nrows, () => {
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -152,12 +151,11 @@ watch(nrows, () => {
             :prop="column.prop"
             :label="column.label"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
   </el-form>

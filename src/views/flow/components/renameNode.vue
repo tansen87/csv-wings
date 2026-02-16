@@ -47,37 +47,34 @@ function deleteBtn() {
         id="input"
         class="handle-style"
       />
-      <div class="text-center p-[5px]">
-        <el-button
-          circle
-          link
-          @click="deleteBtn"
-          :icon="CloseBold"
-          size="small"
-          class="absolute top-[-2.5px] right-[-2.5px] z-10"
-        />
-        <span class="block font-bold">Rename</span>
 
-        <el-select
-          v-model="old_col"
-          filterable
-          placeholder="Select column"
-          style="margin-bottom: 6px"
-        >
-          <el-option
-            v-for="item in headerStore.headers"
-            :key="item.value"
-            :label="item.label"
-            :value="item.label"
-          />
-        </el-select>
-
-        <el-input
-          v-model="new_col"
-          placeholder="New name"
-          style="width: 100%"
-        />
+      <div class="flex justify-between items-center mb-1 w-full">
+        <span class="font-bold"> Rename </span>
+        <SiliconeButton circle text @click="deleteBtn" size="small">
+          <el-icon><CloseBold /></el-icon>
+        </SiliconeButton>
       </div>
+
+      <SiliconeSelect
+        v-model="old_col"
+        filterable
+        placeholder="Select column"
+        style="margin-bottom: 6px"
+      >
+        <el-option
+          v-for="item in headerStore.headers"
+          :key="item.value"
+          :label="item.label"
+          :value="item.label"
+        />
+      </SiliconeSelect>
+
+      <SiliconeInput
+        v-model="new_col"
+        placeholder="New name"
+        style="width: 100%"
+      />
+
       <Handle
         type="source"
         :position="Position.Right"

@@ -62,23 +62,22 @@ async function traverseDirectory() {
   <el-form class="page-container">
     <div class="splitter-container">
       <div class="custom-container2">
-        <el-button @click="selectFolder()" :icon="FolderOpened" text round>
+        <SiliconeButton @click="selectFolder()" :icon="FolderOpened" text>
           Open Folder
-        </el-button>
+        </SiliconeButton>
 
-        <el-button
+        <SiliconeButton
           @click="traverseDirectory()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
           >Run
-        </el-button>
+        </SiliconeButton>
       </div>
-      <el-text>
+      <SiliconeText class="mt-2">
         <span v-if="isPath">{{ folderPath }}</span>
         <span v-else>Traverse the directory to obtain filenames</span>
-      </el-text>
+      </SiliconeText>
     </div>
   </el-form>
 </template>

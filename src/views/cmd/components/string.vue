@@ -31,11 +31,11 @@ const modeOptions = [
   { label: "PadRight", value: "pad_right" },
   { label: "PadBoth", value: "pad_both" }
 ];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const progressStore = useProgress();
-const skiprowsStore = useSkiprows();
+const quoting = useQuoting();
+const progress = useProgress();
+const skiprows = useSkiprows();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -52,10 +52,10 @@ async function selectFile() {
   }
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -86,9 +86,9 @@ async function StrData() {
         length: length.value,
         reverse: reverse.value,
         mode: activeTab.value,
-        quoting: quotingStore.quoting,
-        progress: progressStore.progress,
-        skiprows: skiprowsStore.skiprows
+        quoting: quoting.quoting,
+        progress: progress.progress,
+        skiprows: skiprows.skiprows
       });
     }
     if (["split_n", "split_max"].includes(activeTab.value)) {
@@ -98,9 +98,9 @@ async function StrData() {
         n: n.value,
         by: by.value,
         mode: activeTab.value,
-        quoting: quotingStore.quoting,
-        progress: progressStore.progress,
-        skiprows: skiprowsStore.skiprows
+        quoting: quoting.quoting,
+        progress: progress.progress,
+        skiprows: skiprows.skiprows
       });
     }
     if (["pad_left", "pad_right", "pad_both"].includes(activeTab.value)) {
@@ -110,9 +110,9 @@ async function StrData() {
         length: length.value,
         fillChar: by.value,
         mode: activeTab.value,
-        quoting: quotingStore.quoting,
-        progress: progressStore.progress,
-        skiprows: skiprowsStore.skiprows
+        quoting: quoting.quoting,
+        progress: progress.progress,
+        skiprows: skiprows.skiprows
       });
     }
     message(`${activeTab.value} done, elapsed time: ${rtime} s`, {
@@ -131,13 +131,13 @@ const { mdShow } = useMarkdown(mdStr);
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
           <!-- mode choice -->
-          <div class="mode-toggle-v mb-2 w-40 h-[128px]">
+          <div class="mode-toggle-v mb-2 mt-2 h-[128px]">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -152,12 +152,10 @@ const { mdShow } = useMarkdown(mdStr);
             </span>
           </div>
 
-          <el-select
+          <SiliconeSelect
             v-model="column"
             filterable
             placeholder="Select column"
-            class="ml-2"
-            style="width: 160px"
           >
             <el-option
               v-for="item in tableHeader"
@@ -165,10 +163,10 @@ const { mdShow } = useMarkdown(mdStr);
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
           <el-tooltip content="Reverse or not" effect="light" placement="right">
-            <div class="mode-toggle mt-2 w-40">
+            <div class="mode-toggle mt-2">
               <span
                 v-for="item in reverseOptions"
                 :key="String(item.value)"
@@ -190,23 +188,19 @@ const { mdShow } = useMarkdown(mdStr);
             effect="light"
             placement="right"
           >
-            <el-input v-model="n" class="mt-2 ml-2" style="width: 160px" />
+            <SiliconeInput v-model="n" class="mt-2" />
           </el-tooltip>
 
           <template v-if="activeTab === 'slice'">
             <el-tooltip content="Start index" effect="light" placement="right">
-              <el-input v-model="n" class="mt-2 ml-2" style="width: 160px" />
+              <SiliconeInput v-model="n" class="mt-2" />
             </el-tooltip>
             <el-tooltip
               content="Length of the slice"
               effect="light"
               placement="right"
             >
-              <el-input
-                v-model="length"
-                class="mt-2 ml-2"
-                style="width: 160px"
-              />
+              <SiliconeInput v-model="length" class="mt-2" />
             </el-tooltip>
           </template>
 
@@ -216,14 +210,14 @@ const { mdShow } = useMarkdown(mdStr);
               effect="light"
               placement="right"
             >
-              <el-input v-model="n" class="mt-2 ml-2" style="width: 160px" />
+              <SiliconeInput v-model="n" class="mt-2" />
             </el-tooltip>
             <el-tooltip
               content="Substring to split by"
               effect="light"
               placement="right"
             >
-              <el-input v-model="by" class="mt-2 ml-2" style="width: 160px" />
+              <SiliconeInput v-model="by" class="mt-2" />
             </el-tooltip>
           </template>
 
@@ -235,45 +229,41 @@ const { mdShow } = useMarkdown(mdStr);
               effect="light"
               placement="right"
             >
-              <el-input
-                v-model="length"
-                class="mt-2 ml-2"
-                style="width: 160px"
-              />
+              <SiliconeInput v-model="length" class="mt-2" />
             </el-tooltip>
             <el-tooltip
               content="The character to pad the string with"
               effect="light"
               placement="right"
             >
-              <el-input v-model="by" class="mt-2 ml-2" style="width: 160px" />
+              <SiliconeInput v-model="by" class="mt-2" />
             </el-tooltip>
           </template>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
               class="mb-2 ml-2"
             />
-            <el-link @click="dialog = true" class="mt-auto">
-              <span class="link-text">String</span>
+            <el-link @click="dialog = true" class="mt-auto" underline="never">
+              <SiliconeText class="mb-[1px]">String</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="StrData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -285,12 +275,11 @@ const { mdShow } = useMarkdown(mdStr);
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

@@ -39,11 +39,11 @@ const [isLoading, backendCompleted, dialog] = [
   ref(false),
   ref(false)
 ];
-const { dynamicHeight } = useDynamicHeight(74);
+const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdCat);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
 
 const allSheets = ref(true);
 const mapSheets = ref<Record<string, string[]> | null>(null);
@@ -225,8 +225,8 @@ async function concatData() {
       rtime = await invoke("cat_excel", {
         path: path.value,
         outputPath,
-        skiprows: skiprowsStore.skiprows,
-        quoting: quotingStore.quoting,
+        skiprows: skiprows.skiprows,
+        quoting: quoting.quoting,
         sheetMapping: allSheets.value ? [] : fileSheet.value,
         allSheets: allSheets.value
       });
@@ -234,8 +234,8 @@ async function concatData() {
       rtime = await invoke("cat_csv", {
         path: path.value,
         output_path: outputPath,
-        quoting: quotingStore.quoting,
-        skiprows: skiprowsStore.skiprows
+        quoting: quoting.quoting,
+        skiprows: skiprows.skiprows
       });
     }
 
@@ -253,12 +253,12 @@ async function concatData() {
   <el-form class="page-container" :style="dynamicHeight">
     <el-splitter>
       <el-splitter-panel size="200" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File(s)
-          </el-button>
+          </SiliconeButton>
 
-          <div class="mode-toggle w-[180px] mt-1">
+          <div class="mode-toggle mt-2">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -279,7 +279,7 @@ async function concatData() {
             effect="light"
             placement="right"
           >
-            <div class="mode-toggle w-[180px] mt-2">
+            <div class="mode-toggle mt-2">
               <span
                 v-for="item in sheetsOptions"
                 :key="String(item.value)"
@@ -295,25 +295,27 @@ async function concatData() {
             </div>
           </el-tooltip>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span v-if="backendCompleted"> {{ backendInfo }} </span>
-            <span v-else class="link-text">Cat</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText v-if="backendCompleted">
+              {{ backendInfo }}
+            </SiliconeText>
+            <SiliconeText v-else class="mb-[1px]">Cat</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="concatData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="mb-2 ml-2"
         >
           Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -346,9 +348,10 @@ async function concatData() {
           <el-table-column label="Options / Info">
             <template #default="scope">
               <template v-if="mode === 'excel'">
-                <el-select
+                <SiliconeSelect
                   v-model="scope.row.selectSheet"
                   placeholder="Select sheet"
+                  class="mb-[1px]"
                   :disabled="!scope.row.sheets || scope.row.sheets.length === 0"
                 >
                   <el-option
@@ -357,7 +360,7 @@ async function concatData() {
                     :label="sheet"
                     :value="sheet"
                   />
-                </el-select>
+                </SiliconeSelect>
               </template>
               <!-- For CSV: show duplicate header info (if any) -->
               <template v-else>
@@ -365,7 +368,7 @@ async function concatData() {
               </template>
             </template>
           </el-table-column>
-        </el-table>
+        </SiliconeTable>
       </el-splitter-panel>
     </el-splitter>
 

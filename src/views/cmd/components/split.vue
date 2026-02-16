@@ -16,10 +16,10 @@ const modeOptions = [
 ];
 const [tableColumn, tableData] = [ref([]), ref([])];
 const [isLoading, dialog] = [ref(false), ref(false)];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSplit);
 const { isDark } = useDark();
-const skiprowsStore = useSkiprows();
+const skiprows = useSkiprows();
 
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
@@ -31,7 +31,7 @@ async function selectFile() {
   try {
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -46,7 +46,7 @@ async function splitData() {
     message("CSV file not selected", { type: "warning" });
     return;
   }
-  if (skiprowsStore.skiprows !== 0) {
+  if (skiprows.skiprows !== 0) {
     message("split only support skiprows=0", { type: "warning" });
     return;
   }
@@ -70,12 +70,12 @@ async function splitData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="200" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <div class="mode-toggle w-[180px]">
+          <div class="mode-toggle mt-2">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -91,31 +91,31 @@ async function splitData() {
           </div>
 
           <el-tooltip content="Split rows" effect="light" placement="right">
-            <el-input-number
+            <SiliconeInputNumber
               v-model="size"
               controls-position="right"
-              class="mt-2 ml-2"
-              style="width: 180px"
+              class="mt-2"
+              style="width: 196px"
             />
           </el-tooltip>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span class="link-text">Split</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Split</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="splitData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -127,14 +127,11 @@ async function splitData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2">
-            <Files />
-          </el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

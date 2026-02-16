@@ -25,13 +25,13 @@ const modeOptions = [
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [columns, path] = [ref(""), ref("")];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdFill);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const progressStore = useProgress();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const progress = useProgress();
+const flexible = useFlexible();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -50,10 +50,10 @@ async function selectFile() {
   totalRows.value = 0;
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -81,10 +81,10 @@ async function fillData() {
       columns: cols,
       values: fillChar.value,
       mode: mode.value,
-      quoting: quotingStore.quoting,
-      progress: progressStore.progress,
-      skiprows: skiprowsStore.skiprows,
-      flexible: flexibleStore.flexible
+      quoting: quoting.quoting,
+      progress: progress.progress,
+      skiprows: skiprows.skiprows,
+      flexible: flexible.flexible
     });
     message(`Fill done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -98,12 +98,12 @@ async function fillData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="220" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <div class="mode-toggle w-[200px]">
+          <div class="mode-toggle mt-2">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -118,13 +118,12 @@ async function fillData() {
             </span>
           </div>
 
-          <el-select
+          <SiliconeSelect
             v-model="columns"
             multiple
             filterable
             placeholder="Select columns"
-            class="mt-2 ml-2"
-            style="width: 200px"
+            class="mt-2"
           >
             <el-option
               v-for="item in tableHeader"
@@ -132,7 +131,7 @@ async function fillData() {
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
           <el-tooltip
             v-if="mode === 'fill'"
@@ -140,37 +139,33 @@ async function fillData() {
             effect="light"
             placement="right"
           >
-            <el-input
-              v-model="fillChar"
-              class="mt-2 ml-2"
-              style="width: 200px"
-            />
+            <SiliconeInput v-model="fillChar" class="mt-2" />
           </el-tooltip>
 
           <div class="flex flex-col mt-auto">
-            <el-progress
+            <SiliconeProgress
               v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
               :percentage="Math.round((currentRows / totalRows) * 100)"
-              class="mb-2 ml-2"
+              class="mb-2 ml-1"
             />
-            <el-link @click="dialog = true">
-              <span class="link-text">Fill</span>
+            <el-link @click="dialog = true" underline="never">
+              <SiliconeText class="mb-[1px]">Fill</SiliconeText>
             </el-link>
           </div>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="fillData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -182,12 +177,11 @@ async function fillData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2"><Files /></el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

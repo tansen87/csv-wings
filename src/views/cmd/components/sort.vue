@@ -30,12 +30,12 @@ const [isLoading, dialog, numeric, reverse] = [
   ref(false),
   ref(false)
 ];
-const { dynamicHeight } = useDynamicHeight(98);
+const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSort);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
-const flexibleStore = useFlexible();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
+const flexible = useFlexible();
 
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
@@ -45,10 +45,10 @@ async function selectFile() {
   }
 
   try {
-    tableHeader.value = await mapHeaders(path.value, skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -77,16 +77,16 @@ async function sortData() {
         column: column.value,
         numeric: numeric.value,
         reverse: reverse.value,
-        quoting: quotingStore.quoting,
-        skiprows: skiprowsStore.skiprows,
-        flexible: flexibleStore.flexible
+        quoting: quoting.quoting,
+        skiprows: skiprows.skiprows,
+        flexible: flexible.flexible
       });
     } else if (mode.value == "ExtSort") {
       rtime = await invoke("extsort", {
         path: path.value,
         column: column.value,
         reverse: reverse.value,
-        quoting: quotingStore.quoting
+        quoting: quoting.quoting
       });
     }
     message(`${mode.value} done, elapsed time: ${rtime} s`, {
@@ -103,12 +103,12 @@ async function sortData() {
   <el-form class="page-container">
     <el-splitter>
       <el-splitter-panel size="200" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile()" :icon="FolderOpened" text round>
+        <div class="splitter-container mr-1">
+          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
             Open File
-          </el-button>
+          </SiliconeButton>
 
-          <div class="mode-toggle w-[180px]">
+          <div class="mode-toggle mt-2">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -128,7 +128,7 @@ async function sortData() {
             effect="light"
             placement="right"
           >
-            <div class="mode-toggle mt-2 w-[180px]">
+            <div class="mode-toggle mt-2">
               <span
                 v-for="item in numOptions"
                 :key="String(item.value)"
@@ -149,7 +149,7 @@ async function sortData() {
             effect="light"
             placement="right"
           >
-            <div class="mode-toggle mt-2 w-[180px]">
+            <div class="mode-toggle mt-2 mb-2">
               <span
                 v-for="item in reverseOptions"
                 :key="String(item.value)"
@@ -165,12 +165,10 @@ async function sortData() {
             </div>
           </el-tooltip>
 
-          <el-select
+          <SiliconeSelect
             v-model="column"
             filterable
             placeholder="Select column"
-            class="mt-2 ml-2"
-            style="width: 180px"
           >
             <el-option
               v-for="item in tableHeader"
@@ -178,27 +176,25 @@ async function sortData() {
               :label="item.label"
               :value="item.value"
             />
-          </el-select>
+          </SiliconeSelect>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <el-tooltip :content="path" effect="light">
-              <span class="link-text">Sort</span>
-            </el-tooltip>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Sort</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
-        <el-button
+        <SiliconeButton
           @click="sortData()"
           :loading="isLoading"
           :icon="SwitchButton"
           text
-          round
+          class="ml-1 mb-2"
           >Run
-        </el-button>
+        </SiliconeButton>
 
-        <el-table
+        <SiliconeTable
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
@@ -210,14 +206,11 @@ async function sortData() {
             :label="column.label"
             :key="column.prop"
           />
-        </el-table>
+        </SiliconeTable>
 
-        <el-text>
-          <el-icon class="ml-2">
-            <Files />
-          </el-icon>
-          {{ path }}
-        </el-text>
+        <SiliconeText class="mt-2" truncated :max-lines="1">
+          <el-icon><Files /></el-icon>{{ path }}
+        </SiliconeText>
       </el-splitter-panel>
     </el-splitter>
 

@@ -28,8 +28,8 @@ const data = reactive({ path1: "", path2: "" });
 const { dynamicHeight } = useDynamicHeight(36);
 const { mdShow } = useMarkdown(mdJoin);
 const { isDark } = useDark();
-const quotingStore = useQuoting();
-const skiprowsStore = useSkiprows();
+const quoting = useQuoting();
+const skiprows = useSkiprows();
 
 async function selectFile(fileIndex: number) {
   const tableHeader = fileIndex === 1 ? tableHeader1 : tableHeader2;
@@ -44,10 +44,10 @@ async function selectFile(fileIndex: number) {
   }
 
   try {
-    tableHeader.value = await mapHeaders(data[path], skiprowsStore.skiprows);
+    tableHeader.value = await mapHeaders(data[path], skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       data[path],
-      skiprowsStore.skiprows
+      skiprows.skiprows
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
@@ -76,7 +76,7 @@ async function joinData() {
       sel2: sel2.value,
       joinType: joinType.value,
       nulls: nulls.value,
-      quoting: quotingStore.quoting
+      quoting: quoting.quoting
     });
     message(`Join done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -89,69 +89,43 @@ async function joinData() {
 <template>
   <el-form class="page-container" :style="{ height: dynamicHeight + 'px' }">
     <el-splitter>
-      <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container">
-          <el-button @click="selectFile(1)" :icon="FolderOpened" text round
-            >data 1
-          </el-button>
+      <el-splitter-panel size="240" :resizable="false">
+        <div class="splitter-container mr-1">
+          <div class="flex flex-center">
+            <SiliconeButton @click="selectFile(1)" :icon="FolderOpened" text>
+              data 1
+            </SiliconeButton>
+            <SiliconeButton @click="selectFile(2)" :icon="FolderOpened" text>
+              data 2
+            </SiliconeButton>
+          </div>
 
-          <el-button
-            @click="selectFile(2)"
-            :icon="FolderOpened"
-            text
-            round
-            class="mr-[12px]"
-            >data 2
-          </el-button>
-
-          <el-tooltip
-            content="column of file1"
-            effect="light"
-            placement="right"
-          >
-            <el-select
-              v-model="sel1"
-              filterable
-              placeholder="column of file1"
-              class="ml-2"
-              style="width: 160px"
-            >
+          <div class="flex flex-center mt-2">
+            <SiliconeSelect v-model="sel1" filterable placeholder="Column1">
               <el-option
                 v-for="item in tableHeader1"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
               />
-            </el-select>
-          </el-tooltip>
+            </SiliconeSelect>
 
-          <el-tooltip
-            content="column of file2"
-            effect="light"
-            placement="right"
-          >
-            <el-select
-              v-model="sel2"
-              filterable
-              placeholder="column of file2"
-              class="mt-2 ml-2"
-              style="width: 160px"
-            >
+            <SiliconeSelect v-model="sel2" filterable placeholder="Column2">
               <el-option
                 v-for="item in tableHeader2"
                 :key="item.value"
                 :label="item.label"
                 :value="item.value"
               />
-            </el-select>
-          </el-tooltip>
+            </SiliconeSelect>
+          </div>
 
           <el-tooltip
             content="When set True, joins will work on empty fields"
             effect="light"
             placement="right"
           >
-            <div class="mode-toggle mt-2 w-40">
+            <div class="mode-toggle mt-2 mb-2">
               <span
                 v-for="item in nullOptions"
                 :key="String(item.value)"
@@ -168,11 +142,7 @@ async function joinData() {
           </el-tooltip>
 
           <el-tooltip content="Join type" effect="light" placement="right">
-            <el-select
-              v-model="joinType"
-              class="mt-2 ml-2"
-              style="width: 160px"
-            >
+            <SiliconeSelect v-model="joinType">
               <el-option label="left" value="left" />
               <el-option label="right" value="right" />
               <el-option label="full" value="full" />
@@ -182,32 +152,32 @@ async function joinData() {
               <el-option label="left-anti" value="left_anti" />
               <el-option label="right-semi" value="right_semi" />
               <el-option label="right-anti" value="right_anti" />
-            </el-select>
+            </SiliconeSelect>
           </el-tooltip>
 
-          <el-link @click="dialog = true" class="mt-auto">
-            <span class="link-text">Join</span>
+          <el-link @click="dialog = true" class="mt-auto" underline="never">
+            <SiliconeText class="mb-[1px]">Join</SiliconeText>
           </el-link>
         </div>
       </el-splitter-panel>
 
       <el-splitter-panel>
         <el-splitter layout="vertical">
-          <el-splitter-panel size="33" :resizable="false">
-            <el-button
+          <el-splitter-panel size="40" :resizable="false">
+            <SiliconeButton
               @click="joinData()"
               :loading="isLoading"
               :icon="SwitchButton"
               text
-              round
+              class="ml-1"
               >Run
-            </el-button>
+            </SiliconeButton>
           </el-splitter-panel>
 
           <el-splitter-panel :resizable="false">
-            <el-table
+            <SiliconeTable
               :data="tableData1"
-              :height="dynamicHeight / 2 - 49"
+              :height="dynamicHeight / 2 - 52"
               empty-text="data 1"
               show-overflow-tooltip
               tooltip-effect="light"
@@ -218,20 +188,18 @@ async function joinData() {
                 :label="column.label"
                 :key="column.prop"
               />
-            </el-table>
+            </SiliconeTable>
 
-            <el-text>
-              <el-icon class="ml-2">
-                <Files />
-              </el-icon>
+            <SiliconeText truncated :max-lines="1">
+              <el-icon><Files /></el-icon>
               data 1 => {{ data.path1 }}
-            </el-text>
+            </SiliconeText>
           </el-splitter-panel>
 
           <el-splitter-panel :resizable="false">
-            <el-table
+            <SiliconeTable
               :data="tableData2"
-              :height="dynamicHeight / 2 - 49"
+              :height="dynamicHeight / 2 - 52"
               empty-text="data 2"
               show-overflow-tooltip
               tooltip-effect="light"
@@ -242,14 +210,12 @@ async function joinData() {
                 :label="column.label"
                 :key="column.prop"
               />
-            </el-table>
+            </SiliconeTable>
 
-            <el-text>
-              <el-icon class="ml-2">
-                <Files />
-              </el-icon>
+            <SiliconeText truncated :max-lines="1">
+              <el-icon><Files /></el-icon>
               data 2 => {{ data.path2 }}
-            </el-text>
+            </SiliconeText>
           </el-splitter-panel>
         </el-splitter>
       </el-splitter-panel>
