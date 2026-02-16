@@ -403,12 +403,13 @@ pub async fn search_chain(
   quoting: bool,
   flexible: bool,
   skiprows: usize,
+  threads: usize,
   app_handle: AppHandle,
 ) -> Result<(String, String), String> {
   let start_time = Instant::now();
 
   match filters_chain::search_with_chain(
-    path, configs, logics, skiprows, quoting, flexible, progress, app_handle,
+    path, configs, logics, skiprows, quoting, flexible, progress, threads, app_handle,
   )
   .await
   {

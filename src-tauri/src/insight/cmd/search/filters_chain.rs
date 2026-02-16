@@ -1,9 +1,10 @@
-use std::path::Path;
+use std::{fs::File, path::Path};
 
 use anyhow::{Result, anyhow};
 
 use crate::{
   cmd::search::{generic, perform::ColumnConfig},
+  index::Indexed,
   io::csv::{config::CsvConfigBuilder, options::CsvOptions},
   utils::EventEmitter,
 };
@@ -16,6 +17,7 @@ pub async fn search_with_chain<E, P>(
   quoting: bool,
   flexible: bool,
   progress: bool,
+  threads: usize,
   emitter: E,
 ) -> Result<String>
 where
@@ -43,12 +45,24 @@ where
   let rdr = config.build_reader(reader);
   let wtr = config.build_writer(&output_path)?;
 
-  let total_rows = if progress {
-    opts.idx_count_rows().await?
-  } else {
-    0
-  };
-  emitter.emit_total_rows(total_rows).await?;
+  let mut idx: Option<Indexed<File, File>> = None;
+  match threads {
+    1 => {
+      let total_rows = if progress {
+        opts.idx_count_rows().await?
+      } else {
+        0
+      };
+      emitter.emit_total_rows(total_rows).await?;
+    }
+    _ => {
+      idx = Some(
+        opts
+          .indexed()?
+          .ok_or_else(|| anyhow!("No indexed file, create index first"))?,
+      );
+    }
+  }
 
   // 预解析每个 condition
   let parsed_configs: Vec<(String, Vec<String>)> = configs
@@ -160,8 +174,21 @@ where
     result
   };
 
-  let match_count =
-    generic::generic_search_chain(rdr, wtr, columns, progress, match_fn, emitter).await?;
+  let match_count = match threads {
+    1 => generic::generic_search_chain(rdr, wtr, columns, progress, match_fn, emitter).await?,
+    _ => tokio::task::spawn_blocking(move || {
+      generic::generic_parallel_search_chain(
+        opts,
+        &mut idx.unwrap(),
+        wtr,
+        columns,
+        threads,
+        match_fn,
+      )
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("Task join error: {e}"))??,
+  };
 
   Ok(match_count)
 }

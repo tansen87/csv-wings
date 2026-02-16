@@ -17,7 +17,8 @@ import {
   useFlexible,
   useProgress,
   useQuoting,
-  useSkiprows
+  useSkiprows,
+  useThreads
 } from "@/store/modules/options";
 
 interface ColumnConfig {
@@ -40,6 +41,7 @@ const quoting = useQuoting();
 const skiprows = useSkiprows();
 const progress = useProgress();
 const flexible = useFlexible();
+const threads = useThreads();
 
 listen("update-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -96,6 +98,10 @@ async function searchData() {
     message("Add at least one column filter", { type: "warning" });
     return;
   }
+  if (skiprows.skiprows > 0 && threads.threads !== 1) {
+    message("threads only support skiprows = 0", { type: "warning" });
+    return;
+  }
 
   // 校验:所有列必须选中
   for (const cfg of columnConfigs.value) {
@@ -115,7 +121,8 @@ async function searchData() {
       progress: progress.progress,
       quoting: quoting.quoting,
       flexible: flexible.flexible,
-      skiprows: skiprows.skiprows
+      skiprows: skiprows.skiprows,
+      threads: threads.threads
     });
 
     matchRows.value = Number(res[0]);
