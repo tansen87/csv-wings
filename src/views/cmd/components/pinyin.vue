@@ -102,7 +102,7 @@ async function chineseToPinyin() {
             Open File
           </SiliconeButton>
 
-          <el-tooltip content="pinyin style" effect="light" placement="right">
+          <SiliconeTooltip content="pinyin style" placement="right">
             <div class="mode-toggle mt-2 mb-2">
               <span
                 v-for="item in pyOptions"
@@ -117,7 +117,7 @@ async function chineseToPinyin() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <SiliconeSelect
             v-model="columns"
@@ -160,7 +160,6 @@ async function chineseToPinyin() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

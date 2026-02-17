@@ -57,9 +57,9 @@ async function selectFile() {
         class="mb-1"
       >
         <span v-if="isPath">
-          <el-tooltip :content="path" effect="light">
+          <SiliconeTooltip :content="path">
             <span>{{ shortFileName(path) }}</span>
-          </el-tooltip>
+          </SiliconeTooltip>
         </span>
         <span v-else>Open File</span>
       </SiliconeButton>
@@ -68,12 +68,7 @@ async function selectFile() {
       </SiliconeButton>
     </div>
 
-    <SiliconeTable
-      :data="tableData"
-      show-overflow-tooltip
-      tooltip-effect="light"
-      height="200px"
-    >
+    <SiliconeTable :data="tableData" show-overflow-tooltip height="200px">
       <el-table-column
         v-for="column in tableColumn"
         :prop="column.prop"

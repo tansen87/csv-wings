@@ -127,7 +127,7 @@ async function searchData() {
             />
           </SiliconeSelect>
 
-          <el-tooltip content="Search mode" effect="light" placement="right">
+          <SiliconeTooltip content="Search mode" placement="right">
             <SiliconeSelect v-model="mode" filterable class="mt-2">
               <el-option label="equal" value="equal" />
               <el-option label="equal_multi" value="equal_multi" />
@@ -151,7 +151,7 @@ async function searchData() {
               <el-option label="between" value="between" />
               <el-option label="irregular_regex" value="irregular_regex" />
             </SiliconeSelect>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <SiliconeInput
             v-model="condition"
@@ -194,7 +194,6 @@ async function searchData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

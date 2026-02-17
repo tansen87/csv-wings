@@ -264,18 +264,18 @@ watch(mode, newMode => {
                 ['operations'].includes(mode) && operations.includes('replace')
               "
             >
-              <el-tooltip content="old" effect="light" placement="right">
+              <SiliconeTooltip content="old" placement="right">
                 <SiliconeInput
                   v-model="comparand"
                   placeholder="replace - from"
                 />
-              </el-tooltip>
-              <el-tooltip content="new" effect="light" placement="right">
+              </SiliconeTooltip>
+              <SiliconeTooltip content="new" placement="right">
                 <SiliconeInput
                   v-model="replacement"
                   placeholder="replace - to"
                 />
-              </el-tooltip>
+              </SiliconeTooltip>
             </template>
 
             <template v-if="['cat', 'calcconv'].includes(mode)">
@@ -313,7 +313,6 @@ watch(mode, newMode => {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
           class="mt-2"
         >
           <el-table-column

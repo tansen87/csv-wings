@@ -90,14 +90,14 @@ async function splitData() {
             </span>
           </div>
 
-          <el-tooltip content="Split rows" effect="light" placement="right">
+          <SiliconeTooltip content="Split rows" placement="right">
             <SiliconeInputNumber
               v-model="size"
               controls-position="right"
               class="mt-2"
               style="width: 196px"
             />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText class="mb-[1px]">Split</SiliconeText>
@@ -119,7 +119,6 @@ async function splitData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

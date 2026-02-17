@@ -47,6 +47,8 @@ import SiliconeText from "@/layout/silicone/siliconeText.vue";
 import SiliconeCard from "@/layout/silicone/siliconeCard.vue";
 import SiliconeSwitch from "@/layout/silicone/siliconeSwitch.vue";
 import SiliconeDialog from "@/layout/silicone/siliconeDialog.vue";
+import SiliconeLink from "@/layout/silicone/siliconeLink.vue";
+import SiliconeTooltip from "@/layout/silicone/siliconeTooltip.vue";
 app.component("SiliconeButton", SiliconeButton);
 app.component("SiliconeSelect", SiliconeSelect);
 app.component("SiliconeInput", SiliconeInput);
@@ -57,6 +59,8 @@ app.component("SiliconeText", SiliconeText);
 app.component("SiliconeCard", SiliconeCard);
 app.component("SiliconeSwitch", SiliconeSwitch);
 app.component("SiliconeDialog", SiliconeDialog);
+app.component("SiliconeLink", SiliconeLink);
+app.component("SiliconeTooltip", SiliconeTooltip);
 
 // 全局注册按钮级别权限组件
 import { Auth } from "@/components/ReAuth";

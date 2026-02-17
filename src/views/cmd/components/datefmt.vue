@@ -229,11 +229,7 @@ async function convertDates() {
           </SiliconeSelect>
 
           <div v-for="col in columns" :key="col" class="mt-2 ml-2 mr-2">
-            <el-tooltip
-              :content="`Column: ${col}`"
-              placement="right"
-              effect="light"
-            >
+            <SiliconeTooltip :content="`Column: ${col}`" placement="right">
               <div class="flex gap-3 w-full">
                 <div class="flex flex-col items-start">
                   <span class="text-[10px] text-blue-500 font-medium mb-1">
@@ -268,7 +264,7 @@ async function convertDates() {
                   </SiliconeSelect>
                 </div>
               </div>
-            </el-tooltip>
+            </SiliconeTooltip>
           </div>
 
           <div class="flex flex-col mt-auto">
@@ -299,7 +295,6 @@ async function convertDates() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

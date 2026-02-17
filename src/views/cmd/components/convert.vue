@@ -337,10 +337,9 @@ async function convert() {
           </div>
 
           <!-- excel to csv -->
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'excel'"
             content="Convert all sheets or not"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle">
@@ -357,12 +356,11 @@ async function convert() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'excel'"
             content="Write sheet name or not"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle mt-2">
@@ -379,13 +377,12 @@ async function convert() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <!-- format csv -->
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'fmt'"
             content="Quote character"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle">
@@ -402,12 +399,11 @@ async function convert() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'fmt'"
             content="Quote style"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle-v mt-2 h-[64px]">
@@ -424,7 +420,7 @@ async function convert() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <!-- csv to xlsx -->
           <div class="mode-toggle" v-if="activeTab === 'csv'">
@@ -442,20 +438,18 @@ async function convert() {
             </span>
           </div>
 
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'csv'"
             content="Split every N rows into a sheet"
-            effect="light"
             placement="right"
           >
             <SiliconeInput v-model="chunksize" class="mt-2" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <!-- jsonl to csv -->
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'jsonl'"
             content="Ignore errors"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle">
@@ -472,13 +466,12 @@ async function convert() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <!-- encoding -->
-          <el-tooltip
+          <SiliconeTooltip
             v-if="activeTab === 'encoding'"
             content="BOM"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle-v h-[32px]">
@@ -495,7 +488,7 @@ async function convert() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <text
             v-if="backendCompleted && activeTab === 'excel'"
@@ -520,7 +513,6 @@ async function convert() {
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column type="index" width="35" />
           <el-table-column prop="filename" label="File" />

@@ -135,7 +135,6 @@ async function headerEdit(row: any) {
           :data="filterTableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column prop="col1" label="headers" />
           <el-table-column prop="col2" label="new headers">

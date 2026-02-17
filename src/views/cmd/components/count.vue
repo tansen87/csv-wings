@@ -144,7 +144,6 @@ async function countData() {
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column type="index" width="35" />
           <el-table-column prop="filename" label="File" />

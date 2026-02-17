@@ -98,9 +98,9 @@ async function skipLines() {
             Open File(s)
           </SiliconeButton>
 
-          <el-tooltip content="skip rows" effect="light" placement="right">
+          <SiliconeTooltip content="skip rows" placement="right">
             <SiliconeInput v-model="skipRows" class="mt-2" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText class="mb-[1px]">Skip</SiliconeText>
@@ -122,7 +122,6 @@ async function skipLines() {
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column type="index" width="35" />
           <el-table-column prop="filename" label="File" />

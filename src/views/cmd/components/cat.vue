@@ -273,10 +273,9 @@ async function concatData() {
             </span>
           </div>
 
-          <el-tooltip
+          <SiliconeTooltip
             v-if="mode === 'excel'"
             content="Merge all sheets of each file, or only one selected sheet per file"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle mt-2">
@@ -293,7 +292,7 @@ async function concatData() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText v-if="backendCompleted">
@@ -319,7 +318,6 @@ async function concatData() {
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
           :row-style="{ height: '40px' }"
           :cell-style="{ padding: '0 8px' }"
         >

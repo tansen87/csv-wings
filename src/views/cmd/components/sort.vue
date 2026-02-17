@@ -123,9 +123,8 @@ async function sortData() {
             </span>
           </div>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="Numeric (when set to True, sort by numerical size)"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle mt-2">
@@ -142,11 +141,10 @@ async function sortData() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="Reverse (when set to False, sort from small to large)"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle mt-2 mb-2">
@@ -163,7 +161,7 @@ async function sortData() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <SiliconeSelect
             v-model="column"
@@ -198,7 +196,6 @@ async function sortData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

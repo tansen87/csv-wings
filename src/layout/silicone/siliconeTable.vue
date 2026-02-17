@@ -1,11 +1,11 @@
 <template>
-  <el-table class="silicone-table" v-bind="$attrs">
+  <el-table class="silicone-table" v-bind="$attrs" tooltip-effect="light">
     <slot />
   </el-table>
 </template>
 
 <script setup>
-// 透传所有 attrs 和 listeners
+// 透传所有 attrs
 </script>
 
 <style>

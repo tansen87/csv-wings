@@ -68,13 +68,12 @@ async function separateData() {
             Open File
           </SiliconeButton>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="Expected number of columns"
-            effect="light"
             placement="right"
           >
             <SiliconeInput v-model="expectedColumns" class="mt-2" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText class="mb-[1px]">Separate</SiliconeText>
@@ -96,7 +95,6 @@ async function separateData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

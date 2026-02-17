@@ -94,21 +94,19 @@ async function sliceData() {
             </span>
           </div>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="The index of the row to slice from"
-            effect="light"
             placement="right"
           >
             <SiliconeInput v-model="start" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="The index of the row to slice to"
-            effect="light"
             placement="right"
           >
             <SiliconeInput v-model="end" class="mt-2" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText class="mb-[1px]">Slice</SiliconeText>
@@ -130,7 +128,6 @@ async function sliceData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

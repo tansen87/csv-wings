@@ -142,7 +142,6 @@ watch(nrows, () => {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
           v-loading="isLoading"
         >
           <el-table-column

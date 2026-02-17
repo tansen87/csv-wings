@@ -165,7 +165,7 @@ const { mdShow } = useMarkdown(mdStr);
             />
           </SiliconeSelect>
 
-          <el-tooltip content="Reverse or not" effect="light" placement="right">
+          <SiliconeTooltip content="Reverse or not" placement="right">
             <div class="mode-toggle mt-2">
               <span
                 v-for="item in reverseOptions"
@@ -180,64 +180,52 @@ const { mdShow } = useMarkdown(mdStr);
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
-          <el-tooltip
+          <SiliconeTooltip
             v-if="['left', 'right'].includes(activeTab)"
             content="Length of the slice"
-            effect="light"
             placement="right"
           >
             <SiliconeInput v-model="n" class="mt-2" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <template v-if="activeTab === 'slice'">
-            <el-tooltip content="Start index" effect="light" placement="right">
+            <SiliconeTooltip content="Start index" placement="right">
               <SiliconeInput v-model="n" class="mt-2" />
-            </el-tooltip>
-            <el-tooltip
-              content="Length of the slice"
-              effect="light"
-              placement="right"
-            >
+            </SiliconeTooltip>
+            <SiliconeTooltip content="Length of the slice" placement="right">
               <SiliconeInput v-model="length" class="mt-2" />
-            </el-tooltip>
+            </SiliconeTooltip>
           </template>
 
           <template v-if="['split_n', 'split_max'].includes(activeTab)">
-            <el-tooltip
+            <SiliconeTooltip
               content="nth/max number of items to return"
-              effect="light"
               placement="right"
             >
               <SiliconeInput v-model="n" class="mt-2" />
-            </el-tooltip>
-            <el-tooltip
-              content="Substring to split by"
-              effect="light"
-              placement="right"
-            >
+            </SiliconeTooltip>
+            <SiliconeTooltip content="Substring to split by" placement="right">
               <SiliconeInput v-model="by" class="mt-2" />
-            </el-tooltip>
+            </SiliconeTooltip>
           </template>
 
           <template
             v-if="['pad_left', 'pad_right', 'pad_both'].includes(activeTab)"
           >
-            <el-tooltip
+            <SiliconeTooltip
               content="Pad the string until it reaches this length"
-              effect="light"
               placement="right"
             >
               <SiliconeInput v-model="length" class="mt-2" />
-            </el-tooltip>
-            <el-tooltip
+            </SiliconeTooltip>
+            <SiliconeTooltip
               content="The character to pad the string with"
-              effect="light"
               placement="right"
             >
               <SiliconeInput v-model="by" class="mt-2" />
-            </el-tooltip>
+            </SiliconeTooltip>
           </template>
 
           <div class="flex flex-col mt-auto">
@@ -267,7 +255,6 @@ const { mdShow } = useMarkdown(mdStr);
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

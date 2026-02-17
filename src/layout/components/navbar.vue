@@ -17,6 +17,16 @@ function themeChange() {
   dataTheme.value = !dataTheme.value;
   dataThemeChange();
 }
+
+const minimize = async () => {
+  await appWindow.minimize();
+};
+const maxinize = async () => {
+  await appWindow.toggleMaximize();
+};
+const close = async () => {
+  await appWindow.close();
+};
 </script>
 
 <template>
@@ -24,22 +34,22 @@ function themeChange() {
     class="navbar bg-[#fff] shadow-sm shadow-[rgba(0, 21, 41, 0.08)] dark:shadow-[#0d0d0d]"
   >
     <div class="vertical-header-right">
-      <span @click="themeChange" class="set-icon navbar-bg-hover">
+      <SiliconeLink @click="themeChange" class="set-icon">
         <IconifyIconOffline v-if="dataTheme" :icon="Moon" />
         <IconifyIconOffline v-else :icon="Sun" />
-      </span>
-      <span class="set-icon navbar-bg-hover" @click="onPanel">
+      </SiliconeLink>
+      <SiliconeLink @click="onPanel" class="set-icon">
         <IconifyIconOffline :icon="Setting" />
-      </span>
-      <span class="set-icon navbar-bg-hover" @click="appWindow.minimize">
+      </SiliconeLink>
+      <SiliconeLink @click="minimize" class="set-icon">
         <IconifyIconOffline :icon="Subtract" />
-      </span>
-      <span class="set-icon navbar-bg-hover" @click="appWindow.toggleMaximize">
+      </SiliconeLink>
+      <SiliconeLink @click="maxinize" class="set-icon">
         <IconifyIconOffline :icon="Fullscreen" />
-      </span>
-      <span class="set-icon navbar-bg-hover" @click="appWindow.close">
+      </SiliconeLink>
+      <SiliconeLink @click="close" class="set-icon">
         <IconifyIconOffline :icon="Close" />
-      </span>
+      </SiliconeLink>
     </div>
   </div>
 </template>

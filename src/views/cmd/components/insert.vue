@@ -107,16 +107,16 @@ async function insertData() {
               />
             </SiliconeSelect>
 
-            <el-tooltip content="position" effect="light" placement="right">
+            <SiliconeTooltip content="position" placement="right">
               <SiliconeInput
                 v-model="position"
                 placeholder="position: left|right|1"
               />
-            </el-tooltip>
+            </SiliconeTooltip>
 
-            <el-tooltip content="values" effect="light" placement="right">
+            <SiliconeTooltip content="values" placement="right">
               <SiliconeInput v-model="values" placeholder="values: 1||CNY" />
-            </el-tooltip>
+            </SiliconeTooltip>
           </div>
 
           <div class="flex flex-col mt-auto">
@@ -146,7 +146,6 @@ async function insertData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

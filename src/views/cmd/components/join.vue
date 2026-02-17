@@ -120,9 +120,8 @@ async function joinData() {
             </SiliconeSelect>
           </div>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="When set True, joins will work on empty fields"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle mt-2 mb-2">
@@ -139,9 +138,9 @@ async function joinData() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
-          <el-tooltip content="Join type" effect="light" placement="right">
+          <SiliconeTooltip content="Join type" placement="right">
             <SiliconeSelect v-model="joinType">
               <el-option label="left" value="left" />
               <el-option label="right" value="right" />
@@ -153,7 +152,7 @@ async function joinData() {
               <el-option label="right-semi" value="right_semi" />
               <el-option label="right-anti" value="right_anti" />
             </SiliconeSelect>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText class="mb-[1px]">Join</SiliconeText>
@@ -180,7 +179,6 @@ async function joinData() {
               :height="dynamicHeight / 2 - 52"
               empty-text="data 1"
               show-overflow-tooltip
-              tooltip-effect="light"
             >
               <el-table-column
                 v-for="column in tableColumn1"
@@ -202,7 +200,6 @@ async function joinData() {
               :height="dynamicHeight / 2 - 52"
               empty-text="data 2"
               show-overflow-tooltip
-              tooltip-effect="light"
             >
               <el-table-column
                 v-for="column in tableColumn2"

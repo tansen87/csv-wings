@@ -133,14 +133,13 @@ async function fillData() {
             />
           </SiliconeSelect>
 
-          <el-tooltip
+          <SiliconeTooltip
             v-if="mode === 'fill'"
             content="The value of fill"
-            effect="light"
             placement="right"
           >
             <SiliconeInput v-model="fillChar" class="mt-2" />
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <div class="flex flex-col mt-auto">
             <SiliconeProgress
@@ -169,7 +168,6 @@ async function fillData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"

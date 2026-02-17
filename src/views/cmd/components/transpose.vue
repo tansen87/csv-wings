@@ -74,9 +74,8 @@ async function transposeData() {
             Open File
           </SiliconeButton>
 
-          <el-tooltip
+          <SiliconeTooltip
             content="If Memory, the entire file will be read into memory"
-            effect="light"
             placement="right"
           >
             <div class="mode-toggle mt-2">
@@ -93,7 +92,7 @@ async function transposeData() {
                 {{ item.label }}
               </span>
             </div>
-          </el-tooltip>
+          </SiliconeTooltip>
 
           <el-link @click="dialog = true" class="mt-auto" underline="never">
             <SiliconeText class="mb-[1px]">Transpose</SiliconeText>
@@ -115,7 +114,6 @@ async function transposeData() {
           :data="tableData"
           :height="dynamicHeight"
           show-overflow-tooltip
-          tooltip-effect="light"
         >
           <el-table-column
             v-for="column in tableColumn"
