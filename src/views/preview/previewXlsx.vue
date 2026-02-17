@@ -63,7 +63,6 @@ async function selectFile() {
 
 async function loadPreview() {
   if (!path.value || !selectedSheet.value) return;
-  console.log(selectedSheet.value);
   try {
     const { columnView, dataView } = await xlsxToJson(
       path.value,

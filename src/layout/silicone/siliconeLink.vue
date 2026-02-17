@@ -1,5 +1,5 @@
 <template>
-  <el-link class="silicone-link" v-bind="$attrs" :underline="false">
+  <el-link class="silicone-link" v-bind="$attrs" underline="never">
     <slot />
   </el-link>
 </template>
