@@ -16,7 +16,11 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use tokio::sync::oneshot;
 
 use crate::{
-  io::csv::{config::CsvConfigBuilder, options::CsvOptions},
+  io::csv::{
+    config::CsvConfigBuilder,
+    encoding::{detect_encoding, encoding_from_name},
+    options::CsvOptions,
+  },
   utils::EventEmitter,
 };
 
@@ -129,19 +133,43 @@ where
   Ok(())
 }
 
-pub async fn encoding_to_utf8<P>(path: P, bom: bool, quoting: bool) -> Result<()>
+pub async fn encoding_to_utf8<P>(
+  path: P,
+  bom: bool,
+  quoting: bool,
+  force_encoding: Option<&str>,
+) -> Result<()>
 where
   P: AsRef<Path> + Send + Sync,
 {
   let opts = CsvOptions::new(&path);
-  let encoding = opts.detect_encoding(bom)?;
-  log::info!("{encoding:?}");
+
+  let encoding = if let Some(enc_name) = force_encoding {
+    // 使用手动指定的编码
+    if enc_name.is_empty() {
+      // 空字符串视为自动检测
+      let encoding_result = detect_encoding(path.as_ref().to_str().unwrap(), bom)?;
+      encoding_from_name(&encoding_result.encoding)
+    } else {
+      // 使用用户指定的编码
+      encoding_from_name(enc_name)
+    }
+  } else {
+    // 自动检测编码
+    let encoding_result = detect_encoding(path.as_ref().to_str().unwrap(), bom)?;
+    log::info!(
+      "自动检测编码:{} (置信度:{})",
+      encoding_result.encoding,
+      encoding_result.confidence
+    );
+    encoding_from_name(&encoding_result.encoding)
+  };
 
   // 检测分隔符
   let separator = {
     let file = File::open(&path)?;
     let decoder = DecodeReaderBytesBuilder::new()
-      .encoding(Some(encoding))
+      .encoding(encoding)
       .build(file);
     let mut lines = BufReader::new(decoder).lines();
 
@@ -166,7 +194,7 @@ where
 
   let file = File::open(&path)?;
   let decoder = DecodeReaderBytesBuilder::new()
-    .encoding(Some(encoding))
+    .encoding(encoding)
     .build(file);
   let buf_reader = BufReader::new(decoder);
 
@@ -175,7 +203,7 @@ where
     .quoting(quoting)
     .from_reader(buf_reader);
 
-  let output_path = opts.output_path(Some("encoding"), None)?;
+  let output_path = opts.output_path(Some("utf8"), None)?;
   let wtr = BufWriter::new(File::create(&output_path)?);
   let mut wtr = WriterBuilder::new().delimiter(separator).from_writer(wtr);
 

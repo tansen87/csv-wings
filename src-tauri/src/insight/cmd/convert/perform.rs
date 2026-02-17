@@ -3,7 +3,14 @@ use std::{collections::HashMap, path::Path, time::Instant};
 use anyhow::Result;
 use tauri::AppHandle;
 
-use crate::{cmd::convert, io::csv::options::CsvOptions, utils::{self, EventEmitter}};
+use crate::{
+  cmd::convert,
+  io::csv::{
+    encoding::{EncodingResult, detect_encoding},
+    options::CsvOptions,
+  },
+  utils::{self, EventEmitter},
+};
 
 #[cfg(target_os = "windows")]
 #[tauri::command]
@@ -106,12 +113,22 @@ pub async fn csv2csv(
 }
 
 #[tauri::command]
-pub async fn encoding2utf8(path: String, bom: bool, quoting: bool) -> Result<String, String> {
+pub async fn detect_file_encoding(path: String, bom: bool) -> Result<EncodingResult, String> {
+  detect_encoding(&path, bom).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn encoding2utf8(
+  path: String,
+  bom: bool,
+  quoting: bool,
+  force_encoding: Option<String>,
+) -> Result<String, String> {
   let start_time = Instant::now();
   let paths: Vec<&str> = path.split('|').collect();
   let p = paths.first().unwrap();
 
-  match convert::csv_to_csv::encoding_to_utf8(p, bom, quoting).await {
+  match convert::csv_to_csv::encoding_to_utf8(p, bom, quoting, force_encoding.as_deref()).await {
     Ok(_) => {
       let end_time = Instant::now();
       let elapsed_time = end_time.duration_since(start_time).as_secs_f64();

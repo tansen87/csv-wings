@@ -79,6 +79,7 @@ fn main() {
       convert::perform::access2csv,
       convert::perform::csv2csv,
       convert::perform::encoding2utf8,
+      convert::perform::detect_file_encoding,
       convert::perform::csv2xlsx,
       convert::perform::dbf2csv,
       convert::perform::excel2csv,

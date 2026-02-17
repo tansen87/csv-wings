@@ -40,6 +40,21 @@ const [backendInfo, path] = [ref(""), ref("")];
 const [sheetOptions, fileSheet] = [ref([]), ref([])];
 const [allSheets, isLoading, backendCompleted, writeSheetname, ignoreErr, bom] =
   [ref(true), ref(false), ref(false), ref(false), ref(false), ref(false)];
+
+// 编码相关
+const [detectedEncoding, encodingConfidence, manualEncoding] = [
+  ref(""),
+  ref(0),
+  ref("")
+];
+const encodingOptions = [
+  { label: "Auto", value: "" },
+  { label: "简体中文 (GBK)", value: "GBK" },
+  { label: "UTF-8", value: "UTF-8" },
+  { label: "UTF-16LE", value: "UTF-16LE" },
+  { label: "UTF-16BE", value: "UTF-16BE" }
+];
+
 const modeOptions = [
   { label: "FormtCsv", value: "fmt" },
   { label: "EncodingCsv", value: "encoding" },
@@ -191,6 +206,10 @@ async function selectFile() {
   fileSheet.value = [];
   backendCompleted.value = false;
   backendInfo.value = "";
+  detectedEncoding.value = "";
+  encodingConfidence.value = 0;
+  manualEncoding.value = "";
+
   try {
     const trimFile = await trimOpenFile(true, "Files", ["*"], {
       includeStatus: true
@@ -225,6 +244,51 @@ async function selectFile() {
       closeAllMessage();
       backendInfo.value = "get excel sheets done";
       backendCompleted.value = true;
+    }
+
+    // encoding 模式自动检测编码
+    if (activeTab.value === "encoding" && fileSelect.value.length > 0) {
+      message("detecting encoding...", {
+        type: "info",
+        duration: 0,
+        icon: Loading
+      });
+
+      try {
+        const result = await invoke<{
+          encoding: string;
+          confidence: number;
+          bom: boolean;
+        }>("detect_file_encoding", {
+          path: path.value,
+          bom: bom.value
+        });
+
+        detectedEncoding.value = result.encoding;
+        encodingConfidence.value = result.confidence;
+
+        // 置信度低时提示用户手动选择
+        if (result.confidence < 0.7) {
+          message(
+            `编码检测置信度较低 (${(result.confidence * 100).toFixed(
+              1
+            )}%)，建议手动确认`,
+            {
+              type: "warning",
+              duration: 5000
+            }
+          );
+        }
+
+        closeAllMessage();
+        backendInfo.value = `detected: ${result.encoding} (${(
+          result.confidence * 100
+        ).toFixed(1)}%)`;
+        backendCompleted.value = true;
+      } catch (err) {
+        closeAllMessage();
+        message(`编码检测失败：${err.toString()}`, { type: "error" });
+      }
     }
   } catch (err) {
     closeAllMessage();
@@ -269,7 +333,8 @@ async function convert() {
       rtime = await invoke("encoding2utf8", {
         path: path.value,
         bom: bom.value,
-        quoting: quoting.quoting
+        quoting: quoting.quoting,
+        forceEncoding: manualEncoding.value || null
       });
     } else if (activeTab.value === "access") {
       rtime = await invoke("access2csv", {
@@ -468,27 +533,43 @@ async function convert() {
             </div>
           </SiliconeTooltip>
 
-          <!-- encoding -->
-          <SiliconeTooltip
-            v-if="activeTab === 'encoding'"
-            content="BOM"
-            placement="right"
-          >
-            <div class="mode-toggle-v h-[32px]">
-              <span
-                v-for="item in bomOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{
-                  active: bom === item.value,
-                  'active-dark': isDark && bom === item.value
-                }"
-                @click="bom = item.value"
+          <!-- encoding 模式专用选项 -->
+          <template v-if="activeTab === 'encoding'">
+            <SiliconeTooltip content="BOM" placement="right">
+              <div class="mode-toggle-v h-[32px] mb-2">
+                <span
+                  v-for="item in bomOptions"
+                  :key="String(item.value)"
+                  class="mode-item"
+                  :class="{
+                    active: bom === item.value,
+                    'active-dark': isDark && bom === item.value
+                  }"
+                  @click="bom = item.value"
+                >
+                  {{ item.label }}
+                </span>
+              </div>
+            </SiliconeTooltip>
+
+            <SiliconeTooltip
+              content="Manual selection of encoding (leave blank for automatic detection)"
+              placement="right"
+            >
+              <SiliconeSelect
+                v-model="manualEncoding"
+                placeholder="Auto"
+                clearable
               >
-                {{ item.label }}
-              </span>
-            </div>
-          </SiliconeTooltip>
+                <el-option
+                  v-for="item in encodingOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </SiliconeSelect>
+            </SiliconeTooltip>
+          </template>
 
           <text
             v-if="backendCompleted && activeTab === 'excel'"
@@ -513,6 +594,7 @@ async function convert() {
           :data="fileSelect"
           :height="dynamicHeight"
           show-overflow-tooltip
+          :key="activeTab"
         >
           <el-table-column type="index" width="35" />
           <el-table-column prop="filename" label="File" />
@@ -592,6 +674,14 @@ async function convert() {
                     )
                   "
                 />
+                <span
+                  v-else-if="activeTab === 'encoding' && detectedEncoding"
+                  class="text-gray-500"
+                >
+                  {{ detectedEncoding }} ({{
+                    (encodingConfidence * 100).toFixed(1)
+                  }}%)
+                </span>
               </template>
             </template>
           </el-table-column>
