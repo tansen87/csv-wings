@@ -2,7 +2,6 @@ import { type VNode } from "vue";
 import { isFunction } from "@pureadmin/utils";
 import { type MessageHandler, ElMessage } from "element-plus";
 
-type messageStyle = "el" | "antd";
 type messageTypes = "info" | "success" | "warning" | "error";
 type messagePlacement =
   | "top"
@@ -19,8 +18,6 @@ interface MessageParams {
   icon?: any;
   /** 是否将 `message` 属性作为 `HTML` 片段处理, 默认 `false` */
   dangerouslyUseHTMLString?: boolean;
-  /** 消息风格, 可选 `el` 、`antd` , 默认 `antd` */
-  customClass?: messageStyle;
   /** 显示时间, 单位为毫秒。设为 `0` 则不会自动关闭, 默认是 `5000` */
   duration?: number;
   /** 是否显示关闭按钮, 默认值 `true` */
@@ -37,8 +34,6 @@ interface MessageParams {
   onClose?: Function | null;
 }
 
-/** 用法非常简单, 参考 src/views/components/message/index.vue 文件 */
-
 /**
  * `Message` 消息提示函数
  */
@@ -46,42 +41,33 @@ const message = (
   message: string | VNode | (() => VNode),
   params?: MessageParams
 ): MessageHandler => {
-  if (!params) {
-    return ElMessage({
-      message,
-      customClass: "pure-message"
-    });
-  } else {
-    const {
-      icon,
-      type = "info",
-      dangerouslyUseHTMLString = false,
-      customClass = "antd",
-      duration = 5000,
-      showClose = false,
-      offset = 11,
-      appendTo = document.body,
-      grouping = true,
-      placement = "bottom-right",
-      onClose
-    } = params;
+  const {
+    icon,
+    type = "info",
+    dangerouslyUseHTMLString = false,
+    duration = 5000,
+    showClose = false,
+    offset = 11,
+    appendTo = document.body,
+    grouping = true,
+    placement = "bottom-right",
+    onClose
+  } = params ?? {};
 
-    return ElMessage({
-      message,
-      type,
-      icon,
-      dangerouslyUseHTMLString,
-      duration,
-      showClose,
-      offset,
-      appendTo,
-      grouping,
-      placement,
-      // 全局搜 pure-message 即可知道该类的样式位置
-      customClass: customClass === "antd" ? "pure-message" : "",
-      onClose: () => (isFunction(onClose) ? onClose() : null)
-    });
-  }
+  return ElMessage({
+    message,
+    type,
+    icon,
+    dangerouslyUseHTMLString,
+    duration,
+    showClose,
+    offset,
+    appendTo,
+    grouping,
+    placement,
+    customClass: "silicone-message",
+    onClose: () => (isFunction(onClose) ? onClose() : null)
+  });
 };
 
 /**

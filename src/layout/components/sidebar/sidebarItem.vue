@@ -231,7 +231,7 @@ function resolvePath(routePath) {
         <span v-if="layout === 'horizontal'">
           {{ onlyOneChild.meta.title }}
         </span>
-        <el-tooltip
+        <SiliconeTooltip
           v-else
           placement="top"
           :effect="tooltipEffect"
@@ -248,7 +248,7 @@ function resolvePath(routePath) {
           >
             {{ onlyOneChild.meta.title }}
           </span>
-        </el-tooltip>
+        </SiliconeTooltip>
         <extraIcon :extraIcon="onlyOneChild.meta.extraIcon" />
       </div>
     </template>
@@ -283,7 +283,7 @@ function resolvePath(routePath) {
           )
         "
       >
-        <el-tooltip
+        <SiliconeTooltip
           v-if="layout !== 'horizontal'"
           placement="top"
           :effect="tooltipEffect"
@@ -300,7 +300,7 @@ function resolvePath(routePath) {
           >
             {{ overflowSlice(props.item.meta.title, props.item) }}
           </span>
-        </el-tooltip>
+        </SiliconeTooltip>
         <extraIcon v-if="!isCollapse" :extraIcon="props.item.meta.extraIcon" />
       </div>
     </template>
