@@ -330,7 +330,7 @@ watch(mode, newMode => {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Apply - Apply a series of transformation functions to given CSV column/s"
       width="70%"
@@ -338,6 +338,6 @@ watch(mode, newMode => {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

@@ -185,7 +185,7 @@ async function fillData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Fill - Fill empty fields in selected columns of a CSV"
       width="70%"
@@ -193,6 +193,6 @@ async function fillData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

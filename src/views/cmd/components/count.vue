@@ -175,7 +175,7 @@ async function countData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Count - Count the rows of CSV files"
       width="70%"
@@ -183,6 +183,6 @@ async function countData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

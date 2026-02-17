@@ -221,7 +221,7 @@ async function joinData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Join - Joins two sets of CSV data on the specified columns"
       width="70%"
@@ -229,6 +229,6 @@ async function joinData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

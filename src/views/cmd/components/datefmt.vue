@@ -315,10 +315,10 @@ async function convertDates() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog v-model="dialog" title="Date Format Converter" width="70%">
+    <SiliconeDialog v-model="dialog" title="Date Format Converter" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

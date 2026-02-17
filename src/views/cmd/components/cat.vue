@@ -372,7 +372,7 @@ async function concatData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Cat - Merge multiple CSV or Excel files"
       width="70%"
@@ -380,6 +380,6 @@ async function concatData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

@@ -104,8 +104,8 @@ const { isDark } = useDark();
 </script>
 
 <template>
-  <el-dialog v-model="dialog" title="Setting" width="70%">
-    <div class="mode-toggle w-[200px] ml-[0px] mb-[5px]">
+  <SiliconeDialog v-model="dialog" title="Setting" width="70%">
+    <div class="mode-toggle w-[200px] ml-[0px] mb-1">
       <span
         v-for="item in options"
         :key="item.value"
@@ -121,20 +121,20 @@ const { isDark } = useDark();
     </div>
     <el-scrollbar max-height="60vh">
       <div v-if="opts === 'general'" class="mt-1">
-        <el-card class="setting-card">
+        <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">
               <span class="setting-title">skiprows</span>
               <span class="setting-desc"> Number of lines skipped </span>
             </div>
-            <el-input-number
+            <SiliconeInputNumber
               v-model="skiprowsStore.skiprows"
               :min="0"
               size="small"
             />
           </div>
-        </el-card>
-        <el-card class="setting-card">
+        </SiliconeCard>
+        <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">
               <span class="setting-title">progress</span>
@@ -142,7 +142,7 @@ const { isDark } = useDark();
                 When set to false, no progress bar
               </span>
             </div>
-            <el-switch
+            <SiliconeSwitch
               :model-value="progressStore.progress"
               @change="progressStore.setProgress"
               inline-prompt
@@ -151,24 +151,24 @@ const { isDark } = useDark();
               inactive-text="false"
             />
           </div>
-        </el-card>
-        <el-card class="setting-card">
+        </SiliconeCard>
+        <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">
               <span class="setting-title">threads</span>
               <span class="setting-desc"> Number of threads used </span>
             </div>
-            <el-input-number
+            <SiliconeInputNumber
               v-model="threadsStore.threads"
               :min="0"
               size="small"
             />
           </div>
-        </el-card>
+        </SiliconeCard>
       </div>
 
       <div v-if="opts === 'readwrite'" class="mt-1">
-        <el-card class="setting-card">
+        <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">
               <span class="setting-title">quoting</span>
@@ -176,7 +176,7 @@ const { isDark } = useDark();
                 When set to false, ignore all double quotes
               </span>
             </div>
-            <el-switch
+            <SiliconeSwitch
               :model-value="quotingStore.quoting"
               @change="quotingStore.setQuoting"
               inline-prompt
@@ -185,8 +185,8 @@ const { isDark } = useDark();
               inactive-text="false"
             />
           </div>
-        </el-card>
-        <el-card class="setting-card">
+        </SiliconeCard>
+        <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">
               <span class="setting-title">flexible</span>
@@ -194,7 +194,7 @@ const { isDark } = useDark();
                 When set to false, enable column count check
               </span>
             </div>
-            <el-switch
+            <SiliconeSwitch
               :model-value="flexibleStore.flexible"
               @change="flexibleStore.setFlexible"
               inline-prompt
@@ -203,31 +203,30 @@ const { isDark } = useDark();
               inactive-text="false"
             />
           </div>
-        </el-card>
-        <el-card class="setting-card">
+        </SiliconeCard>
+        <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">
               <span class="setting-title">delimiter</span>
               <span class="setting-desc"> Write the delimiter for CSV </span>
             </div>
-            <el-select style="width: 50px" v-model="delimiterStore.delimiter">
+            <SiliconeSelect
+              style="width: 60px"
+              v-model="delimiterStore.delimiter"
+            >
               <el-option label="|" value="|" />
               <el-option label="," value="," />
               <el-option label=";" value=";" />
               <el-option label="\t" value="\t" />
-            </el-select>
+            </SiliconeSelect>
           </div>
-        </el-card>
+        </SiliconeCard>
       </div>
     </el-scrollbar>
-  </el-dialog>
+  </SiliconeDialog>
 </template>
 
 <style lang="scss" scoped>
-.setting-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
 .setting-item {
   display: flex;
   justify-content: space-between;
@@ -244,13 +243,5 @@ const { isDark } = useDark();
 }
 .setting-desc {
   font-size: 12px;
-}
-.setting-switch {
-  --el-switch-on-color: #13ce66;
-  --el-switch-off-color: #000;
-}
-
-:deep(.el-input-number) {
-  width: 80px !important;
 }
 </style>

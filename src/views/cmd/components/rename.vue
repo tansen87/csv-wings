@@ -166,7 +166,7 @@ async function headerEdit(row: any) {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Rename - Rename the columns of a CSV"
       width="70%"
@@ -174,6 +174,6 @@ async function headerEdit(row: any) {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

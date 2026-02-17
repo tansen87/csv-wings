@@ -214,7 +214,7 @@ async function sortData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Sort - Sorts CSV data lexicographically"
       width="70%"
@@ -222,6 +222,6 @@ async function sortData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

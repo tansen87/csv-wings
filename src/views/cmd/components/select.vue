@@ -214,7 +214,7 @@ async function selectColumns() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Select - Select, drop, re-order columns"
       width="70%"
@@ -222,6 +222,6 @@ async function selectColumns() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

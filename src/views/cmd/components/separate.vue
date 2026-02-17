@@ -113,7 +113,7 @@ async function separateData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Separate - Separate CSV into good and bad rows"
       width="70%"
@@ -121,6 +121,6 @@ async function separateData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>

@@ -41,6 +41,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  border: none;
 }
 
 /* 按钮 hover 效果 */

@@ -131,7 +131,7 @@ async function transposeData() {
       </el-splitter-panel>
     </el-splitter>
 
-    <el-dialog
+    <SiliconeDialog
       v-model="dialog"
       title="Transpose - Transpose rows/columns of a CSV"
       width="70%"
@@ -139,6 +139,6 @@ async function transposeData() {
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
-    </el-dialog>
+    </SiliconeDialog>
   </el-form>
 </template>
