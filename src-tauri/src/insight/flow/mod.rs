@@ -16,6 +16,7 @@ pub async fn flow(
   path: String,
   json_config: String,
   quoting: bool,
+  skiprows: usize,
 ) -> anyhow::Result<String, String> {
   let start_time = Instant::now();
 
@@ -35,7 +36,7 @@ pub async fn flow(
   let mut output_path = PathBuf::from(parent_path);
   output_path.push(format!("{file_stem}.flow.csv"));
 
-  match process::process_operations(path, &operations, output_path, quoting).await {
+  match process::process_operations(path, &operations, output_path, quoting, skiprows).await {
     Ok(_) => {
       let end_time = Instant::now();
       let elapsed_time = end_time.duration_since(start_time).as_secs_f64();

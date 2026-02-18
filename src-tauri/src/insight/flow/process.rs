@@ -15,6 +15,7 @@ pub async fn process_operations(
   operations: &[Operation],
   output_path: PathBuf,
   quoting: bool,
+  skiprows: usize,
 ) -> Result<()> {
   if let Some(rename_map) = operation::is_pure_rename(operations) {
     return operation::process_rename_only(input_path, rename_map, output_path, quoting);
@@ -36,7 +37,8 @@ pub async fn process_operations(
     return operation::process_select_filter(input_path, operations, output_path, quoting);
   }
 
-  let opts = CsvOptions::new(input_path);
+  let mut opts = CsvOptions::new(input_path);
+  opts.set_skiprows(skiprows);
   let (sep, reader) = opts.skiprows_and_delimiter()?;
 
   let mut rdr = ReaderBuilder::new()

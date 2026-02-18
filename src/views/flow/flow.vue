@@ -38,7 +38,7 @@ import { useWorkflowStore } from "@/store/modules/workflow";
 import { useWorkflowManager } from "@/utils/workflowManager";
 import { message } from "@/utils/message";
 import { invoke } from "@tauri-apps/api/core";
-import { useQuoting } from "@/store/modules/options";
+import { useQuoting, useSkiprows } from "@/store/modules/options";
 
 const isLoading = ref(false);
 const nodeTypes = ["start", "select", "filter", "str", "rename"];
@@ -59,6 +59,7 @@ const strStore = useStr();
 const renameStore = useRename();
 const inputStore = useInput();
 const quoting = useQuoting();
+const skiprows = useSkiprows();
 
 const { getNodes, getEdges } = useVueFlow();
 
@@ -187,12 +188,13 @@ async function runWorkflow() {
       strStore,
       renameStore
     });
-    console.log(config);
+
     const jsonConfig = JSON.stringify(config);
     const rtime: string = await invoke("flow", {
       path: filePath,
       jsonConfig: jsonConfig,
-      quoting: quoting.quoting
+      quoting: quoting.quoting,
+      skiprows: skiprows.skiprows
     });
     isLoading.value = false;
     message(`Flow done, elapsed time: ${rtime} s`, { type: "success" });
