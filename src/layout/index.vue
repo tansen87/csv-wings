@@ -47,7 +47,10 @@ const handleMouseDown = e => {
     e.target.closest(".vue-flow__edge-interaction") ||
     e.target.closest(".el-input__inner") ||
     e.target.closest(".scrollbar-wrapper") ||
-    e.target.closest(".validation-panel")
+    e.target.closest(".validation-panel") ||
+    e.target.closest(".line-number") ||
+    e.target.closest(".line-content") ||
+    e.target.closest(".file-viewer")
   ) {
     return;
   }

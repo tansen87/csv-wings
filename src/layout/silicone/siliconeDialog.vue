@@ -1,6 +1,17 @@
 <template>
   <el-dialog class="silicone-dialog" v-bind="$attrs">
+    <!-- 透传所有具名插槽 -->
+    <template #header v-if="$slots.header">
+      <slot name="header" />
+    </template>
+
+    <!-- 默认插槽 -->
     <slot />
+
+    <!-- 透传 footer 插槽 -->
+    <template #footer v-if="$slots.footer">
+      <slot name="footer" />
+    </template>
   </el-dialog>
 </template>
 

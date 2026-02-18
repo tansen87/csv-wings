@@ -1,28 +1,24 @@
 <template>
-  <el-card :class="['silicone-card', computedClass]" v-bind="$attrs">
+  <el-card
+    :class="['silicone-card', `shadow-${props.shadow}`]"
+    :style="{ padding: props.padding }"
+    v-bind="$attrs"
+  >
     <slot />
   </el-card>
 </template>
 
 <script setup>
-import { computed } from "vue";
-
-// 接收 props
 const props = defineProps({
   padding: {
-    type: String,
-    default: "8px"
+    type: [String, Number],
+    default: "0px"
   },
   shadow: {
     type: String,
-    default: "hover" // 可选值:'always', 'hover', 'never'
+    default: "hover"
   }
 });
-
-const computedClass = computed(() => ({
-  [`padding-${props.padding}`]: true,
-  [`shadow-${props.shadow}`]: true
-}));
 </script>
 
 <style scoped>

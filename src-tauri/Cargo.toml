@@ -78,6 +78,8 @@ tauri-plugin-os = "2"
 xl = { git = "https://github.com/tansen87/xl.git", branch = "main" }
 json-objects-to-csv = { git = "https://github.com/tansen87/json-objects-to-csv", branch = "main"}
 
+large-text-core = { path = "../crates/large-text-core" }
+
 [features]
 # by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
