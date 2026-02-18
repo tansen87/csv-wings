@@ -19,6 +19,7 @@ import "./assets/iconfont/iconfont.js";
 import "./assets/iconfont/iconfont.css";
 
 import "./style/silicone-message.scss";
+import "./style/silicone-messagebox.scss";
 
 const app = createApp(App);
 
