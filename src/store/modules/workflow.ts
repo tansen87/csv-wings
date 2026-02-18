@@ -46,7 +46,7 @@ export const useWorkflowStore = defineStore("workflow", {
       if (!this.currentId) return;
       const workflow = this.list.find(w => w.id === this.currentId);
       if (workflow) {
-        workflow.nodes = [...workflow.nodes, node];
+        workflow.nodes.push(node);
         workflow.updatedAt = new Date().toISOString();
       }
     },

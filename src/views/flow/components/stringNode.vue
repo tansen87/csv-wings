@@ -128,7 +128,7 @@ function deleteBtn() {
 
 <template>
   <div class="page-container">
-    <div class="node-container">
+    <div class="node-container w-[200px]">
       <Handle
         type="target"
         :position="Position.Left"
