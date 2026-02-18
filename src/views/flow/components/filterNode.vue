@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { Handle, Position, useNodeId } from "@vue-flow/core";
 import { CloseBold } from "@element-plus/icons-vue";
 import { useHeaders, useFilter } from "@/store/modules/flow";
@@ -11,30 +11,30 @@ const mode = ref("equal");
 const nodeId = useNodeId();
 const headerStore = useHeaders();
 const filterStore = useFilter();
-const filterData = computed(() => {
-  return {
-    op: "filter",
-    logic: logic.value,
-    mode: mode.value,
-    column: columns.value,
-    value: condition.value
-  };
-});
+const isInitialized = ref(false);
 
+// 分别监听每个字段,避免 deep: true 导致多次触发
 watch(
-  filterData,
-  newData => {
-    if (
-      nodeId &&
-      (newData.logic || newData.mode || newData.column || newData.value)
-    ) {
+  [columns, condition, logic, mode],
+  () => {
+    // 跳过未初始化时的空数据
+    if (!isInitialized.value) return;
+
+    if (!nodeId) return;
+
+    // 仅当有实际数据时才更新
+    if (columns.value || condition.value) {
       filterStore.addFilter({
         id: nodeId,
-        ...newData
+        op: "filter",
+        logic: logic.value,
+        mode: mode.value,
+        column: columns.value,
+        value: condition.value
       });
     }
   },
-  { deep: true, immediate: true }
+  { deep: false }
 );
 
 const props = defineProps<{ id: string }>();
@@ -42,7 +42,25 @@ const props = defineProps<{ id: string }>();
 function deleteBtn() {
   const store = useWorkflowStore();
   store.removeNodes([props.id]);
+  // 同时删除filterStore中的数据
+  filterStore.filters = filterStore.filters.filter(f => f.id !== nodeId);
 }
+
+onMounted(() => {
+  if (!nodeId) return;
+
+  const existingFilter = filterStore.filters.find(f => f.id === nodeId);
+
+  if (existingFilter) {
+    logic.value = existingFilter.logic || "or";
+    mode.value = existingFilter.mode || "equal";
+    columns.value = existingFilter.column || "";
+    condition.value = existingFilter.value || "";
+    isInitialized.value = true;
+  } else {
+    isInitialized.value = true;
+  }
+});
 </script>
 
 <template>
@@ -54,12 +72,14 @@ function deleteBtn() {
         id="input"
         class="handle-style"
       />
+
       <div class="flex justify-between items-center mb-1 w-full">
         <span class="font-bold"> Filter </span>
         <SiliconeButton circle text @click="deleteBtn" size="small">
           <el-icon><CloseBold /></el-icon>
         </SiliconeButton>
       </div>
+
       <SiliconeSelect
         v-model="columns"
         filterable
@@ -73,6 +93,7 @@ function deleteBtn() {
           :value="item.value"
         />
       </SiliconeSelect>
+
       <SiliconeSelect v-model="mode" filterable style="margin-bottom: 6px">
         <el-option label="Equal" value="equal" />
         <el-option label="NotEqual" value="not_equal" />
@@ -90,11 +111,13 @@ function deleteBtn() {
         <el-option label="le(≤)" value="le" />
         <el-option label="Between" value="between" />
       </SiliconeSelect>
+
       <SiliconeInput
         v-if="mode !== 'is_null' && mode !== 'is_not_null'"
         v-model="condition"
         placeholder="Filter conditions"
       />
+
       <SiliconeSelect v-model="logic" style="margin-top: 6px">
         <el-option label="OR" value="or" />
         <el-option label="AND" value="and" />

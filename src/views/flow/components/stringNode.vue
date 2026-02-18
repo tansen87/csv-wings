@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { Handle, Position, useNodeId, useNode } from "@vue-flow/core";
+import { computed, ref, watch, onMounted } from "vue";
+import { Handle, Position, useNodeId } from "@vue-flow/core";
 import { CloseBold } from "@element-plus/icons-vue";
 import { useHeaders, useStr } from "@/store/modules/flow";
 import { useWorkflowStore } from "@/store/modules/workflow";
@@ -10,30 +10,67 @@ const [comparand, replacement, columns] = [ref(""), ref(""), ref("")];
 const nodeId = useNodeId();
 const headerStore = useHeaders();
 const strStore = useStr();
-const node = useNode();
+const isInitialized = ref(false);
+
+// 记录当前生成的header label,用于删除时匹配
+const currentHeaderLabel = ref("");
+
 const strData = computed(() => {
+  const label = generateHeaderLabel({
+    mode: mode.value,
+    column: columns.value
+  });
+
   return {
     op: "str",
     mode: mode.value,
     column: columns.value,
     comparand: comparand.value,
-    replacement: replacement.value
+    replacement: replacement.value,
+    newcol: label // 传递新列名
   };
+});
+
+// 挂载时恢复数据
+onMounted(() => {
+  if (!nodeId) return;
+
+  const saved = strStore.getStr(nodeId);
+
+  if (saved) {
+    mode.value = saved.mode || "len";
+    columns.value = saved.column || "";
+    comparand.value = saved.comparand || "";
+    replacement.value = saved.replacement || "";
+
+    // 恢复 header
+    if (saved.mode && saved.column) {
+      const label = generateHeaderLabel(saved);
+      headerStore.setHeaderForNode(nodeId, label);
+      currentHeaderLabel.value = label; // 记录当前 header label
+    }
+  }
+
+  isInitialized.value = true;
 });
 
 watch(
   strData,
   newData => {
-    if (nodeId && (newData.mode || newData.column)) {
+    if (!isInitialized.value) return;
+    if (!nodeId) return;
+
+    if (newData.mode || newData.column) {
       strStore.addStr({
         id: nodeId,
         ...newData
       });
       const label = generateHeaderLabel(newData);
       headerStore.setHeaderForNode(nodeId, label);
+      currentHeaderLabel.value = label; // 记录当前 header label
     }
   },
-  { deep: true, immediate: true }
+  { deep: true }
 );
 
 function generateHeaderLabel(data: {
@@ -49,7 +86,6 @@ function generateHeaderLabel(data: {
     return "calculated";
   }
 
-  // others: {colmn}_{mode}
   const needCol = [
     "copy",
     "left",
@@ -76,8 +112,15 @@ function generateHeaderLabel(data: {
 const props = defineProps<{ id: string }>();
 
 function deleteBtn() {
-  // 当删除节点时,同时删除该节点生成的header
-  headerStore.headers = headerStore.headers.filter(h => h.value !== node.id);
+  // 用currentHeaderLabel过滤
+  if (currentHeaderLabel.value) {
+    headerStore.headers = headerStore.headers.filter(
+      h => h.value !== currentHeaderLabel.value
+    );
+  }
+
+  strStore.removeStr(nodeId);
+
   const store = useWorkflowStore();
   store.removeNodes([props.id]);
 }
@@ -99,6 +142,7 @@ function deleteBtn() {
           <el-icon><CloseBold /></el-icon>
         </SiliconeButton>
       </div>
+
       <SiliconeSelect
         v-if="!new Set(['cat', 'calcconv']).has(mode)"
         v-model="columns"
@@ -110,9 +154,10 @@ function deleteBtn() {
           v-for="item in headerStore.headers"
           :key="item.value"
           :label="item.label"
-          :value="item.label"
+          :value="item.value"
         />
       </SiliconeSelect>
+
       <SiliconeSelect v-model="mode" filterable style="margin-bottom: 6px">
         <el-option label="DynFmt" value="cat" />
         <el-option label="CalcConv" value="calcconv" />
@@ -143,6 +188,7 @@ function deleteBtn() {
         <el-option label="PadRight" value="pad_right" />
         <el-option label="PadBoth" value="pad_both" />
       </SiliconeSelect>
+
       <template v-if="['replace', 'regex_replace'].includes(mode)">
         <SiliconeInput
           v-model="comparand"
@@ -151,6 +197,7 @@ function deleteBtn() {
         />
         <SiliconeInput v-model="replacement" placeholder="replacement" />
       </template>
+
       <template v-if="['split'].includes(mode)">
         <SiliconeInput
           v-model="comparand"
@@ -159,17 +206,20 @@ function deleteBtn() {
         />
         <SiliconeInput v-model="replacement" placeholder="n" />
       </template>
+
       <SiliconeInput
         v-if="['cat', 'calcconv'].includes(mode)"
         v-model="comparand"
         placeholder="{col1}-{col2}+{col3}"
       />
+
       <SiliconeInput
         v-if="['slice'].includes(mode)"
         v-model="comparand"
         style="margin-bottom: 6px"
         placeholder="start index"
       />
+
       <SiliconeInput
         v-if="
           [
@@ -185,16 +235,19 @@ function deleteBtn() {
         style="margin-bottom: 6px"
         placeholder="length"
       />
+
       <SiliconeInput
         v-if="['pad_left', 'pad_right', 'pad_both'].includes(mode)"
         v-model="comparand"
         placeholder="fill char"
       />
+
       <SiliconeInput
         v-if="['fill'].includes(mode)"
         v-model="replacement"
         placeholder="fill value"
       />
+
       <SiliconeSelect v-if="['pinyin'].includes(mode)" v-model="replacement">
         <el-option label="upper" value="upper" />
         <el-option label="lower" value="lower" />

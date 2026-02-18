@@ -5,11 +5,13 @@ import { CloseBold } from "@element-plus/icons-vue";
 import { useHeaders, useSelect } from "@/store/modules/flow";
 import { useWorkflowStore } from "@/store/modules/workflow";
 
-const columns = ref([]);
+const columns = ref<string[]>([]);
 const nodeId = useNodeId();
 const headerStore = useHeaders();
 const selectStore = useSelect();
+const isInitialized = ref(false);
 const selCols = computed(() => columns.value.join("|"));
+
 const selectData = computed(() => {
   return {
     op: "select",
@@ -17,24 +19,37 @@ const selectData = computed(() => {
   };
 });
 
+// 挂载时恢复数据
 onMounted(() => {
-  const saved = selectStore.selects.find(s => s.id === nodeId);
+  if (!nodeId) return;
+
+  const saved = selectStore.getSelect(nodeId);
+
   if (saved?.column) {
     columns.value = saved.column.split("|").filter(col => col.trim() !== "");
   }
+
+  // 标记已初始化
+  isInitialized.value = true;
 });
 
 watch(
   selectData,
   newData => {
-    if (nodeId && newData.column) {
+    // 跳过未初始化时的空数据
+    if (!isInitialized.value) return;
+
+    if (!nodeId) return;
+
+    // 只有当有实际数据时才更新
+    if (newData.column) {
       selectStore.addSelect({
         id: nodeId,
         ...newData
       });
     }
   },
-  { deep: true, immediate: true }
+  { deep: true }
 );
 
 const props = defineProps<{ id: string }>();
@@ -42,6 +57,8 @@ const props = defineProps<{ id: string }>();
 function deleteBtn() {
   const store = useWorkflowStore();
   store.removeNodes([props.id]);
+  // 同步删除 selectStore 中的数据
+  selectStore.removeSelect(nodeId);
 }
 </script>
 
@@ -61,6 +78,7 @@ function deleteBtn() {
           <el-icon><CloseBold /></el-icon>
         </SiliconeButton>
       </div>
+
       <SiliconeSelect
         v-model="columns"
         multiple

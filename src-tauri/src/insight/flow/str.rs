@@ -12,20 +12,21 @@ pub fn str_process(
   context: &ProcessContext,
   headers: &Vec<String>,
 ) -> Result<(Vec<String>, Vec<String>)> {
-  // initital f_fill cache
+  // initial f_fill cache
   let mut ffill_caches: Vec<Option<String>> = vec![None; context.str_ops.len()];
   let mut row_fields: Vec<String> = record.iter().map(|s| s.to_string()).collect();
   let mut str_results = Vec::new();
+  let mut str_result_headers = Vec::new();
+
   for (i, str_op) in context.str_ops.iter().enumerate() {
     if str_op.mode == "cat" {
-      // cat操作不依赖特定列，直接处理整个记录
+      // cat 操作不依赖特定列,直接处理整个记录
       let template = str_op.comparand.as_deref().unwrap_or("");
       let mut dynfmt_template_wrk = template.to_string();
       let mut dynfmt_fields = Vec::new();
 
       let formatstr_re: &'static Regex = regex_oncelock!(r"\{(?P<key>\w+)?\}");
       for format_fields in formatstr_re.captures_iter(template) {
-        // safety: we already checked that the regex match is valid
         if let Some(key) = format_fields.name("key") {
           dynfmt_fields.push(key.as_str());
         }
@@ -48,6 +49,10 @@ pub fn str_process(
         str_results.push(formatted.to_string());
       } else {
         str_results.push(String::new());
+      }
+
+      if let Some(newcol) = &str_op.newcol {
+        str_result_headers.push(newcol.clone());
       }
     } else if str_op.mode == "calcconv" {
       let template = str_op.comparand.as_deref().unwrap_or("");
@@ -96,9 +101,12 @@ pub fn str_process(
           str_results.push(value_str);
         }
         Err(e) => {
-          // str_results.push(formatted);  // fallback initial value
           str_results.push(format!("ERROR: {}", e));
         }
+      }
+
+      if let Some(newcol) = &str_op.newcol {
+        str_result_headers.push(newcol.clone());
       }
     } else if let Some(idx) = headers.iter().position(|h| h == &str_op.column) {
       let cell = row_fields[idx].clone();
@@ -115,7 +123,7 @@ pub fn str_process(
         _ => 0,
       };
       match str_op.mode.as_str() {
-        // do not add new column
+        // 不新增列的操作(直接修改原列)
         "fill" => {
           if cell.is_empty() {
             row_fields[idx] = str_op.replacement.clone().unwrap_or_default();
@@ -187,7 +195,7 @@ pub fn str_process(
             row_fields[idx] = cell;
           }
         }
-        // add new column
+        // 新增列的操作(结果推入 str_results)
         "pinyin" => {
           let result = if let Some(cell) = cell_opt {
             let py_mode_string = str_op.replacement.clone().unwrap_or_default();
@@ -330,11 +338,17 @@ pub fn str_process(
         _ => str_results.push(cell),
       }
     } else {
-      // 字段找不到时,只有新增列的操作才追加空字符串
+      // 字段找不到时的处理
       match str_op.mode.as_str() {
+        // 不新增列的操作
         "fill" | "f_fill" | "lower" | "upper" | "trim" | "ltrim" | "rtrim" | "squeeze"
         | "strip" | "replace" | "regex_replace" | "round" | "reverse" | "abs" | "neg"
         | "normalize" => {}
+        // 新增列的操作:追加空字符串
+        "pinyin" | "left" | "right" | "slice" | "split" | "pad_left" | "pad_right" | "pad_both"
+        | "len" | "copy" | "cat" | "calcconv" => {
+          str_results.push(String::new());
+        }
         _ => {
           str_results.push(String::new());
         }

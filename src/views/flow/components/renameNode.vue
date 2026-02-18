@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import { Handle, Position, useNodeId } from "@vue-flow/core";
 import { CloseBold } from "@element-plus/icons-vue";
 import { useHeaders, useRename } from "@/store/modules/flow";
@@ -9,6 +9,8 @@ const [old_col, new_col] = [ref(""), ref("")];
 const nodeId = useNodeId();
 const headerStore = useHeaders();
 const renameStore = useRename();
+const isInitialized = ref(false);
+
 const renameData = computed(() => {
   return {
     op: "rename",
@@ -20,14 +22,22 @@ const renameData = computed(() => {
 watch(
   renameData,
   newData => {
-    if (nodeId && (newData.column || newData.value)) {
+    // 跳过未初始化时的空数据
+    if (!isInitialized.value) {
+      return;
+    }
+
+    if (!nodeId) return;
+
+    // 只有当有实际数据时才更新
+    if (newData.column || newData.value) {
       renameStore.addRename({
         id: nodeId,
         ...newData
       });
     }
   },
-  { deep: true, immediate: true }
+  { deep: true }
 );
 
 const props = defineProps<{ id: string }>();
@@ -35,7 +45,24 @@ const props = defineProps<{ id: string }>();
 function deleteBtn() {
   const store = useWorkflowStore();
   store.removeNodes([props.id]);
+  // 同步删除 renameStore 中的数据
+  renameStore.removeRename(nodeId);
 }
+
+// 挂载时恢复数据
+onMounted(() => {
+  if (!nodeId) return;
+
+  const existingRename = renameStore.getRename(nodeId);
+
+  if (existingRename) {
+    old_col.value = existingRename.column || "";
+    new_col.value = existingRename.value || "";
+    isInitialized.value = true;
+  } else {
+    isInitialized.value = true;
+  }
+});
 </script>
 
 <template>

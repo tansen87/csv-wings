@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import {
   VueFlow,
   useVueFlow,
@@ -29,7 +29,9 @@ import {
   usePath,
   useRename,
   useSelect,
-  useStr
+  useStr,
+  useInput,
+  useHeaders
 } from "@/store/modules/flow";
 import { nanoid } from "nanoid";
 import { useWorkflowStore } from "@/store/modules/workflow";
@@ -50,10 +52,12 @@ const customNodeTypes = {
 const vueFlowRef = ref();
 const workflowStore = useWorkflowStore();
 const pathStore = usePath();
+const headerStore = useHeaders();
 const filterStore = useFilter();
 const selectStore = useSelect();
 const strStore = useStr();
 const renameStore = useRename();
+const inputStore = useInput();
 const quoting = useQuoting();
 
 const { getNodes, getEdges } = useVueFlow();
@@ -134,7 +138,7 @@ async function runWorkflow() {
     const nodes: Node[] = getNodes.value;
     const edges: Edge[] = getEdges.value;
 
-    const { isValid, path, reason } = isValidExecutionPath(nodes, edges);
+    const { isValid, reason } = isValidExecutionPath(nodes, edges);
 
     if (!isValid) {
       let msg = "Invalid flow configuration.";
@@ -156,21 +160,37 @@ async function runWorkflow() {
       return;
     }
 
-    if (!pathStore.path) {
+    // 从当前 workflow 的 start 节点获取路径
+    const startNode = nodes.find(n => n.type === "start");
+    let filePath = "";
+
+    if (startNode?.id) {
+      const inputData = inputStore.getInput(startNode.id);
+      if (inputData?.path && inputData?.isPath) {
+        filePath = inputData.path;
+      }
+    }
+
+    if (!filePath) {
+      filePath = pathStore.path;
+    }
+
+    if (!filePath) {
       message("CSV file not selected", { type: "warning" });
       isLoading.value = false;
       return;
     }
 
-    const config = getExecutionConfig(path, {
+    const config = getExecutionConfig(nodes, edges, {
       selectStore,
       filterStore,
       strStore,
       renameStore
     });
+    console.log(config);
     const jsonConfig = JSON.stringify(config);
     const rtime: string = await invoke("flow", {
-      path: pathStore.path,
+      path: filePath,
       jsonConfig: jsonConfig,
       quoting: quoting.quoting
     });
@@ -179,6 +199,27 @@ async function runWorkflow() {
   } catch (err) {
     isLoading.value = false;
     message(err.toString(), { type: "error" });
+  }
+}
+
+async function onWorkflowChange(workflowId: string) {
+  workflowStore.currentId = workflowId;
+
+  // 等待 nextTick 让 VueFlow 渲染新节点
+  await nextTick();
+
+  // 找到新 workflow 的 start 节点
+  const nodes = vueFlowRef.value?.getNodes() || [];
+  const startNode = nodes.find((n: Node) => n.type === "start");
+
+  if (startNode?.id) {
+    const inputData = inputStore.getInput(startNode.id);
+    if (inputData?.path && inputData?.isPath) {
+      pathStore.path = inputData.path;
+      if (inputData.headers) {
+        headerStore.headers = inputData.headers;
+      }
+    }
   }
 }
 </script>
@@ -219,6 +260,7 @@ async function runWorkflow() {
         v-model="workflowStore.currentId"
         style="width: 120px"
         class="ml-auto"
+        @change="onWorkflowChange"
       >
         <el-option
           v-for="wf in workflowStore.list"

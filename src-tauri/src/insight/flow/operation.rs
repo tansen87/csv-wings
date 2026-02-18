@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File, io::BufWriter, path::PathBuf, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use csv::{ReaderBuilder, StringRecord, WriterBuilder};
+use csv::{ReaderBuilder, WriterBuilder};
 
 use crate::flow::filter;
 use crate::flow::str::str_process;
@@ -170,22 +170,24 @@ pub(crate) fn process_filter_only(
       .ok_or_else(|| anyhow!("Missing value in filter"))?,
   );
 
-  let filter_fn: Box<dyn Fn(&StringRecord) -> bool + Send + Sync> = match mode {
-    "equal" => filter::equal(Arc::from(col), Arc::from(val), headers_arc)?,
-    "not_equal" => filter::not_equal(Arc::from(col), Arc::from(val), headers_arc)?,
-    "contains" => filter::contains(Arc::from(col), Arc::from(val), headers_arc)?,
-    "not_contains" => filter::not_contains(Arc::from(col), Arc::from(val), headers_arc)?,
-    "starts_with" => filter::starts_with(Arc::from(col), Arc::from(val), headers_arc)?,
-    "not_starts_with" => filter::not_starts_with(Arc::from(col), Arc::from(val), headers_arc)?,
-    "ends_with" => filter::ends_with(Arc::from(col), Arc::from(val), headers_arc)?,
-    "not_ends_with" => filter::not_ends_with(Arc::from(col), Arc::from(val), headers_arc)?,
-    "gt" => filter::gt(Arc::from(col), Arc::from(val), headers_arc)?,
-    "ge" => filter::ge(Arc::from(col), Arc::from(val), headers_arc)?,
-    "lt" => filter::lt(Arc::from(col), Arc::from(val), headers_arc)?,
-    "le" => filter::le(Arc::from(col), Arc::from(val), headers_arc)?,
-    "between" => filter::between(Arc::from(col), Arc::from(val), headers_arc)?,
-    "is_null" => filter::is_null(Arc::from(col), headers_arc)?,
-    "is_not_null" => filter::is_not_null(Arc::from(col), headers_arc)?,
+  let filter_fn = match mode {
+    "equal" => filter::equal(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "not_equal" => filter::not_equal(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "contains" => filter::contains(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "not_contains" => filter::not_contains(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "starts_with" => filter::starts_with(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "not_starts_with" => {
+      filter::not_starts_with(Arc::from(col), Arc::from(val), headers_arc.clone())?
+    }
+    "ends_with" => filter::ends_with(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "not_ends_with" => filter::not_ends_with(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "gt" => filter::gt(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "ge" => filter::ge(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "lt" => filter::lt(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "le" => filter::le(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "between" => filter::between(Arc::from(col), Arc::from(val), headers_arc.clone())?,
+    "is_null" => filter::is_null(Arc::from(col), headers_arc.clone())?,
+    "is_not_null" => filter::is_not_null(Arc::from(col), headers_arc.clone())?,
     _ => return Err(anyhow!("Unsupported filter mode: {}", mode)),
   };
 
@@ -196,7 +198,7 @@ pub(crate) fn process_filter_only(
 
   for result in rdr.records() {
     let record = result?;
-    if filter_fn(&record) {
+    if filter_fn(&record, &original_headers) {
       wtr.write_record(&record)?;
     }
   }
@@ -234,6 +236,7 @@ pub(crate) fn process_pure_str_fast(
         mode,
         op.comparand.as_deref(),
         op.replacement.as_deref(),
+        op.newcol.as_deref(),
       );
     } else if let Some(mode) = &op.mode {
       if mode == "cat" || mode == "calcconv" {
@@ -242,6 +245,7 @@ pub(crate) fn process_pure_str_fast(
           mode,
           op.comparand.as_deref(),
           op.replacement.as_deref(),
+          op.newcol.as_deref(),
         );
       }
     }
@@ -251,10 +255,16 @@ pub(crate) fn process_pure_str_fast(
     .str_ops
     .iter()
     .filter(|op| op.produces_new_column())
-    .map(|op| match op.mode.as_str() {
-      "cat" => format!("concatenated"),
-      "calcconv" => format!("calculated"),
-      mode => format!("{}_{}", op.column, mode),
+    .map(|op| {
+      if let Some(ref newcol) = op.newcol {
+        newcol.clone()
+      } else {
+        match op.mode.as_str() {
+          "cat" => "concatenated".to_string(),
+          "calcconv" => "calculated".to_string(),
+          _ => format!("{}_{}", op.column, op.mode),
+        }
+      }
     })
     .collect();
 
@@ -343,22 +353,22 @@ pub(crate) fn process_select_filter(
   let col_arc = Arc::from(col);
   let val_arc = Arc::from(val);
 
-  let filter_fn: Box<dyn Fn(&StringRecord) -> bool + Send + Sync> = match mode {
-    "equal" => filter::equal(col_arc, val_arc, headers_arc)?,
-    "not_equal" => filter::not_equal(col_arc, val_arc, headers_arc)?,
-    "contains" => filter::contains(col_arc, val_arc, headers_arc)?,
-    "not_contains" => filter::not_contains(col_arc, val_arc, headers_arc)?,
-    "starts_with" => filter::starts_with(col_arc, val_arc, headers_arc)?,
-    "not_starts_with" => filter::not_starts_with(col_arc, val_arc, headers_arc)?,
-    "ends_with" => filter::ends_with(col_arc, val_arc, headers_arc)?,
-    "not_ends_with" => filter::not_ends_with(col_arc, val_arc, headers_arc)?,
-    "gt" => filter::gt(col_arc, val_arc, headers_arc)?,
-    "ge" => filter::ge(col_arc, val_arc, headers_arc)?,
-    "lt" => filter::lt(col_arc, val_arc, headers_arc)?,
-    "le" => filter::le(col_arc, val_arc, headers_arc)?,
-    "between" => filter::between(col_arc, val_arc, headers_arc)?,
-    "is_null" => filter::is_null(col_arc, headers_arc)?,
-    "is_not_null" => filter::is_not_null(col_arc, headers_arc)?,
+  let filter_fn = match mode {
+    "equal" => filter::equal(col_arc, val_arc, headers_arc.clone())?,
+    "not_equal" => filter::not_equal(col_arc, val_arc, headers_arc.clone())?,
+    "contains" => filter::contains(col_arc, val_arc, headers_arc.clone())?,
+    "not_contains" => filter::not_contains(col_arc, val_arc, headers_arc.clone())?,
+    "starts_with" => filter::starts_with(col_arc, val_arc, headers_arc.clone())?,
+    "not_starts_with" => filter::not_starts_with(col_arc, val_arc, headers_arc.clone())?,
+    "ends_with" => filter::ends_with(col_arc, val_arc, headers_arc.clone())?,
+    "not_ends_with" => filter::not_ends_with(col_arc, val_arc, headers_arc.clone())?,
+    "gt" => filter::gt(col_arc, val_arc, headers_arc.clone())?,
+    "ge" => filter::ge(col_arc, val_arc, headers_arc.clone())?,
+    "lt" => filter::lt(col_arc, val_arc, headers_arc.clone())?,
+    "le" => filter::le(col_arc, val_arc, headers_arc.clone())?,
+    "between" => filter::between(col_arc, val_arc, headers_arc.clone())?,
+    "is_null" => filter::is_null(col_arc, headers_arc.clone())?,
+    "is_not_null" => filter::is_not_null(col_arc, headers_arc.clone())?,
     _ => return Err(anyhow!("Unsupported filter mode: {}", mode)),
   };
 
@@ -369,7 +379,7 @@ pub(crate) fn process_select_filter(
 
   for result in rdr.records() {
     let record = result?;
-    if filter_fn(&record) {
+    if filter_fn(&record, &original_headers) {
       let selected_fields: Vec<&str> = selected_indices
         .iter()
         .map(|&i| record.get(i).unwrap_or(""))

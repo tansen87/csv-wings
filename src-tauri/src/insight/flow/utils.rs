@@ -10,6 +10,7 @@ pub struct Operation {
   pub value: Option<String>,
   pub comparand: Option<String>,
   pub replacement: Option<String>,
+  pub newcol: Option<String>,
 }
 
 #[derive(Clone)]
@@ -18,6 +19,7 @@ pub struct StrOperation {
   pub mode: String,
   pub comparand: Option<String>,
   pub replacement: Option<String>,
+  pub newcol: Option<String>,
 }
 
 impl StrOperation {
@@ -33,7 +35,7 @@ impl StrOperation {
 }
 
 pub struct Filter {
-  pub filter: Box<dyn Fn(&StringRecord) -> bool + Send + Sync>,
+  pub filter: Box<dyn Fn(&StringRecord, &Vec<String>) -> bool + Send + Sync>,
   pub logic: FilterLogic,
 }
 
@@ -84,7 +86,7 @@ impl ProcessContext {
 
   pub fn add_filter<F>(&mut self, filter: F, logic: FilterLogic)
   where
-    F: Fn(&StringRecord) -> bool + Send + Sync + 'static,
+    F: Fn(&StringRecord, &Vec<String>) -> bool + Send + Sync + 'static,
   {
     self.filters.push(Filter {
       filter: Box::new(filter),
@@ -98,12 +100,14 @@ impl ProcessContext {
     mode: &str,
     comparand: Option<&str>,
     replacement: Option<&str>,
+    newcol: Option<&str>,
   ) {
     self.str_ops.push(StrOperation {
       column: column.to_string(),
       mode: mode.to_string(),
       comparand: comparand.map(|s| s.to_string()),
       replacement: replacement.map(|s| s.to_string()),
+      newcol: newcol.map(|s| s.to_string()),
     });
   }
 
@@ -113,25 +117,35 @@ impl ProcessContext {
       .push((column.to_string(), value.to_string()));
   }
 
-  pub fn is_valid(&self, record: &StringRecord) -> bool {
+  pub fn is_valid(&self, record: &StringRecord, headers: &Vec<String>) -> bool {
+    // 没有 filter，直接通过
     if self.filters.is_empty() {
       return true;
     }
 
-    // 第一个 filter 的结果作为初始值
-    let mut result = (self.filters[0].filter)(record);
+    // 分离 And 和 Or filter
+    let and_filters: Vec<_> = self
+      .filters
+      .iter()
+      .filter(|f| matches!(f.logic, FilterLogic::And))
+      .collect();
 
-    // 从第二个开始,依次应用上一个 filter 的 logic
-    for i in 1..self.filters.len() {
-      let current_value = (self.filters[i].filter)(record);
-      let prev_logic = &self.filters[i - 1].logic;
+    let or_filters: Vec<_> = self
+      .filters
+      .iter()
+      .filter(|f| matches!(f.logic, FilterLogic::Or))
+      .collect();
 
-      match prev_logic {
-        FilterLogic::And => result = result && current_value,
-        FilterLogic::Or => result = result || current_value,
-      }
+    // And: 所有 And filter 必须通过
+    let and_passed = and_filters.iter().all(|f| (f.filter)(record, headers));
+
+    if !and_passed {
+      return false;
     }
 
-    result
+    // Or: 至少一个 Or filter 通过(如果没有 Or filter,视为通过)
+    let or_passed = or_filters.is_empty() || or_filters.iter().any(|f| (f.filter)(record, headers));
+
+    and_passed && or_passed
   }
 }

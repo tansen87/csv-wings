@@ -19,15 +19,19 @@ pub async fn process_operations(
   if let Some(rename_map) = operation::is_pure_rename(operations) {
     return operation::process_rename_only(input_path, rename_map, output_path, quoting);
   }
+
   if let Some(select_cols) = operation::is_pure_select(operations) {
     return operation::process_select_only(input_path, select_cols, output_path, quoting);
   }
+
   if let Some(filter_op) = operation::is_pure_filter(operations) {
     return operation::process_filter_only(input_path, filter_op, output_path, quoting);
   }
+
   if operation::is_pure_str(operations) {
     return operation::process_pure_str_fast(input_path, operations, output_path, quoting);
   }
+
   if operation::is_select_and_filter_only(operations) {
     return operation::process_select_filter(input_path, operations, output_path, quoting);
   }
@@ -41,7 +45,59 @@ pub async fn process_operations(
     .from_reader(reader);
 
   let original_headers: Vec<String> = rdr.headers()?.iter().map(|s| s.to_string()).collect();
-  let headers_arc = Arc::new(original_headers.clone());
+
+  let mut dynamic_col_names: Vec<String> = Vec::new();
+  for op in operations {
+    if op.op == "str" {
+      if let Some(mode) = &op.mode {
+        // 判断是否是新增列的操作
+        let is_new_column = !matches!(
+          mode.as_str(),
+          "fill"
+            | "f_fill"
+            | "lower"
+            | "upper"
+            | "trim"
+            | "ltrim"
+            | "rtrim"
+            | "squeeze"
+            | "strip"
+            | "normalize"
+            | "replace"
+            | "regex_replace"
+            | "round"
+            | "reverse"
+            | "abs"
+            | "neg"
+        );
+
+        if is_new_column {
+          // 优先使用前端传递的 newcol
+          let new_col = if let Some(ref newcol) = op.newcol {
+            newcol.clone()
+          } else if let Some(ref col) = op.column {
+            format!("{}_{}", col, mode)
+          } else {
+            match mode.as_str() {
+              "cat" => "concatenated".to_string(),
+              "calcconv" => "calculated".to_string(),
+              _ => format!("{}_{}", op.column.clone().unwrap(), mode),
+            }
+          };
+          dynamic_col_names.push(new_col);
+        }
+      }
+    }
+  }
+
+  // 构建完整 headers
+  let complete_headers: Vec<String> = original_headers
+    .iter()
+    .cloned()
+    .chain(dynamic_col_names.iter().cloned())
+    .collect();
+
+  let headers_arc = Arc::new(complete_headers.clone());
   let mut context = ProcessContext::new();
 
   for op in operations {
@@ -69,7 +125,7 @@ pub async fn process_operations(
         let col_arc = Arc::from(col);
         let val_arc = Arc::from(val);
 
-        let filter_fn: Box<dyn Fn(&StringRecord) -> bool + Send + Sync> = match mode {
+        let filter_fn = match mode {
           "equal" => filter::equal(col_arc, val_arc, headers_arc.clone())?,
           "not_equal" => filter::not_equal(col_arc, val_arc, headers_arc.clone())?,
           "contains" => filter::contains(col_arc, val_arc, headers_arc.clone())?,
@@ -97,6 +153,7 @@ pub async fn process_operations(
             mode,
             op.comparand.as_deref(),
             op.replacement.as_deref(),
+            op.newcol.as_deref(),
           );
         } else if let Some(mode) = &op.mode {
           if mode == "cat" || mode == "calcconv" {
@@ -105,6 +162,7 @@ pub async fn process_operations(
               mode,
               op.comparand.as_deref(),
               op.replacement.as_deref(),
+              op.newcol.as_deref(),
             );
           }
         }
@@ -121,17 +179,6 @@ pub async fn process_operations(
       _ => return Err(anyhow!("Not supported operation: {}", op.op)),
     }
   }
-
-  let dynamic_col_names: Vec<String> = context
-    .str_ops
-    .iter()
-    .filter(|op| op.produces_new_column())
-    .map(|op| match op.mode.as_str() {
-      "cat" => format!("concatenated"),
-      "calcconv" => format!("calculated"),
-      mode => format!("{}_{}", op.column, mode),
-    })
-    .collect();
 
   let logical_columns: Vec<String> = original_headers
     .iter()
@@ -175,7 +222,7 @@ pub async fn process_operations(
         } else {
           return Err(anyhow!(
             "Column '{}' not found in input headers or generated columns.\n\
-                         Available logical columns: {:?}",
+                     Available logical columns: {:?}",
             col_name,
             logical_columns
           ));
@@ -206,7 +253,11 @@ pub async fn process_operations(
     let record = result?;
     let (row_fields, str_results) = str_process(&record, &context, &original_headers)?;
 
-    if context.is_valid(&record) {
+    let mut complete_row = row_fields.clone();
+    complete_row.extend(str_results.iter().cloned());
+    let temp_record = StringRecord::from(complete_row);
+
+    if context.is_valid(&temp_record, &complete_headers) {
       let output_row: Vec<&str> = context
         .output_column_sources
         .as_ref()

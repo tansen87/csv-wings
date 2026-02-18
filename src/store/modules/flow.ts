@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import type { Node, Edge } from "@vue-flow/core";
+import { message } from "@/utils/message";
 
 export function getNodesInEdgeOrder(nodes: Node[], edges: Edge[]): Node[] {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
@@ -99,81 +100,130 @@ export function isValidExecutionPath(
   return { isValid: false, path: [], reason: "no_path" };
 }
 
-export function getExecutionConfig(order, stores) {
-  return order
-    .map(node => {
-      if (node.type === "start" || node.type === "end") {
-        return null;
-      }
-      switch (node.type) {
-        case "select":
-          return stores.selectStore.selects.find(s => s.id === node.id);
-        case "filter":
-          return stores.filterStore.filters.find(f => f.id === node.id);
-        case "str":
-          return stores.strStore.strs.find(s => s.id === node.id);
-        case "rename":
-          return stores.renameStore.renames.find(r => r.id === node.id);
-        default:
-          return null;
-      }
-    })
-    .filter(Boolean);
+interface Store {
+  selectStore: { selects: Array<any> };
+  filterStore: { filters: Array<any> };
+  strStore: { strs: Array<any> };
+  renameStore: { renames: Array<any> };
 }
 
-// mapHeaders
+export function getExecutionConfig(
+  nodes: Node[],
+  edges: Edge[],
+  stores: Store
+) {
+  // 安全检查:确保 nodes 和 edges 是数组
+  if (!Array.isArray(nodes)) {
+    console.warn("nodes is not an array:", nodes);
+    return [];
+  }
+
+  if (!Array.isArray(edges)) {
+    console.warn("edges is not an array:", edges);
+    edges = []; // 兜底:设为空数组
+  }
+
+  // 找到 start 节点
+  const startNode = nodes.find(n => n.type === "start");
+  if (!startNode) {
+    console.warn("No start node found");
+    return [];
+  }
+
+  // 按照连接顺序遍历节点（BFS）
+  const operations: any[] = [];
+  const visited = new Set<string>();
+  const queue: string[] = [startNode.id];
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!;
+
+    if (visited.has(nodeId)) continue;
+    visited.add(nodeId);
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type === "start" || node.type === "end") {
+      // 找到下一个节点
+      const nextEdges = edges.filter(e => e.source === nodeId);
+      for (const edge of nextEdges) {
+        if (!visited.has(edge.target)) {
+          queue.push(edge.target);
+        }
+      }
+      continue;
+    }
+
+    // 4. 根据节点类型获取配置
+    switch (node.type) {
+      case "select": {
+        const selectConfig = stores.selectStore.selects.find(
+          s => s.id === nodeId
+        );
+        if (selectConfig) operations.push(selectConfig);
+        break;
+      }
+      case "filter": {
+        const filterConfig = stores.filterStore.filters.find(
+          f => f.id === nodeId
+        );
+        if (filterConfig) operations.push(filterConfig);
+        break;
+      }
+      case "str": {
+        const strConfig = stores.strStore.strs.find(s => s.id === nodeId);
+        if (strConfig) operations.push(strConfig);
+        break;
+      }
+      case "rename": {
+        const renameConfig = stores.renameStore.renames.find(
+          r => r.id === nodeId
+        );
+        if (renameConfig) operations.push(renameConfig);
+        break;
+      }
+    }
+
+    // 5. 找到下一个节点
+    const nextEdges = edges.filter(e => e.source === nodeId);
+    for (const edge of nextEdges) {
+      if (!visited.has(edge.target)) {
+        queue.push(edge.target);
+      }
+    }
+  }
+
+  const msg: any = operations.map(o => `${o.op}(${o.mode || o.column})`);
+  message(`flow oper: ${msg}`);
+
+  return operations;
+}
+
 export const useHeaders = defineStore("headers", {
   state: () => ({
     headers: [] as Array<{ label: string; value: string }>
   }),
-
-  getters: {
-    usedFieldNames(state) {
-      return new Set(state.headers.map(h => h.label));
-    },
-    getFieldNameByNodeId: state => (nodeId: string) => {
-      const item = state.headers.find(h => h.value === nodeId);
-      return item ? item.label : null;
-    }
-  },
-
   actions: {
-    setHeaderForNode(nodeId: string, baseLabel: string) {
-      if (!baseLabel?.trim()) {
-        this.headers = this.headers.filter(h => h.value !== nodeId);
-        return;
-      }
+    setHeaders(headers: Array<{ label: string; value: string }>) {
+      this.headers = headers;
+    },
 
-      let finalLabel = baseLabel.trim();
-      let counter = 1;
-
-      while (this.usedFieldNames.has(finalLabel)) {
-        const existingItem = this.headers.find(h => h.label === finalLabel);
-        if (existingItem && existingItem.value === nodeId) {
-          break;
-        }
-        finalLabel = `${baseLabel.trim()}_${counter}`;
-        counter++;
-      }
-
-      // 更新或添加
-      const existingIndex = this.headers.findIndex(h => h.value === nodeId);
-      if (existingIndex >= 0) {
-        this.headers[existingIndex].label = finalLabel;
-      } else {
-        this.headers.push({ label: finalLabel, value: nodeId });
+    setHeaderForNode(_nodeId: string, label: string) {
+      const exists = this.headers.some(h => h.value === label);
+      if (!exists) {
+        this.headers.push({
+          label: label,
+          value: label
+        });
       }
     },
 
-    removeHeaderForNode(nodeId: string) {
-      this.headers = this.headers.filter(h => h.value !== nodeId);
+    clearHeaders() {
+      this.headers = [];
     }
   },
-
-  persist: true
+  persist: false
 });
 
-// path
 export const usePath = defineStore("path", {
   state: () => ({
     path: "" as string
@@ -181,7 +231,6 @@ export const usePath = defineStore("path", {
   persist: true
 });
 
-// node
 export const useNodeStore = defineStore("node", {
   state: () => ({
     nodes: [],
@@ -198,7 +247,54 @@ export const useNodeStore = defineStore("node", {
   persist: true
 });
 
-// filter node
+export const useInput = defineStore("input", {
+  state: () => ({
+    inputs: [] as Array<{
+      id: string;
+      path: string;
+      isPath: boolean;
+      headers: Array<{ label: string; value: string }>;
+      tableColumn: Array<{ prop: string; label: string }>;
+      tableData: Array<Record<string, any>>;
+    }>
+  }),
+  actions: {
+    addInput(data: {
+      id: string;
+      path: string;
+      isPath: boolean;
+      headers?: Array<{ label: string; value: string }>;
+      tableColumn?: Array<{ prop: string; label: string }>;
+      tableData?: Array<Record<string, any>>;
+    }) {
+      if (!data.id) return;
+
+      const index = this.inputs.findIndex(f => f.id === data.id);
+      if (index > -1) {
+        // 保留已有数据，只更新变化的字段
+        this.inputs[index] = {
+          ...this.inputs[index],
+          ...data
+        };
+      } else {
+        this.inputs.push(data);
+      }
+    },
+
+    removeInput(nodeId: string) {
+      this.inputs = this.inputs.filter(f => f.id !== nodeId);
+    },
+
+    getInput(nodeId: string) {
+      return this.inputs.find(f => f.id === nodeId);
+    }
+  },
+  persist: {
+    storage: localStorage,
+    key: "flow-inputs"
+  }
+});
+
 export const useFilter = defineStore("filter", {
   state: () => ({
     filters: [] as Array<{
@@ -207,6 +303,7 @@ export const useFilter = defineStore("filter", {
       mode: string;
       column: string;
       value: string;
+      logic: string;
     }>
   }),
   actions: {
@@ -216,19 +313,34 @@ export const useFilter = defineStore("filter", {
       mode: string;
       column: string;
       value: string;
+      logic: string;
     }) {
+      if (!data.id) return;
+
       const index = this.filters.findIndex(f => f.id === data.id);
       if (index > -1) {
         this.filters[index] = data;
       } else {
         this.filters.push(data);
       }
+    },
+
+    // 清理无效节点
+    cleanupFilter(validNodeIds: string[]) {
+      this.filters = this.filters.filter(f => validNodeIds.includes(f.id));
+    },
+
+    // 移除指定节点
+    removeFilter(nodeId: string) {
+      this.filters = this.filters.filter(f => f.id !== nodeId);
     }
   },
-  persist: true
+  persist: {
+    storage: localStorage,
+    key: "flow-filters"
+  }
 });
 
-// select node
 export const useSelect = defineStore("select", {
   state: () => ({
     selects: [] as Array<{
@@ -239,18 +351,32 @@ export const useSelect = defineStore("select", {
   }),
   actions: {
     addSelect(data: { id: string; op: string; column: string }) {
+      if (!data.id) return;
+
       const index = this.selects.findIndex(f => f.id === data.id);
       if (index > -1) {
         this.selects[index] = data;
       } else {
         this.selects.push(data);
       }
+    },
+
+    // 移除指定节点
+    removeSelect(nodeId: string) {
+      this.selects = this.selects.filter(s => s.id !== nodeId);
+    },
+
+    // 获取指定节点数据
+    getSelect(nodeId: string) {
+      return this.selects.find(s => s.id === nodeId);
     }
   },
-  persist: true
+  persist: {
+    storage: localStorage,
+    key: "flow-selects"
+  }
 });
 
-// str node
 export const useStr = defineStore("str", {
   state: () => ({
     strs: [] as Array<{
@@ -260,6 +386,7 @@ export const useStr = defineStore("str", {
       column: string;
       comparand: string;
       replacement: string;
+      newcol: string;
     }>
   }),
   actions: {
@@ -270,19 +397,34 @@ export const useStr = defineStore("str", {
       column: string;
       comparand: string;
       replacement: string;
+      newcol: string;
     }) {
+      if (!data.id) return;
+
       const index = this.strs.findIndex(s => s.id === data.id);
       if (index > -1) {
         this.strs[index] = data;
       } else {
         this.strs.push(data);
       }
+    },
+
+    // 移除指定节点
+    removeStr(nodeId: string) {
+      this.strs = this.strs.filter(s => s.id !== nodeId);
+    },
+
+    // 获取指定节点数据
+    getStr(nodeId: string) {
+      return this.strs.find(s => s.id === nodeId);
     }
   },
-  persist: true
+  persist: {
+    storage: localStorage,
+    key: "flow-strs"
+  }
 });
 
-// rename node
 export const useRename = defineStore("rename", {
   state: () => ({
     renames: [] as Array<{
@@ -294,13 +436,28 @@ export const useRename = defineStore("rename", {
   }),
   actions: {
     addRename(data: { id: string; op: string; column: string; value: string }) {
+      if (!data.id) return;
+
       const index = this.renames.findIndex(s => s.id === data.id);
       if (index > -1) {
         this.renames[index] = data;
       } else {
         this.renames.push(data);
       }
+    },
+
+    // 移除指定节点
+    removeRename(nodeId: string) {
+      this.renames = this.renames.filter(r => r.id !== nodeId);
+    },
+
+    // 获取指定节点数据
+    getRename(nodeId: string) {
+      return this.renames.find(r => r.id === nodeId);
     }
   },
-  persist: true
+  persist: {
+    storage: localStorage,
+    key: "flow-renames"
+  }
 });

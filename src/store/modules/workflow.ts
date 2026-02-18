@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { nanoid } from "nanoid";
 import type { Node, Edge } from "@vue-flow/core";
+import { useFilter, useInput, useRename, useSelect, useStr } from "./flow";
 
 interface Workflow {
   id: string;
@@ -98,6 +99,22 @@ export const useWorkflowStore = defineStore("workflow", {
       workflow.nodes = newNodes;
       workflow.edges = newEdges;
       workflow.updatedAt = new Date().toISOString();
+
+      // this.nodes = this.nodes.filter(n => !nodeIds.includes(n.id));
+
+      // 同步清理 store 中的数据
+      const filterStore = useFilter();
+      const inputStore = useInput();
+      const renameStore = useRename();
+      const selectStore = useSelect();
+      const strStore = useStr();
+      nodeIds.forEach(id => {
+        filterStore.removeFilter(id);
+        inputStore.removeInput(id);
+        renameStore.removeRename(id);
+        selectStore.removeSelect(id);
+        strStore.removeStr(id);
+      });
     },
 
     removeEdges(edgeIds: string[]) {
