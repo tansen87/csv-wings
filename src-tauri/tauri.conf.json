@@ -53,6 +53,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "fullscreen": false,
         "width": 840,
         "height": 660,

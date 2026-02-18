@@ -3,6 +3,12 @@
   windows_subsystem = "windows"
 )]
 
+use tauri::{
+  Manager, WindowEvent,
+  menu::{Menu, MenuItem},
+  tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+};
+
 use insight::command;
 use insight::flow;
 
@@ -63,6 +69,69 @@ fn main() {
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
+    .setup(|app| {
+      // 创建菜单项
+      let show_item = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
+      let quit_item = MenuItem::with_id(app, "quit", "退出程序", true, None::<&str>)?;
+      // 创建托盘菜单
+      let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+      // 创建系统托盘
+      let _tray = TrayIconBuilder::new()
+        .icon(app.default_window_icon().unwrap().clone())
+        .menu(&tray_menu)
+        .show_menu_on_left_click(false) // 左键不显示菜单，触发 Click 事件
+        .tooltip("insight-x")
+        .on_tray_icon_event(|tray, event| {
+          match event {
+            // 只处理左键点击
+            TrayIconEvent::Click {
+              button: MouseButton::Left,
+              button_state: tauri::tray::MouseButtonState::Up,
+              ..
+            } => {
+              let app = tray.app_handle();
+              if let Some(window) = app.get_webview_window("main") {
+                // 左键单击:直接显示窗口
+                window.show().unwrap();
+                window.set_focus().unwrap();
+                window.set_always_on_top(true).unwrap();
+                window.set_always_on_top(false).unwrap();
+              }
+            }
+            // 处理右键点击
+            TrayIconEvent::Click {
+              button: MouseButton::Right,
+              ..
+            } => {
+              // 右键不需要处理，show_menu_on_left_click(false) 会自动显示菜单
+            }
+            _ => {}
+          }
+        })
+        .on_menu_event(|app, event| match event.id.as_ref() {
+          "show" => {
+            if let Some(window) = app.get_webview_window("main") {
+              window.show().unwrap();
+              window.set_focus().unwrap();
+              window.set_always_on_top(true).unwrap();
+              window.set_always_on_top(false).unwrap();
+            }
+          }
+          "quit" => {
+            app.exit(0);
+          }
+          _ => {}
+        })
+        .build(app)?;
+
+      Ok(())
+    })
+    .on_window_event(|window, event| {
+      if let WindowEvent::CloseRequested { api, .. } = event {
+        api.prevent_close();
+        window.hide().unwrap();
+      }
+    })
     .invoke_handler(tauri::generate_handler![
       command::from_headers,
       command::map_headers,
