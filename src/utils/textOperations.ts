@@ -57,10 +57,6 @@ export interface ReplaceParams {
   encoding?: string;
 }
 
-export async function getAvailableEncodings(): Promise<EncodingOption[]> {
-  return await invoke("get_available_encodings");
-}
-
 export async function openFile(params: OpenFileParams): Promise<FileInfo> {
   return await invoke("open_file", { params });
 }
@@ -89,15 +85,4 @@ export async function replaceText(params: ReplaceParams): Promise<number> {
 
 export async function closeFile(path: string): Promise<void> {
   return await invoke("close_file", { path });
-}
-
-export async function getLine(
-  path: string,
-  lineNumber: number
-): Promise<string> {
-  return await invoke("get_line", { path, line_number: lineNumber });
-}
-
-export async function getFileStats(path: string): Promise<FileInfo> {
-  return await invoke("get_file_stats", { path });
 }

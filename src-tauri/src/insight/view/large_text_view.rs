@@ -10,7 +10,7 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use large_text_core::file_reader::{FileReader, available_encodings};
+use large_text_core::file_reader::FileReader;
 use large_text_core::line_indexer::LineIndexer;
 use large_text_core::search_engine::{SearchEngine, SearchMessage, SearchType};
 
@@ -154,18 +154,6 @@ fn get_or_create_session(
   }
 
   Ok(session)
-}
-
-/// 获取可用编码列表
-#[tauri::command]
-pub fn get_available_encodings() -> Vec<EncodingOption> {
-  available_encodings()
-    .iter()
-    .map(|(label, enc)| EncodingOption {
-      label: label.to_string(),
-      name: enc.name().to_string(),
-    })
-    .collect()
 }
 
 fn create_session_for_path(path: &str, user_encoding: Option<&str>) -> Result<FileSession, String> {
@@ -509,43 +497,4 @@ pub fn close_file(state: tauri::State<'_, AppState>, path: String) -> Result<(),
   let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
   sessions.remove(&path);
   Ok(())
-}
-
-/// 获取行内容(单行)
-#[tauri::command]
-pub async fn get_line(
-  state: tauri::State<'_, AppState>,
-  path: String,
-  line_number: usize,
-) -> Result<String, String> {
-  let session = get_or_create_session(&state, &path, None)?;
-  let reader = session.reader;
-  let indexer = session.indexer.lock().map_err(|e| e.to_string())?;
-
-  // 行号从 1 开始,转换为 0 基索引
-  let line_idx = line_number.saturating_sub(1);
-
-  if let Some((start, end)) = indexer.get_line_range(line_idx) {
-    Ok(reader.get_chunk(start, end))
-  } else {
-    Err(format!("行号 {} 超出范围", line_number))
-  }
-}
-
-/// 获取文件统计信息
-#[tauri::command]
-pub async fn get_file_stats(
-  state: tauri::State<'_, AppState>,
-  path: String,
-) -> Result<FileInfo, String> {
-  let session = get_or_create_session(&state, &path, None)?;
-  let reader = session.reader;
-  let indexer = session.indexer.lock().map_err(|e| e.to_string())?;
-
-  Ok(FileInfo {
-    path,
-    size: reader.len() as u64,
-    encoding: reader.encoding().name().to_string(),
-    line_count: indexer.total_lines(),
-  })
 }
