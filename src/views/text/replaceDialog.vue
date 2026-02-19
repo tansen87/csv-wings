@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { ref, reactive, nextTick, watch } from "vue";
 import type { FormInstance } from "element-plus";
+import { message } from "@/utils/message";
 
 interface ReplaceParams {
   search: string;
   replace: string;
   replaceAll: boolean;
   caseSensitive: boolean;
+  useRegex: boolean;
 }
 
 const props = defineProps<{
   modelValue: boolean;
   searchQuery?: string;
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -20,13 +23,13 @@ const emit = defineEmits<{
 }>();
 
 const visible = ref(props.modelValue);
-const loading = ref(false);
 const formRef = ref<FormInstance>();
 
 const form = reactive({
   search: props.searchQuery || "",
   replace: "",
-  caseSensitive: false
+  caseSensitive: false,
+  useRegex: false
 });
 
 const rules = {
@@ -68,16 +71,17 @@ async function doReplace(replaceAll: boolean) {
   await formRef.value?.validate(valid => {
     if (!valid) return;
 
-    loading.value = true;
     try {
       emit("replace", {
         search: form.search,
         replace: form.replace,
         replaceAll,
-        caseSensitive: form.caseSensitive
+        caseSensitive: form.caseSensitive,
+        useRegex: form.useRegex
       });
-    } finally {
-      loading.value = false;
+    } catch (err) {
+      message(`replace failed: ${err}`, { type: "error" });
+      return;
     }
   });
 }
@@ -90,15 +94,17 @@ function handleClose() {
 <template>
   <SiliconeDialog
     v-model="visible"
-    title="查找与替换"
+    title="替换"
     width="500px"
     :close-on-click-modal="false"
     @close="handleClose"
+    :modal="false"
+    modal-penetrable
+    draggable
   >
     <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
-      <!-- 查找 -->
-      <el-form-item label="查找内容" prop="search">
-        <el-input
+      <el-form-item label="查找" prop="search">
+        <SiliconeInput
           v-model="form.search"
           placeholder="请输入要查找的内容"
           ref="searchInput"
@@ -107,7 +113,7 @@ function handleClose() {
       </el-form-item>
 
       <el-form-item label="替换为" prop="replace">
-        <el-input
+        <SiliconeInput
           v-model="form.replace"
           placeholder="请输入替换后的内容"
           ref="replaceInput"
@@ -117,35 +123,26 @@ function handleClose() {
 
       <el-form-item>
         <el-checkbox v-model="form.caseSensitive">区分大小写</el-checkbox>
+        <el-checkbox v-model="form.useRegex">正则表达式</el-checkbox>
       </el-form-item>
     </el-form>
 
-    <template #footer>
-      <div class="dialog-footer">
-        <SiliconeButton @click="handleClose">Cancel</SiliconeButton>
-        <SiliconeButton
-          type="primary"
-          @click="doReplace(false)"
-          :loading="loading"
-        >
-          Replace
-        </SiliconeButton>
-        <SiliconeButton
-          type="success"
-          @click="doReplace(true)"
-          :loading="loading"
-        >
-          Replace All
-        </SiliconeButton>
-      </div>
-    </template>
+    <div class="flex justify-end gap-3">
+      <SiliconeButton @click="handleClose">Cancel</SiliconeButton>
+      <SiliconeButton
+        type="success"
+        @click="doReplace(false)"
+        :loading="props.loading"
+      >
+        Replace
+      </SiliconeButton>
+      <SiliconeButton
+        type="warning"
+        @click="doReplace(true)"
+        :loading="props.loading"
+      >
+        Replace All
+      </SiliconeButton>
+    </div>
   </SiliconeDialog>
 </template>
-
-<style scoped>
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-</style>

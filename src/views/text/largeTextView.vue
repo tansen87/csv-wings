@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ElMessageBox } from "element-plus";
 import ReplaceDialog from "./replaceDialog.vue";
+import FindDialog from "./findDialog.vue";
 import { message } from "@/utils/message";
 import {
   openFile,
@@ -15,15 +16,19 @@ import {
 } from "@/utils/textOperations";
 
 const fileInfo = ref<FileInfo | null>(null);
-const visibleLines = ref<{ number: number; content: string }[]>([]);
+const visibleLines = ref([]);
 const searchQuery = ref("");
 const caseSensitive = ref(false);
+const useRegex = ref(false);
 const searchResults = ref<SearchMatch[]>([]);
 const totalMatches = ref(0);
 const showReplaceDialog = ref(false);
+const showFindDialog = ref(false);
 const currentLine = ref(0);
-const isLoading = ref(false);
-const VISIBLE_LINE_COUNT = 50;
+const isReplace = ref(false);
+const isSearch = ref(false);
+const VISIBLE_LINE_COUNT = 500;
+
 const selectedEncoding = ref("UTF-8");
 const ENCODING_OPTIONS = [
   { label: "UTF-8", value: "UTF-8" },
@@ -33,12 +38,6 @@ const ENCODING_OPTIONS = [
   { label: "Windows-1252", value: "Windows-1252" }
 ];
 
-// 总高度用于虚拟滚动
-const totalHeight = computed(() => {
-  if (!fileInfo.value) return 0;
-  return fileInfo.value.line_count * 20;
-});
-
 // 打开文件
 async function openFileDialog() {
   try {
@@ -46,8 +45,6 @@ async function openFileDialog() {
       filters: [{ name: "Text", extensions: ["*"] }]
     });
     if (path) {
-      isLoading.value = true;
-      // 注意: params需要作为对象传递
       fileInfo.value = await openFile({
         path: path as string,
         encoding: selectedEncoding.value || undefined
@@ -57,8 +54,6 @@ async function openFileDialog() {
     }
   } catch (error: any) {
     message(`打开文件失败：${error}`, { type: "error" });
-  } finally {
-    isLoading.value = false;
   }
 }
 
@@ -76,19 +71,6 @@ async function loadLines(start: number, count: number) {
   }));
 }
 
-// 滚动处理
-function handleScroll(e: Event) {
-  const target = e.target as HTMLElement;
-  const scrollTop = target.scrollTop;
-  const lineHeight = 20;
-  const newStartLine = Math.floor(scrollTop / lineHeight);
-
-  if (Math.abs(newStartLine - currentLine.value) > 10) {
-    currentLine.value = newStartLine;
-    loadLines(newStartLine, VISIBLE_LINE_COUNT);
-  }
-}
-
 // 搜索
 async function doSearch() {
   if (!fileInfo.value) {
@@ -96,24 +78,23 @@ async function doSearch() {
     return;
   }
   if (!searchQuery.value.trim()) {
-    message("请输入搜索内容", { type: "warning" });
+    message("请输入查找内容", { type: "warning" });
     return;
   }
 
   try {
-    isLoading.value = true;
+    isSearch.value = true;
     const result = await searchFile({
       path: fileInfo.value.path,
       query: searchQuery.value,
       case_sensitive: caseSensitive.value,
-      use_regex: false,
+      use_regex: useRegex.value,
       page: 1,
       page_size: 50
     });
 
     searchResults.value = result.matches;
     totalMatches.value = result.total_matches;
-
     if (result.total_matches > 0) {
       message(`找到 ${result.total_matches} 个匹配项`, { type: "success" });
     } else {
@@ -122,7 +103,7 @@ async function doSearch() {
   } catch (err) {
     message(`Search failed: ${err}`, { type: "error" });
   } finally {
-    isLoading.value = false;
+    isSearch.value = false;
   }
 }
 
@@ -130,12 +111,21 @@ async function doSearch() {
 function highlightMatch(content: string) {
   if (!searchQuery.value) return content;
   try {
-    const regex = new RegExp(
-      `(${escapeRegExp(searchQuery.value)})`,
-      caseSensitive.value ? "g" : "gi"
-    );
+    let regex: RegExp;
+    if (useRegex.value) {
+      // 用户输入就是正则,加上全局和大小写标志
+      const flags = "g" + (caseSensitive.value ? "" : "i");
+      regex = new RegExp(`(${searchQuery.value})`, flags);
+    } else {
+      // 普通文本搜索,转义
+      const escaped = escapeRegExp(searchQuery.value);
+      const flags = "g" + (caseSensitive.value ? "" : "i");
+      regex = new RegExp(`(${escaped})`, flags);
+    }
     return content.replace(regex, "<mark>$1</mark>");
-  } catch {
+  } catch (e) {
+    // 正则无效时,回退到普通文本高亮 or 不高亮
+    console.warn("Invalid regex:", e);
     return content;
   }
 }
@@ -183,9 +173,23 @@ async function promptGoToLine() {
   }
 }
 
-// 监听全局快捷键
+// 快捷键处理
 function handleGlobalKeydown(e: KeyboardEvent) {
-  // Ctrl+G 或 Cmd+G(macOS)
+  // 排除输入框中触发
+  const target = e.target as HTMLElement;
+  const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
+  if (isInput) return;
+  // Ctrl+F - 查找
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f" && !e.shiftKey) {
+    e.preventDefault();
+    showFindDialog.value = !showFindDialog.value;
+  }
+  // Ctrl+H - 替换
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h" && !e.shiftKey) {
+    e.preventDefault();
+    showReplaceDialog.value = !showReplaceDialog.value;
+  }
+  // Ctrl+G - 跳转
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g" && !e.shiftKey) {
     e.preventDefault();
     promptGoToLine();
@@ -207,18 +211,13 @@ onUnmounted(() => {
 function goToLine(lineNumber: number) {
   if (!fileInfo.value) return;
 
-  // 边界保护
   const clampedLine = Math.max(
     1,
     Math.min(lineNumber, fileInfo.value.line_count)
   );
 
-  const contentArea = document.querySelector(".content-area") as HTMLElement;
-  if (contentArea) {
-    contentArea.scrollTop = (clampedLine - 1) * 20;
-    currentLine.value = clampedLine - 1;
-    loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
-  }
+  currentLine.value = clampedLine - 1;
+  loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
 }
 
 // 处理替换
@@ -237,7 +236,7 @@ async function handleReplace(params: {
       { type: "warning" }
     );
 
-    isLoading.value = true;
+    isReplace.value = true;
 
     const count = await replaceText({
       path: fileInfo.value.path,
@@ -265,7 +264,7 @@ async function handleReplace(params: {
   } catch (err) {
     message(`replace falied: ${err}`, { type: "error" });
   } finally {
-    isLoading.value = false;
+    isReplace.value = false;
   }
 }
 
@@ -283,9 +282,7 @@ function formatSize(bytes: number) {
   <div class="file-viewer">
     <SiliconeCard shadow="never">
       <div class="flex items-center gap-2 flex-wrap ml-2 mb-2 mt-2">
-        <SiliconeButton @click="openFileDialog" :loading="isLoading" text>
-          打开文件
-        </SiliconeButton>
+        <SiliconeButton @click="openFileDialog" text> 打开文件 </SiliconeButton>
 
         <SiliconeSelect v-model="selectedEncoding" style="width: 150px">
           <el-option
@@ -296,43 +293,27 @@ function formatSize(bytes: number) {
           />
         </SiliconeSelect>
 
-        <SiliconeInput
-          v-model="searchQuery"
-          placeholder="输入内容按(Enter)以搜索"
-          style="width: 300px"
-          clearable
-          @keyup.enter="doSearch"
-        />
-
-        <el-checkbox v-model="caseSensitive">区分大小写</el-checkbox>
-
         <SiliconeButton
           type="success"
-          @click="doSearch"
-          :loading="isLoading"
+          @click="showFindDialog = true"
+          :loading="isSearch"
           text
         >
-          搜索
+          查找(Ctrl+F)
         </SiliconeButton>
 
         <SiliconeButton
           type="warning"
           @click="showReplaceDialog = true"
-          :disabled="!fileInfo"
+          :loading="isReplace"
           text
         >
-          替换
+          替换(Ctrl+H)
         </SiliconeButton>
 
         <SiliconeButton @click="promptGoToLine" type="primary" text>
           跳转(Ctrl+G)
         </SiliconeButton>
-
-        <el-divider direction="vertical" />
-
-        <SiliconeTag v-if="fileInfo" type="info">
-          {{ fileInfo.encoding }}
-        </SiliconeTag>
       </div>
     </SiliconeCard>
 
@@ -341,6 +322,9 @@ function formatSize(bytes: number) {
         <SiliconeText class="file-path">
           {{ fileInfo.path }}
         </SiliconeText>
+        <SiliconeTag v-if="fileInfo" type="info">
+          {{ fileInfo.encoding }}
+        </SiliconeTag>
         <SiliconeTag size="small" type="primary">
           {{ formatSize(fileInfo.size) }}
         </SiliconeTag>
@@ -358,25 +342,20 @@ function formatSize(bytes: number) {
 
     <!-- 内容显示区(虚拟滚动) -->
     <div v-else class="content-wrapper">
-      <div class="content-area" @scroll="handleScroll">
-        <div :style="{ height: totalHeight + 'px', position: 'relative' }">
+      <el-scrollbar>
+        <div class="content-area">
           <div
             v-for="line in visibleLines"
             :key="line.number"
             class="line"
             :class="{ match: isMatchLine(line.number) }"
-            :style="{
-              position: 'absolute',
-              top: (line.number - 1) * 20 + 'px'
-            }"
           >
             <span class="line-number">{{ line.number }}</span>
             <span class="line-content" v-html="highlightMatch(line.content)" />
           </div>
         </div>
-      </div>
+      </el-scrollbar>
     </div>
-
     <!-- 搜索结果面板 -->
     <SiliconeCard v-if="searchResults.length" shadow="never">
       <div class="flex gap-3 ml-2 mt-2 mb-2">
@@ -407,14 +386,24 @@ function formatSize(bytes: number) {
       </SiliconeTable>
     </SiliconeCard>
 
+    <FindDialog
+      v-model="showFindDialog"
+      :search-query="searchQuery"
+      :case-sensitive="caseSensitive"
+      :use-regex="useRegex"
+      :loading="isSearch"
+      @update:search-query="searchQuery = $event"
+      @update:case-sensitive="caseSensitive = $event"
+      @update:use-regex="useRegex = $event"
+      @confirm="doSearch"
+    />
+
     <ReplaceDialog
       v-model="showReplaceDialog"
       :search-query="searchQuery"
       @replace="handleReplace"
+      :loading="isReplace"
     />
-
-    <!-- 全局加载遮罩 -->
-    <el-overlay :show="isLoading" />
   </div>
 </template>
 

@@ -103,7 +103,7 @@
 
 /* 底部按钮统一样式 */
 .silicone-dialog .el-dialog__footer .el-button {
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 20px;
   font-size: 14px;
   transition: all 0.15s ease;
@@ -125,7 +125,7 @@
 .silicone-dialog .el-dialog__footer .el-button--primary {
   background-color: #409eff;
   border: none;
-  color: #fff;
+  color: #9bd7f3;
   box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
 }
 
