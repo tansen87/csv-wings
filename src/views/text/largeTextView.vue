@@ -30,14 +30,10 @@ const ENCODING_OPTIONS = [
   { label: "UTF-16LE", value: "UTF-16LE" },
   { label: "UTF-16BE", value: "UTF-16BE" },
   { label: "GBK", value: "GBK" },
-  { label: "GB18030", value: "GB18030" },
-  { label: "BIG5", value: "BIG5" },
-  { label: "Windows-1252", value: "Windows-1252" },
-  { label: "ISO-8859-1", value: "ISO-8859-1" },
-  { label: "Shift_JIS", value: "Shift_JIS" }
+  { label: "Windows-1252", value: "Windows-1252" }
 ];
 
-// 计算属性: 总高度用于虚拟滚动
+// 总高度用于虚拟滚动
 const totalHeight = computed(() => {
   if (!fileInfo.value) return 0;
   return fileInfo.value.line_count * 20;
@@ -183,7 +179,7 @@ async function promptGoToLine() {
 
     goToLine(lineNumber);
   } catch (err) {
-    message(`promptGoToLine falied: ${err}`);
+    return;
   }
 }
 
@@ -235,11 +231,8 @@ async function handleReplace(params: {
   if (!fileInfo.value) return;
 
   try {
-    // 弹出确认(可选)
     await ElMessageBox.confirm(
-      `确定要${
-        params.replaceAll ? "替换全部" : "替换"
-      }匹配项？此操作不可撤销。`,
+      `确定要${params.replaceAll ? "替换全部" : "替换"}匹配项?此操作不可撤销.`,
       "确认替换",
       { type: "warning" }
     );
@@ -305,15 +298,20 @@ function formatSize(bytes: number) {
 
         <SiliconeInput
           v-model="searchQuery"
-          placeholder="搜索内容..."
-          style="width: 240px"
+          placeholder="输入内容按(Enter)以搜索"
+          style="width: 300px"
           clearable
           @keyup.enter="doSearch"
         />
 
         <el-checkbox v-model="caseSensitive">区分大小写</el-checkbox>
 
-        <SiliconeButton type="success" @click="doSearch" :loading="isLoading">
+        <SiliconeButton
+          type="success"
+          @click="doSearch"
+          :loading="isLoading"
+          text
+        >
           搜索
         </SiliconeButton>
 
@@ -321,6 +319,7 @@ function formatSize(bytes: number) {
           type="warning"
           @click="showReplaceDialog = true"
           :disabled="!fileInfo"
+          text
         >
           替换
         </SiliconeButton>
@@ -331,21 +330,23 @@ function formatSize(bytes: number) {
 
         <el-divider direction="vertical" />
 
-        <el-tag v-if="fileInfo" type="info">
+        <SiliconeTag v-if="fileInfo" type="info">
           {{ fileInfo.encoding }}
-        </el-tag>
+        </SiliconeTag>
       </div>
     </SiliconeCard>
 
     <SiliconeCard v-if="fileInfo" shadow="never">
-      <div class="flex items-center gap-[8px] mt-[-16px] mb-[-16px] ml-[-16px]">
-        <SiliconeText class="file-path" :title="fileInfo.path">
+      <div class="flex items-center gap-2">
+        <SiliconeText class="file-path">
           {{ fileInfo.path }}
         </SiliconeText>
-        <el-tag size="small">{{ formatSize(fileInfo.size) }}</el-tag>
-        <el-tag size="small" type="success">
+        <SiliconeTag size="small" type="primary">
+          {{ formatSize(fileInfo.size) }}
+        </SiliconeTag>
+        <SiliconeTag size="small" type="success">
           {{ fileInfo.line_count }} lines
-        </el-tag>
+        </SiliconeTag>
       </div>
     </SiliconeCard>
 
@@ -379,7 +380,7 @@ function formatSize(bytes: number) {
     <!-- 搜索结果面板 -->
     <SiliconeCard v-if="searchResults.length" shadow="never">
       <div class="flex gap-3 ml-2 mt-2 mb-2">
-        <el-tag type="success">{{ totalMatches }} 个匹配</el-tag>
+        <SiliconeTag type="success">{{ totalMatches }} 个匹配</SiliconeTag>
         <SiliconeButton size="small" @click="searchResults = []" text>
           清空
         </SiliconeButton>
@@ -430,11 +431,8 @@ function formatSize(bytes: number) {
   gap: 8px;
   background: #f5f7fa;
 }
-
-.file-info-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.dark .file-viewer {
+  background: #1a1a1a;
 }
 
 .file-path {
@@ -442,6 +440,9 @@ function formatSize(bytes: number) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.dark .file-path {
+  color: #e0e0e0;
 }
 
 .content-wrapper {
@@ -452,12 +453,20 @@ function formatSize(bytes: number) {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   height: calc(100% - 80px);
 }
+.dark .content-wrapper {
+  background: #2d2d2d;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+}
 
 .content-area {
   overflow-y: auto;
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 14px;
   line-height: 20px;
+}
+.dark .content-area {
+  color: #e0e0e0;
+  background: #1e1e1e;
 }
 
 .line {
@@ -470,9 +479,15 @@ function formatSize(bytes: number) {
 .line:hover {
   background: #f5f7fa;
 }
+.dark .line:hover {
+  background: #3d3d3d;
+}
 
 .line.match {
   background: #fff3cd;
+}
+.dark .line.match {
+  background: #665c00;
 }
 
 .line-number {
@@ -483,6 +498,11 @@ function formatSize(bytes: number) {
   user-select: none;
   background: #fafafa;
   border-right: 1px solid #e4e7ed;
+}
+.dark .line-number {
+  color: #6b6b6b;
+  background: #252525;
+  border-right: 1px solid #404040;
 }
 
 .line-content {
@@ -500,14 +520,45 @@ function formatSize(bytes: number) {
   color: #409eff;
   text-decoration: underline;
 }
+.dark .search-line-content {
+  color: #e0e0e0;
+}
+
+.dark .search-line-content:hover {
+  color: #64b5f6;
+}
 
 mark {
   background: #ffeb3b;
   padding: 0 2px;
   border-radius: 2px;
 }
+.dark mark {
+  background: #ff9800;
+  color: #000;
+}
 
 :deep(.el-overlay) {
   background: rgba(255, 255, 255, 0.7);
+}
+.dark :deep(.el-overlay) {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.dark .content-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark .content-area::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.dark .content-area::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
+}
+
+.dark .content-area::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 </style>

@@ -4,7 +4,7 @@ export default {
   meta: {
     icon: "flowChart",
     title: "flow",
-    rank: 2
+    rank: 1
   },
   children: [
     {
