@@ -459,6 +459,7 @@ function formatSize(bytes: number) {
 }
 
 .content-area {
+  height: 100%;
   overflow-y: auto;
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 14px;

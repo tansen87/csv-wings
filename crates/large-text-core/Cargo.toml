@@ -16,3 +16,11 @@ regex = "^1.10"
 
 [dev-dependencies]
 tempfile = "^3.23.0"
+
+[profile.release]
+lto = "fat"
+opt-level = 3
+strip = true
+debug = false
+codegen-units = 1
+panic = "abort"

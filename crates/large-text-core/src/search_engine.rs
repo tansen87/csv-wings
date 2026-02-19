@@ -106,10 +106,14 @@ impl SearchEngine {
             return;
         }
 
-        let num_threads = std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(1)
-            .max(1);
+        let num_threads = {
+            let available = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1);
+
+            let reserved = (available / 2).clamp(2, 8);
+            (available - reserved).max(1)
+        };
 
         let chunk_size = file_len.div_ceil(num_threads);
         let query_len = self.query.len();
