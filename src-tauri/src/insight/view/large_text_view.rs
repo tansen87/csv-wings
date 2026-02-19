@@ -224,6 +224,80 @@ pub async fn get_file_content(
   Ok(lines)
 }
 
+fn scan_line_from_offset(reader: &Arc<FileReader>, offset: usize) -> (usize, usize) {
+  // 向前找行首
+  let mut start = offset;
+  while start > 0 {
+    let c = reader.get_chunk(start - 1, start);
+    if c.is_empty() {
+      break;
+    }
+    if c.as_bytes().get(0) == Some(&b'\n') {
+      // start 已经是 \n 之后的位置，不需要 += 1
+      break;
+    }
+    start -= 1;
+  }
+
+  // 处理 \r\n
+  if start > 0 {
+    let prev = reader.get_chunk(start - 1, start);
+    if prev.as_bytes().get(0) == Some(&b'\r') {
+      start -= 1;
+    }
+  }
+
+  // 向后找行尾
+  let mut end = offset;
+  while end < offset + 10000 {
+    let c = reader.get_chunk(end, end + 1);
+    if c.is_empty() {
+      break;
+    }
+    if c.as_bytes().get(0) == Some(&b'\n') {
+      end += 1;
+      break;
+    }
+    end += 1;
+  }
+
+  (start, end)
+}
+
+// 从采样点开始精确计数行数
+fn count_lines_accurate(indexer: &Arc<Mutex<LineIndexer>>, reader: &Arc<FileReader>, offset: usize) -> usize {
+  // 用 Indexer 找到一个参考点
+  let estimated = indexer.lock().unwrap().find_line_at_offset(offset);
+
+  // 获取参考点的行起始位置(可能不精确,但接近)
+  let (est_start, _) = indexer.lock().unwrap()
+    .get_line_with_reader(estimated, reader)
+    .unwrap_or((offset, offset + 1000));
+
+  // 计算参考点和真实位置的差距
+  if est_start <= offset {
+    // 真实位置在参考点之后,从参考点向后计数换行符
+    let chunk = reader.get_chunk(est_start, offset);
+    let lines_between = chunk.matches('\n').count();
+    estimated + lines_between
+  } else {
+    // 真实位置在参考点之前,从参考点向前计数换行符
+    // 向前找,需要减去换行符数量
+    let mut line_num = estimated;
+    let mut pos = est_start;
+
+    while pos > offset && line_num > 0 {
+      pos -= 1;
+      let c = reader.get_chunk(pos, pos + 1);
+      if c.as_bytes().get(0) == Some(&b'\n') {
+        line_num -= 1;
+      }
+    }
+
+    line_num
+  }
+}
+
 /// 搜索文件
 #[tauri::command]
 pub async fn search_file(
@@ -284,27 +358,22 @@ pub async fn search_file(
 
   // 收集匹配结果
   let mut matches = Vec::new();
-  let indexer_lock = indexer.lock().map_err(|e| e.to_string())?;
 
   for msg in rx2.iter() {
     match msg {
       SearchMessage::ChunkResult(chunk) => {
         for result in chunk.matches {
-          // 根据字节偏移量计算行号
-          let line_num = indexer_lock.find_line_at_offset(result.byte_offset);
+          // 扫描文件确定真实行边界
+          let (line_start, line_end) = scan_line_from_offset(&reader, result.byte_offset);
 
-          // 获取行内容
-          let (line_start, line_end) = indexer_lock
-            .get_line_with_reader(line_num, &reader)
-            .unwrap_or((result.byte_offset, result.byte_offset + result.match_len));
+          // 2精确计算行号(从采样点开始计数换行符)
+          let line_num = count_lines_accurate(&indexer, &reader, line_start);
 
           let line_content = reader.get_chunk(line_start, line_end);
-
-          // 计算行内匹配位置
           let match_start = result.byte_offset.saturating_sub(line_start);
 
           matches.push(SearchMatch {
-            line_number: line_num + 1, // 行号从 1 开始
+            line_number: line_num + 1, // 1-based
             line_content,
             match_start,
             match_length: result.match_len,
