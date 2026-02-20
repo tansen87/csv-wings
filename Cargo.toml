@@ -1,3 +1,18 @@
 [workspace]
 members = ["src-tauri", "crates/large-text-core"]
 resolver = "2"
+
+[profile.release]
+lto = "fat"
+opt-level = 3
+strip = true
+debug = false
+codegen-units = 1
+panic = "abort"
+
+[workspace.dependencies]
+anyhow = "^1.0"
+encoding_rs = "^0.8"
+memmap2 = "^0.9"
+regex = "^1.12"
+tempfile = "^3.25"

@@ -9,18 +9,10 @@ keywords = ["text", "viewer", "large-file", "log-viewer"]
 categories = ["text-processing"]
 
 [dependencies]
-anyhow = "^1.0"
-encoding_rs = "^0.8"
-memmap2 = "^0.9"
-regex = "^1.10"
+anyhow = { workspace = true }
+encoding_rs = { workspace = true }
+memmap2 = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
-tempfile = "^3.23.0"
-
-[profile.release]
-lto = "fat"
-opt-level = 3
-strip = true
-debug = false
-codegen-units = 1
-panic = "abort"
+tempfile = { workspace = true }
