@@ -16,9 +16,10 @@ English | [中文](./README_CN.md)
 ## ✨Features
 | Function | Description |
 | ------- | ----------- |
+| View | Large text file viewer to handle > 10GB text file reading |
 | [Flow](./src-tauri/src/lib/flow/mod.rs) | Csv Flow |
 | [Apply](./docs/apply.md) | Apply series of string, math transformations to given CSV column/s |
-| [Cat](./docs/cat.md) | Merge multiple CSV or Excel files into one CSV or xlsx file (Support Polars and CSV engine) |
+| [Cat](./docs/cat.md) | Merge multiple CSV or Excel files into one CSV |
 | [Convert](./src-tauri/src/lib/cmd/convert/mod.rs) | File type conversion (access to csv, format csv, csv to xlsx, dbf to csv, excel to csv, json to csv, jsonl to csv) |
 | [Count](./docs/count.md) | Count the rows of CSV files (Instantaneous with an index) |
 | [Rename](./docs/rename.md) | Rename the columns of a CSV |
@@ -38,7 +39,7 @@ English | [中文](./README_CN.md)
 
 
 ## 🍖How to use?
-* For more details, please refer to [release](https://github.com/tansen87/InsightSQL/releases/)
+* For more details, please refer to [release](https://github.com/tansen87/csv-wings/releases)
 
 
 ## 🏃‍Runtime Environment
@@ -50,12 +51,12 @@ English | [中文](./README_CN.md)
 ## 🚀Development
 1. Clone this repositories
    ```bash
-   git clone https://github.com/tansen87/InsightSQL.git
+   git clone https://github.com/tansen87/csv-wings.git
    ```
 
 2. cd to the directory of the project
    ```bash
-   cd InsightSQL
+   cd csv-wings
    ```
 
 3. Install dependencies
