@@ -5,7 +5,6 @@ use std::{
 };
 
 use large_text_core::search_engine::{SearchEngine, SearchMessage, SearchType};
-use tauri::State;
 
 use crate::view::text_view_utils::{
   self, AppState, FileInfo, GetLinesParams, MAX_LINES_PER_REQUEST, OpenFileParams, ReplaceParams,
@@ -168,7 +167,7 @@ pub async fn search_file(
 /// 替换文本
 #[tauri::command]
 pub async fn replace_text(
-  state: State<'_, AppState>,
+  state: tauri::State<'_, AppState>,
   params: ReplaceParams,
 ) -> Result<u32, String> {
   let path = PathBuf::from(&params.path);
@@ -227,6 +226,24 @@ pub async fn replace_text(
 #[tauri::command]
 pub fn close_file(state: tauri::State<'_, AppState>, path: String) -> Result<(), String> {
   let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
-  sessions.remove(&path);
-  Ok(())
+  // 显式获取并 drop Session
+  if let Some(session) = sessions.remove(&path) {
+    // 显式 drop,确保资源立即释放
+    drop(session);
+    Ok(())
+  } else {
+    Err(format!("File not open: {}", path))
+  }
+}
+
+// 清理所有 Session
+#[tauri::command]
+pub fn cleanup_sessions(state: tauri::State<AppState>) -> Result<usize, String> {
+  let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+  
+  let count = sessions.len();
+  sessions.clear();
+  
+  log::info!("已清理 {} 个文件会话", count);
+  Ok(count)
 }

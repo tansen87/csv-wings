@@ -16,9 +16,11 @@ import {
   closeFile
 } from "@/utils/textOperations";
 import { useEncoding } from "@/store/modules/options";
+import { invoke } from "@tauri-apps/api/core";
 
 const fileInfo = ref<FileInfo | null>(null);
 const searchQuery = ref("");
+const searchType = ref<"visible" | "all">("visible");
 const searchResults = ref<SearchMatch[]>([]);
 const totalMatches = ref(0);
 const currentLine = ref(0);
@@ -51,7 +53,7 @@ async function openFileDialog() {
       message(`文件已加载`, { type: "success" });
     }
   } catch (error: any) {
-    message(`打开文件失败：${error}`, { type: "error" });
+    message(`打开文件失败: ${error}`, { type: "error" });
   }
 }
 
@@ -69,34 +71,97 @@ async function loadLines(start: number, count: number) {
   }));
 }
 
-// 查找
-async function doSearch() {
-  if (!fileInfo.value) {
-    message("请先打开文件", { type: "warning" });
+function doSearch(type: "visible" | "all") {
+  searchType.value = type;
+  if (type === "visible") {
+    // 前端匹配visibleLines
+    matchVisibleLines();
+  } else {
+    // 后端搜索整个文件
+    searchAllFile();
+  }
+}
+
+// 对visibleLines进行查找
+function matchVisibleLines() {
+  if (!searchQuery.value.trim()) {
+    clearSearchResults(); // 查找为空时自动清理
     return;
   }
-  if (!searchQuery.value.trim()) {
-    message("请输入查找内容", { type: "warning" });
+  searchType.value = "visible";
+  const matches: SearchMatch[] = [];
+  let regex: RegExp | null = null;
+
+  try {
+    if (useRegex.value) {
+      const flags = "g" + (caseSensitive.value ? "" : "i");
+      regex = new RegExp(searchQuery.value, flags);
+    } else {
+      const escaped = escapeRegExp(searchQuery.value);
+      const flags = "g" + (caseSensitive.value ? "" : "i");
+      regex = new RegExp(escaped, flags);
+    }
+  } catch (e) {
+    message(`正则表达式无效: ${e}`, { type: "error" });
+    return;
+  }
+
+  for (const line of visibleLines.value) {
+    const content = line.content;
+    let match;
+    regex.lastIndex = 0;
+
+    while ((match = regex.exec(content)) !== null) {
+      matches.push({
+        line_number: line.number,
+        line_content: content,
+        match_start: match.index,
+        match_length: match[0].length,
+        byte_offset: 0
+      });
+    }
+  }
+
+  // 更新结果
+  searchResults.value = matches;
+  totalMatches.value = matches.length;
+
+  if (matches.length > 0) {
+    message(`当前视图找到 ${matches.length} 个匹配项`, { type: "success" });
+  } else {
+    message("当前视图未找到匹配内容");
+  }
+}
+
+// 搜索整个文件
+async function searchAllFile() {
+  if (!fileInfo.value) {
+    message("请先打开文件", { type: "warning" });
     return;
   }
 
   try {
     isSearch.value = true;
+    searchResults.value = [];
+
     const result = await searchFile({
       path: fileInfo.value.path,
       query: searchQuery.value,
       case_sensitive: caseSensitive.value,
       use_regex: useRegex.value,
       page: 1,
-      page_size: 50
+      page_size: VISIBLE_LINE_COUNT
     });
 
     searchResults.value = result.matches;
     totalMatches.value = result.total_matches;
+
     if (result.total_matches > 0) {
-      message(`找到 ${result.total_matches} 个匹配项`, { type: "success" });
+      message(`全文件找到 ${result.total_matches} 个匹配项`, {
+        type: "success"
+      });
     } else {
-      message("未找到匹配内容");
+      message("全文件未找到匹配内容");
     }
   } catch (err) {
     message(`Search failed: ${err}`, { type: "error" });
@@ -142,7 +207,8 @@ async function promptGoToLine() {
   showGotoDialog.value = !showGotoDialog.value;
 }
 
-function handleGotoLine(lineNumber: number) {
+// 跳转到指定行
+async function goToLine(lineNumber: number) {
   if (!fileInfo.value) return;
 
   const clampedLine = Math.max(
@@ -151,7 +217,31 @@ function handleGotoLine(lineNumber: number) {
   );
 
   currentLine.value = clampedLine - 1;
-  loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
+
+  await loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
+
+  // 加载新行后重新匹配
+  if (searchQuery.value.trim()) {
+    matchVisibleLines();
+  }
+}
+
+async function handleGotoLine(lineNumber: number) {
+  if (!fileInfo.value) return;
+
+  const clampedLine = Math.max(
+    1,
+    Math.min(lineNumber, fileInfo.value.line_count)
+  );
+
+  currentLine.value = clampedLine - 1;
+
+  // 等待loadLines完成
+  await loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
+
+  if (searchQuery.value.trim()) {
+    matchVisibleLines();
+  }
 
   message(`已跳转到第 ${clampedLine} 行`, { type: "success" });
 }
@@ -190,19 +280,6 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
 });
 
-// 跳转到指定行
-function goToLine(lineNumber: number) {
-  if (!fileInfo.value) return;
-
-  const clampedLine = Math.max(
-    1,
-    Math.min(lineNumber, fileInfo.value.line_count)
-  );
-
-  currentLine.value = clampedLine - 1;
-  loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
-}
-
 // 处理替换
 async function handleReplace(params: {
   search: string;
@@ -230,7 +307,7 @@ async function handleReplace(params: {
       encoding: fileInfo.value.encoding
     });
 
-    message(`替换完成：${count} 处`, { type: "success" });
+    message(`替换完成: ${count} 处`, { type: "success" });
 
     // 清除Rust缓存并重新加载
     await closeFile(fileInfo.value.path);
@@ -242,7 +319,8 @@ async function handleReplace(params: {
 
     await loadLines(currentLine.value, VISIBLE_LINE_COUNT);
     if (searchQuery.value === params.search) {
-      doSearch(); // 刷新高亮
+      searchType.value = "visible";
+      doSearch(searchType.value); // 刷新高亮
     }
   } catch (err) {
     message(`replace falied: ${err}`, { type: "error" });
@@ -259,6 +337,55 @@ function formatSize(bytes: number) {
   if (bytes > 1024) return `${(bytes / 1024).toFixed(2)} KB`;
   return `${bytes} B`;
 }
+
+// 清理搜索结果
+function clearSearchResults() {
+  searchResults.value = [];
+  totalMatches.value = 0;
+  message("已清除搜索结果");
+}
+
+// 清理后端所有 Session
+async function cleanupSessions() {
+  try {
+    const count = await invoke<number>("cleanup_sessions");
+    message(`Cleared ${count} Session`);
+  } catch (err) {
+    message(`清理Session失败: ${err}`, { type: "warning" });
+  }
+}
+
+// 清理前端数据
+function cleanupFrontend() {
+  fileInfo.value = null;
+  searchQuery.value = "";
+  searchResults.value = [];
+  totalMatches.value = 0;
+  visibleLines.value = [];
+  currentLine.value = 0;
+}
+
+// 完整清理
+async function cleanup() {
+  if (fileInfo.value) {
+    try {
+      await closeFile(fileInfo.value.path);
+    } catch (err) {
+      message(`关闭文件失败: ${err}`, { type: "warning" });
+    }
+  }
+  cleanupFrontend();
+}
+
+onMounted(async () => {
+  await cleanupSessions();
+  window.addEventListener("keydown", handleGlobalKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleGlobalKeydown);
+  cleanup();
+});
 </script>
 
 <template>
@@ -336,8 +463,11 @@ function formatSize(bytes: number) {
     <!-- 查找结果面板 -->
     <SiliconeCard v-if="searchResults.length" shadow="never">
       <div class="flex gap-3 ml-2 mt-2 mb-2">
-        <SiliconeTag type="success">{{ totalMatches }} matches</SiliconeTag>
-        <SiliconeButton size="small" @click="searchResults = []" text>
+        <SiliconeTag :type="searchType === 'visible' ? 'success' : 'primary'">
+          {{ totalMatches }} matches
+          {{ searchType === "visible" ? "(Current View)" : "(All file)" }}
+        </SiliconeTag>
+        <SiliconeButton size="small" @click="clearSearchResults" text>
           Clear
         </SiliconeButton>
       </div>

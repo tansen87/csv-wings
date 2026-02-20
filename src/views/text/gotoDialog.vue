@@ -66,7 +66,7 @@ function handleClose() {
     modal-penetrable
     draggable
   >
-    <el-form ref="formRef" :model="form">
+    <el-form ref="formRef" :model="form" @submit.prevent>
       <el-form-item>
         <SiliconeInput
           v-model="form.lineNumber"
@@ -77,14 +77,10 @@ function handleClose() {
         />
       </el-form-item>
 
-      <el-form-item>
+      <div class="flex justify-between">
         <SiliconeTag type="success"> {{ totalLines }} lines </SiliconeTag>
-      </el-form-item>
+        <SiliconeButton type="success" @click="handleGoTo"> Go </SiliconeButton>
+      </div>
     </el-form>
-
-    <div class="flex justify-end gap-3">
-      <SiliconeButton @click="handleClose">Cancel</SiliconeButton>
-      <SiliconeButton type="success" @click="handleGoTo"> Go </SiliconeButton>
-    </div>
   </SiliconeDialog>
 </template>

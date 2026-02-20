@@ -14,7 +14,7 @@ const emit = defineEmits<{
   (e: "update:searchQuery", value: string): void;
   (e: "update:caseSensitive", value: boolean): void;
   (e: "update:useRegex", value: boolean): void;
-  (e: "confirm"): void;
+  (e: "confirm", type: "visible" | "all"): void;
 }>();
 
 const visible = ref(props.modelValue);
@@ -66,11 +66,20 @@ watch(visible, val => {
   emit("update:modelValue", val);
 });
 
-function handleSearch() {
+// 当前视图搜索
+function handleSearchVisible() {
   emit("update:searchQuery", localSearchQuery.value);
   emit("update:caseSensitive", localCaseSensitive.value);
   emit("update:useRegex", localUseRegex.value);
-  emit("confirm");
+  emit("confirm", "visible");
+}
+
+// 搜索整个文件
+function handleSearchAll() {
+  emit("update:searchQuery", localSearchQuery.value);
+  emit("update:caseSensitive", localCaseSensitive.value);
+  emit("update:useRegex", localUseRegex.value);
+  emit("confirm", "all");
 }
 
 function handleClose() {
@@ -89,13 +98,12 @@ function handleClose() {
     modal-penetrable
     draggable
   >
-    <el-form label-width="80px">
+    <el-form @submit.prevent>
       <el-form-item label="查找">
         <SiliconeInput
           v-model="localSearchQuery"
           placeholder="请输入要查找的内容"
-          ref="searchInput"
-          @keyup.enter="handleSearch"
+          @keyup.enter="handleSearchVisible"
           clearable
         />
       </el-form-item>
@@ -106,10 +114,20 @@ function handleClose() {
       </el-form-item>
     </el-form>
 
-    <div class="flex justify-end gap-3">
-      <SiliconeButton @click="handleClose">Cancel</SiliconeButton>
-      <SiliconeButton type="success" @click="handleSearch" :loading="loading">
-        Find
+    <div class="flex justify-end gap-2">
+      <SiliconeButton
+        type="success"
+        @click="handleSearchVisible"
+        :loading="loading"
+      >
+        Search
+      </SiliconeButton>
+      <SiliconeButton
+        type="success"
+        @click="handleSearchAll"
+        :loading="loading"
+      >
+        Search All
       </SiliconeButton>
     </div>
   </SiliconeDialog>

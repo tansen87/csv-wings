@@ -147,6 +147,7 @@ fn main() {
       text_view::search_file,
       text_view::replace_text,
       text_view::close_file,
+      text_view::cleanup_sessions,
       apply::apply,
       cat::cat_csv,
       cat::cat_excel,

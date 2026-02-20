@@ -102,7 +102,7 @@ function handleClose() {
     modal-penetrable
     draggable
   >
-    <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
+    <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent>
       <el-form-item label="查找" prop="search">
         <SiliconeInput
           v-model="form.search"
@@ -127,8 +127,7 @@ function handleClose() {
       </el-form-item>
     </el-form>
 
-    <div class="flex justify-end gap-3">
-      <SiliconeButton @click="handleClose">Cancel</SiliconeButton>
+    <div class="flex justify-end gap-2">
       <SiliconeButton
         type="success"
         @click="doReplace(false)"

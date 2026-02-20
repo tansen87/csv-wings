@@ -1,5 +1,6 @@
 <template>
   <el-input
+    ref="inputRef"
     class="silicone-input"
     v-bind="$attrs"
     :type="props.type"
@@ -10,10 +11,19 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
+
 const props = defineProps({
   type: {
     type: String,
     default: "text"
+  }
+});
+
+const inputRef = ref(null);
+defineExpose({
+  focus: () => {
+    inputRef.value?.focus();
   }
 });
 </script>
