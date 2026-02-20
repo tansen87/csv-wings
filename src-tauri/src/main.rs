@@ -11,7 +11,7 @@ use tauri::{
 
 use insight::command;
 use insight::flow;
-use insight::view::large_text_view;
+use insight::view::{text_view, text_view_utils};
 
 use insight::cmd::apply;
 use insight::cmd::cat;
@@ -61,7 +61,7 @@ fn main() {
   }
 
   tauri::Builder::default()
-    .manage(large_text_view::AppState::default())
+    .manage(text_view_utils::AppState::default())
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -142,11 +142,11 @@ fn main() {
       command::to_json,
       command::xlsx_to_json,
       flow::flow,
-      large_text_view::open_file,
-      large_text_view::get_file_content,
-      large_text_view::search_file,
-      large_text_view::replace_text,
-      large_text_view::close_file,
+      text_view::open_file,
+      text_view::get_file_content,
+      text_view::search_file,
+      text_view::replace_text,
+      text_view::close_file,
       apply::apply,
       cat::cat_csv,
       cat::cat_excel,

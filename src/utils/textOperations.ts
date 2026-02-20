@@ -22,11 +22,6 @@ export interface SearchResult {
   page_size: number;
 }
 
-export interface EncodingOption {
-  label: string;
-  name: string;
-}
-
 export interface OpenFileParams {
   path: string;
   encoding?: string;
