@@ -6,6 +6,7 @@ import { toggleTheme } from "@pureadmin/theme/dist/browser-utils";
 import { useAppStoreHook } from "@/store/modules/app";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import {
+  ENCODING_OPTIONS,
   useDelimiter,
   useEncoding,
   useFlexible,
@@ -130,14 +131,16 @@ const { isDark } = useDark();
               <span class="setting-desc"> Text file encoding </span>
             </div>
             <SiliconeSelect
-              style="width: 150px"
+              style="width: 180px"
               v-model="encodingStore.encoding"
+              filterable
             >
-              <el-option label="UTF-8" value="UTF-8" />
-              <el-option label="GBK" value="GBK" />
-              <el-option label="UTF-16LE" value="UTF-16LE" />
-              <el-option label="UTF-16BE" value="UTF-16BE" />
-              <el-option label="Windows-1252" value="Windows-1252" />
+              <el-option
+                v-for="opt in ENCODING_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </SiliconeSelect>
           </div>
         </SiliconeCard>

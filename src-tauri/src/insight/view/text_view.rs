@@ -19,7 +19,7 @@ pub async fn open_file(
 ) -> Result<FileInfo, String> {
   let path = &params.path;
   let encoding = &params.encoding;
-  // 强制重建：先删缓存
+  // 强制重建:先删缓存
   {
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     sessions.remove(&params.path);
@@ -27,7 +27,7 @@ pub async fn open_file(
 
   let session = text_view_utils::create_session_for_path(&path, encoding.as_deref())?;
 
-  // 存入缓存(现在 reader 是 Arc,clone 很 cheap)
+  // 存入缓存
   {
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     sessions.insert(path.clone(), session.clone());
@@ -59,7 +59,7 @@ pub async fn get_file_content(
     if let Some((start, end)) = indexer.get_line_with_reader(line_num, reader) {
       lines.push(reader.get_chunk(start, end));
     } else {
-      break; // 文件结束
+      break;
     }
   }
 
@@ -240,10 +240,9 @@ pub fn close_file(state: tauri::State<'_, AppState>, path: String) -> Result<(),
 #[tauri::command]
 pub fn cleanup_sessions(state: tauri::State<AppState>) -> Result<usize, String> {
   let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
-  
+
   let count = sessions.len();
   sessions.clear();
-  
-  log::info!("已清理 {} 个文件会话", count);
+
   Ok(count)
 }
