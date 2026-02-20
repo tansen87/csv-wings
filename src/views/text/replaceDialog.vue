@@ -95,7 +95,7 @@ function handleClose() {
   <SiliconeDialog
     v-model="visible"
     title="替换"
-    width="500px"
+    width="400px"
     :close-on-click-modal="false"
     @close="handleClose"
     :modal="false"

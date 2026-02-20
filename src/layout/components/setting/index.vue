@@ -7,6 +7,7 @@ import { useAppStoreHook } from "@/store/modules/app";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import {
   useDelimiter,
+  useEncoding,
   useFlexible,
   useProgress,
   useQuoting,
@@ -47,6 +48,7 @@ const skiprowsStore = useSkiprows();
 const progressStore = useProgress();
 const threadsStore = useThreads();
 const delimiterStore = useDelimiter();
+const encodingStore = useEncoding();
 
 const mixRef = ref();
 const verticalRef = ref();
@@ -121,6 +123,24 @@ const { isDark } = useDark();
     </div>
     <el-scrollbar max-height="60vh">
       <div v-if="opts === 'general'" class="mt-1">
+        <SiliconeCard class="mb-1">
+          <div class="setting-item">
+            <div class="setting-label">
+              <span class="setting-title">encoding</span>
+              <span class="setting-desc"> Text file encoding </span>
+            </div>
+            <SiliconeSelect
+              style="width: 150px"
+              v-model="encodingStore.encoding"
+            >
+              <el-option label="UTF-8" value="UTF-8" />
+              <el-option label="GBK" value="GBK" />
+              <el-option label="UTF-16LE" value="UTF-16LE" />
+              <el-option label="UTF-16BE" value="UTF-16BE" />
+              <el-option label="Windows-1252" value="Windows-1252" />
+            </SiliconeSelect>
+          </div>
+        </SiliconeCard>
         <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">

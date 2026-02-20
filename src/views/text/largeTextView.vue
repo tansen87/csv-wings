@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ElMessageBox } from "element-plus";
 import ReplaceDialog from "./replaceDialog.vue";
 import FindDialog from "./findDialog.vue";
+import GotoDialog from "@/views/text/gotoDialog.vue";
 import { message } from "@/utils/message";
 import {
   openFile,
@@ -14,29 +15,26 @@ import {
   type SearchMatch,
   closeFile
 } from "@/utils/textOperations";
+import { useEncoding } from "@/store/modules/options";
 
 const fileInfo = ref<FileInfo | null>(null);
-const visibleLines = ref([]);
 const searchQuery = ref("");
-const caseSensitive = ref(false);
-const useRegex = ref(false);
 const searchResults = ref<SearchMatch[]>([]);
 const totalMatches = ref(0);
-const showReplaceDialog = ref(false);
-const showFindDialog = ref(false);
 const currentLine = ref(0);
+// 内容显示行数
+const VISIBLE_LINE_COUNT = 500;
+const visibleLines = ref([]);
+
+const caseSensitive = ref(false);
+const useRegex = ref(false);
 const isReplace = ref(false);
 const isSearch = ref(false);
-const VISIBLE_LINE_COUNT = 500;
+const showReplaceDialog = ref(false);
+const showFindDialog = ref(false);
+const showGotoDialog = ref(false);
 
-const selectedEncoding = ref("UTF-8");
-const ENCODING_OPTIONS = [
-  { label: "UTF-8", value: "UTF-8" },
-  { label: "UTF-16LE", value: "UTF-16LE" },
-  { label: "UTF-16BE", value: "UTF-16BE" },
-  { label: "GBK", value: "GBK" },
-  { label: "Windows-1252", value: "Windows-1252" }
-];
+const encoding = useEncoding();
 
 // 打开文件
 async function openFileDialog() {
@@ -47,7 +45,7 @@ async function openFileDialog() {
     if (path) {
       fileInfo.value = await openFile({
         path: path as string,
-        encoding: selectedEncoding.value || undefined
+        encoding: encoding.encoding || undefined
       });
       await loadLines(0, VISIBLE_LINE_COUNT);
       message(`文件已加载`, { type: "success" });
@@ -71,7 +69,7 @@ async function loadLines(start: number, count: number) {
   }));
 }
 
-// 搜索
+// 查找
 async function doSearch() {
   if (!fileInfo.value) {
     message("请先打开文件", { type: "warning" });
@@ -141,36 +139,21 @@ function isMatchLine(lineNumber: number) {
 }
 
 async function promptGoToLine() {
-  if (!fileInfo.value) {
-    message("请先打开文件", { type: "warning" });
-    return;
-  }
+  showGotoDialog.value = !showGotoDialog.value;
+}
 
-  try {
-    const lineCount = fileInfo.value.line_count - 1;
-    const lineStr = await ElMessageBox.prompt(
-      "请输入行号(1-" + lineCount + ")",
-      "跳转到行",
-      {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        inputPattern: /^\d+$/,
-        inputErrorMessage: "请输入有效的行号"
-      }
-    );
+function handleGotoLine(lineNumber: number) {
+  if (!fileInfo.value) return;
 
-    const lineNumber = parseInt(lineStr.value, 10);
-    if (lineNumber < 1 || lineNumber > lineCount) {
-      message(`行号超出范围(1~${lineCount})`, {
-        type: "warning"
-      });
-      return;
-    }
+  const clampedLine = Math.max(
+    1,
+    Math.min(lineNumber, fileInfo.value.line_count)
+  );
 
-    goToLine(lineNumber);
-  } catch (err) {
-    return;
-  }
+  currentLine.value = clampedLine - 1;
+  loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
+
+  message(`已跳转到第 ${clampedLine} 行`, { type: "success" });
 }
 
 // 快捷键处理
@@ -254,7 +237,7 @@ async function handleReplace(params: {
 
     fileInfo.value = await openFile({
       path: fileInfo.value.path,
-      encoding: selectedEncoding.value || undefined
+      encoding: encoding.encoding || undefined
     });
 
     await loadLines(currentLine.value, VISIBLE_LINE_COUNT);
@@ -281,17 +264,10 @@ function formatSize(bytes: number) {
 <template>
   <div class="file-viewer">
     <SiliconeCard shadow="never">
-      <div class="flex items-center gap-2 flex-wrap ml-2 mb-2 mt-2">
+      <div class="flex items-center ml-1 mb-1 mt-1">
         <SiliconeButton @click="openFileDialog" text> 打开文件 </SiliconeButton>
 
-        <SiliconeSelect v-model="selectedEncoding" style="width: 150px">
-          <el-option
-            v-for="item in ENCODING_OPTIONS"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </SiliconeSelect>
+        <div class="flex-grow" />
 
         <SiliconeButton
           type="success"
@@ -299,7 +275,7 @@ function formatSize(bytes: number) {
           :loading="isSearch"
           text
         >
-          查找(Ctrl+F)
+          查找
         </SiliconeButton>
 
         <SiliconeButton
@@ -308,11 +284,11 @@ function formatSize(bytes: number) {
           :loading="isReplace"
           text
         >
-          替换(Ctrl+H)
+          替换
         </SiliconeButton>
 
-        <SiliconeButton @click="promptGoToLine" type="primary" text>
-          跳转(Ctrl+G)
+        <SiliconeButton @click="promptGoToLine" class="mr-1" text>
+          跳转
         </SiliconeButton>
       </div>
     </SiliconeCard>
@@ -336,11 +312,11 @@ function formatSize(bytes: number) {
 
     <el-empty
       v-if="!fileInfo"
-      description="Open the file to view"
+      description="Large Text View"
       :image-size="200"
     />
 
-    <!-- 内容显示区(虚拟滚动) -->
+    <!-- 内容显示区 -->
     <div v-else class="content-wrapper">
       <el-scrollbar>
         <div class="content-area">
@@ -356,12 +332,13 @@ function formatSize(bytes: number) {
         </div>
       </el-scrollbar>
     </div>
-    <!-- 搜索结果面板 -->
+
+    <!-- 查找结果面板 -->
     <SiliconeCard v-if="searchResults.length" shadow="never">
       <div class="flex gap-3 ml-2 mt-2 mb-2">
-        <SiliconeTag type="success">{{ totalMatches }} 个匹配</SiliconeTag>
+        <SiliconeTag type="success">{{ totalMatches }} matches</SiliconeTag>
         <SiliconeButton size="small" @click="searchResults = []" text>
-          清空
+          Clear
         </SiliconeButton>
       </div>
 
@@ -371,9 +348,9 @@ function formatSize(bytes: number) {
         class="ml-2 mr-2 mb-2"
         :style="{ width: 'calc(100% - 16px)' }"
       >
-        <el-table-column prop="line_number" label="行号" width="80" />
-        <el-table-column prop="match_start" label="列号" width="80" />
-        <el-table-column prop="line_content" label="内容">
+        <el-table-column prop="line_number" label="Line" width="80" />
+        <el-table-column prop="match_start" label="Column" width="80" />
+        <el-table-column prop="line_content" label="Content">
           <template #default="{ row }">
             <span
               class="search-line-content"
@@ -404,6 +381,12 @@ function formatSize(bytes: number) {
       @replace="handleReplace"
       :loading="isReplace"
     />
+
+    <GotoDialog
+      v-model="showGotoDialog"
+      :total-lines="fileInfo?.line_count"
+      @go-to="handleGotoLine"
+    />
   </div>
 </template>
 
@@ -415,7 +398,7 @@ function formatSize(bytes: number) {
 .file-viewer {
   display: flex;
   flex-direction: column;
-  height: 94vh;
+  height: calc(100vh - 36px);
   padding: 8px;
   gap: 8px;
   background: #f5f7fa;
@@ -465,7 +448,6 @@ function formatSize(bytes: number) {
   white-space: pre;
   cursor: text;
 }
-
 .line:hover {
   background: #f5f7fa;
 }

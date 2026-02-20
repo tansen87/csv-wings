@@ -74,3 +74,15 @@ export const useDelimiter = defineStore("delimiter", {
   },
   persist: true
 });
+
+export const useEncoding = defineStore("encoding", {
+  state: () => ({
+    encoding: "UTF-8"
+  }),
+  actions: {
+    setEncoding(value: string) {
+      this.encoding = value;
+    }
+  },
+  persist: true
+});
