@@ -50,10 +50,9 @@ async function openFileDialog() {
         encoding: encoding.encoding || undefined
       });
       await loadLines(0, VISIBLE_LINE_COUNT);
-      message(`文件已加载`, { type: "success" });
     }
   } catch (error: any) {
-    message(`打开文件失败: ${error}`, { type: "error" });
+    message(`fail to open file: ${error}`, { type: "error" });
   }
 }
 
@@ -102,7 +101,7 @@ function matchVisibleLines() {
       regex = new RegExp(escaped, flags);
     }
   } catch (e) {
-    message(`正则表达式无效: ${e}`, { type: "error" });
+    message(`matchVisibleLines failed: ${e}`, { type: "error" });
     return;
   }
 
@@ -126,19 +125,14 @@ function matchVisibleLines() {
   searchResults.value = matches;
   totalMatches.value = matches.length;
 
-  if (matches.length > 0) {
-    message(`当前视图找到 ${matches.length} 个匹配项`, { type: "success" });
-  } else {
-    message("当前视图未找到匹配内容");
+  if (matches.length < 1) {
+    message("No matching content found");
   }
 }
 
 // 搜索整个文件
 async function searchAllFile() {
-  if (!fileInfo.value) {
-    message("请先打开文件", { type: "warning" });
-    return;
-  }
+  if (!fileInfo.value) return;
 
   try {
     isSearch.value = true;
@@ -156,15 +150,11 @@ async function searchAllFile() {
     searchResults.value = result.matches;
     totalMatches.value = result.total_matches;
 
-    if (result.total_matches > 0) {
-      message(`全文件找到 ${result.total_matches} 个匹配项`, {
-        type: "success"
-      });
-    } else {
-      message("全文件未找到匹配内容");
+    if (result.total_matches < 1) {
+      message("No matching content found");
     }
-  } catch (err) {
-    message(`Search failed: ${err}`, { type: "error" });
+  } catch (e) {
+    message(`searchAllFile failed: ${e}`, { type: "error" });
   } finally {
     isSearch.value = false;
   }
@@ -187,8 +177,8 @@ function highlightMatch(content: string) {
     }
     return content.replace(regex, "<mark>$1</mark>");
   } catch (e) {
-    // 正则无效时,回退到普通文本高亮 or 不高亮
-    console.warn("Invalid regex:", e);
+    // 正则无效时,不高亮
+    message(`highlightMatch falied: ${e}`);
     return content;
   }
 }
@@ -208,7 +198,7 @@ async function promptGoToLine() {
 }
 
 // 跳转到指定行
-async function goToLine(lineNumber: number) {
+async function handleGotoLine(lineNumber: number) {
   if (!fileInfo.value) return;
 
   const clampedLine = Math.max(
@@ -224,26 +214,8 @@ async function goToLine(lineNumber: number) {
   if (searchQuery.value.trim()) {
     matchVisibleLines();
   }
-}
 
-async function handleGotoLine(lineNumber: number) {
-  if (!fileInfo.value) return;
-
-  const clampedLine = Math.max(
-    1,
-    Math.min(lineNumber, fileInfo.value.line_count)
-  );
-
-  currentLine.value = clampedLine - 1;
-
-  // 等待loadLines完成
-  await loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
-
-  if (searchQuery.value.trim()) {
-    matchVisibleLines();
-  }
-
-  message(`已跳转到第 ${clampedLine} 行`, { type: "success" });
+  message(`Jumped to line ${clampedLine}`, { type: "success" });
 }
 
 // 快捷键处理
@@ -291,8 +263,10 @@ async function handleReplace(params: {
 
   try {
     await ElMessageBox.confirm(
-      `确定要${params.replaceAll ? "替换全部" : "替换"}匹配项?此操作不可撤销.`,
-      "确认替换",
+      `Are you sure you want ${
+        params.replaceAll ? "Replace All" : "Replace"
+      }? This operation cannot be undone.`,
+      "Confirm replacement",
       { type: "warning" }
     );
 
@@ -307,7 +281,7 @@ async function handleReplace(params: {
       encoding: fileInfo.value.encoding
     });
 
-    message(`替换完成: ${count} 处`, { type: "success" });
+    message(`Replacement completed: ${count}`, { type: "success" });
 
     // 清除Rust缓存并重新加载
     await closeFile(fileInfo.value.path);
@@ -322,8 +296,8 @@ async function handleReplace(params: {
       searchType.value = "visible";
       doSearch(searchType.value); // 刷新高亮
     }
-  } catch (err) {
-    message(`replace falied: ${err}`, { type: "error" });
+  } catch (e) {
+    message(`replace falied: ${e}`, { type: "error" });
   } finally {
     isReplace.value = false;
   }
@@ -342,15 +316,14 @@ function formatSize(bytes: number) {
 function clearSearchResults() {
   searchResults.value = [];
   totalMatches.value = 0;
-  message("已清除搜索结果");
+  searchQuery.value = "";
 }
 // 清理后端所有Session
 async function cleanupSessions() {
   try {
-    const count = await invoke<number>("cleanup_sessions");
-    message(`Cleared ${count} Session`);
+    await invoke<number>("cleanup_sessions");
   } catch (err) {
-    message(`清理Session失败: ${err}`, { type: "warning" });
+    message(`cleanupSessions failed: ${err}`, { type: "warning" });
   }
 }
 // 清理前端数据
@@ -367,8 +340,8 @@ async function cleanup() {
   if (fileInfo.value) {
     try {
       await closeFile(fileInfo.value.path);
-    } catch (err) {
-      message(`关闭文件失败: ${err}`, { type: "warning" });
+    } catch (e) {
+      message(`closeFile failed: ${e}`, { type: "warning" });
     }
   }
   cleanupFrontend();
@@ -381,13 +354,34 @@ onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
   cleanup();
 });
+
+// 单击行号选中整行
+const lineRefs = ref<Record<number, HTMLElement>>({});
+function selectLineContent(lineNumber: number) {
+  setTimeout(() => {
+    const lineElement = lineRefs.value[lineNumber];
+    if (!lineElement) return;
+
+    const contentSpan = lineElement.querySelector(".line-content");
+    if (!contentSpan) return;
+
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(contentSpan);
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, 0);
+}
 </script>
 
 <template>
   <div class="file-viewer">
     <SiliconeCard shadow="never">
       <div class="flex items-center ml-1 mb-1 mt-1">
-        <SiliconeButton @click="openFileDialog" text> 打开文件 </SiliconeButton>
+        <SiliconeButton @click="openFileDialog" text>Open File</SiliconeButton>
 
         <div class="flex-grow" />
 
@@ -397,7 +391,7 @@ onUnmounted(() => {
           :loading="isSearch"
           text
         >
-          查找
+          Search
         </SiliconeButton>
 
         <SiliconeButton
@@ -406,11 +400,11 @@ onUnmounted(() => {
           :loading="isReplace"
           text
         >
-          替换
+          Replace
         </SiliconeButton>
 
         <SiliconeButton @click="promptGoToLine" class="mr-1" text>
-          跳转
+          Jump
         </SiliconeButton>
       </div>
     </SiliconeCard>
@@ -447,8 +441,11 @@ onUnmounted(() => {
             :key="line.number"
             class="line"
             :class="{ match: isMatchLine(line.number) }"
+            :ref="(el) => { if (el) lineRefs[line.number] = el as HTMLElement }"
           >
-            <span class="line-number">{{ line.number }}</span>
+            <span class="line-number" @click="selectLineContent(line.number)">
+              {{ line.number }}
+            </span>
             <span class="line-content" v-html="highlightMatch(line.content)" />
           </div>
         </div>
@@ -460,7 +457,7 @@ onUnmounted(() => {
       <div class="flex gap-3 ml-2 mt-2 mb-2">
         <SiliconeTag :type="searchType === 'visible' ? 'success' : 'primary'">
           {{ totalMatches }} matches
-          {{ searchType === "visible" ? "(Current View)" : "(All file)" }}
+          {{ searchType === "visible" ? "(Current View)" : "(All File)" }}
         </SiliconeTag>
         <SiliconeButton size="small" @click="clearSearchResults" text>
           Clear
@@ -479,7 +476,7 @@ onUnmounted(() => {
           <template #default="{ row }">
             <span
               class="search-line-content"
-              @click="goToLine(row.line_number)"
+              @click="handleGotoLine(row.line_number)"
             >
               {{ row.line_content }}
             </span>
@@ -594,6 +591,8 @@ onUnmounted(() => {
 .line-content {
   flex: 1;
   overflow: hidden;
+  cursor: text;
+  user-select: text;
 }
 
 .search-line-content {
