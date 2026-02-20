@@ -344,8 +344,7 @@ function clearSearchResults() {
   totalMatches.value = 0;
   message("已清除搜索结果");
 }
-
-// 清理后端所有 Session
+// 清理后端所有Session
 async function cleanupSessions() {
   try {
     const count = await invoke<number>("cleanup_sessions");
@@ -354,7 +353,6 @@ async function cleanupSessions() {
     message(`清理Session失败: ${err}`, { type: "warning" });
   }
 }
-
 // 清理前端数据
 function cleanupFrontend() {
   fileInfo.value = null;
@@ -364,7 +362,6 @@ function cleanupFrontend() {
   visibleLines.value = [];
   currentLine.value = 0;
 }
-
 // 完整清理
 async function cleanup() {
   if (fileInfo.value) {
@@ -376,12 +373,10 @@ async function cleanup() {
   }
   cleanupFrontend();
 }
-
 onMounted(async () => {
   await cleanupSessions();
   window.addEventListener("keydown", handleGlobalKeydown);
 });
-
 onUnmounted(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
   cleanup();
@@ -537,23 +532,12 @@ onUnmounted(() => {
   background: #1a1a1a;
 }
 
-.file-path {
-  max-width: 600px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dark .file-path {
-  color: #e0e0e0;
-}
-
 .content-wrapper {
   flex: 1;
   overflow: hidden;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  height: calc(100% - 80px);
 }
 .dark .content-wrapper {
   background: #2d2d2d;
@@ -563,9 +547,9 @@ onUnmounted(() => {
 .content-area {
   height: 100%;
   overflow-y: auto;
-  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
   font-size: 14px;
-  line-height: 20px;
 }
 .dark .content-area {
   color: #e0e0e0;
@@ -609,7 +593,6 @@ onUnmounted(() => {
 
 .line-content {
   flex: 1;
-  padding-left: 12px;
   overflow: hidden;
 }
 
@@ -617,7 +600,6 @@ onUnmounted(() => {
   cursor: pointer;
   color: #303133;
 }
-
 .search-line-content:hover {
   color: #409eff;
   text-decoration: underline;
@@ -625,7 +607,6 @@ onUnmounted(() => {
 .dark .search-line-content {
   color: #e0e0e0;
 }
-
 .dark .search-line-content:hover {
   color: #64b5f6;
 }
@@ -633,7 +614,6 @@ onUnmounted(() => {
 mark {
   background: #ffeb3b;
   padding: 0 2px;
-  border-radius: 2px;
 }
 .dark mark {
   background: #ff9800;
@@ -645,22 +625,5 @@ mark {
 }
 .dark :deep(.el-overlay) {
   background: rgba(0, 0, 0, 0.7);
-}
-
-.dark .content-area::-webkit-scrollbar {
-  width: 8px;
-}
-
-.dark .content-area::-webkit-scrollbar-track {
-  background: #1e1e1e;
-}
-
-.dark .content-area::-webkit-scrollbar-thumb {
-  background: #404040;
-  border-radius: 4px;
-}
-
-.dark .content-area::-webkit-scrollbar-thumb:hover {
-  background: #555;
 }
 </style>

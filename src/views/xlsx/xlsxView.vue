@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderOpened, Files, Loading } from "@element-plus/icons-vue";
 import { useDynamicHeight } from "@/utils/utils";
@@ -40,10 +40,8 @@ async function selectFile() {
 
     if (fileSheets.length === 0) {
       message("No sheets found in the Excel file", { type: "warning" });
-      sheets.value = [];
       selectedSheet.value = "";
-      tableData.value = [];
-      tableColumn.value = [];
+      [sheets, tableColumn, tableData].forEach(r => (r.value = []));
       return;
     }
 
@@ -53,9 +51,7 @@ async function selectFile() {
     await loadPreview();
   } catch (err) {
     message(err.toString(), { type: "error" });
-    sheets.value = [];
-    tableData.value = [];
-    tableColumn.value = [];
+    [sheets, tableColumn, tableData].forEach(r => (r.value = []));
   } finally {
     isLoading.value = false;
   }
@@ -88,6 +84,12 @@ watch(nrows, () => {
   if (selectedSheet.value && path.value) {
     loadPreview();
   }
+});
+
+onUnmounted(() => {
+  // 清空数据
+  [path, filename, selectedSheet].forEach(r => (r.value = ""));
+  [sheets, tableColumn, tableData].forEach(r => (r.value = []));
 });
 </script>
 
