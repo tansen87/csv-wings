@@ -31,8 +31,7 @@ const visibleLines = ref([]);
 
 const caseSensitive = ref(false);
 const useRegex = ref(false);
-const isReplace = ref(false);
-const isSearch = ref(false);
+const loading = ref(false);
 const showReplaceDialog = ref(false);
 const showFindDialog = ref(false);
 const showGotoDialog = ref(false);
@@ -136,7 +135,7 @@ async function searchAllFile() {
   if (!fileInfo.value) return;
 
   try {
-    isSearch.value = true;
+    loading.value = true;
     searchResults.value = [];
 
     const result = await searchFile({
@@ -157,7 +156,7 @@ async function searchAllFile() {
   } catch (e) {
     message(`searchAllFile failed: ${e}`, { type: "error" });
   } finally {
-    isSearch.value = false;
+    loading.value = false;
   }
 }
 
@@ -220,7 +219,7 @@ async function handleGotoLine(lineNumber: number) {
 }
 
 // 快捷键处理
-function handleGlobalKeydown(e: KeyboardEvent) {
+function handleKeydown(e: KeyboardEvent) {
   // 排除输入框中触发
   const target = e.target as HTMLElement;
   const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
@@ -246,16 +245,14 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     promptGoToLine();
   }
 }
-
 onMounted(() => {
-  window.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("keydown", handleKeydown);
   if (fileInfo.value) {
     loadLines(0, VISIBLE_LINE_COUNT);
   }
 });
-
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleGlobalKeydown);
+  window.removeEventListener("keydown", handleKeydown);
 });
 
 // 处理替换
@@ -276,7 +273,7 @@ async function handleReplace(params: {
       { type: "warning" }
     );
 
-    isReplace.value = true;
+    loading.value = true;
 
     const count = await replaceText({
       path: fileInfo.value.path,
@@ -305,7 +302,7 @@ async function handleReplace(params: {
   } catch (e) {
     message(`replace falied: ${e}`, { type: "error" });
   } finally {
-    isReplace.value = false;
+    loading.value = false;
   }
 }
 
@@ -346,10 +343,10 @@ onMounted(async () => {
   } catch (e) {
     message(`cleanupSessions failed: ${e}`, { type: "warning" });
   }
-  window.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("keydown", handleKeydown);
 });
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleGlobalKeydown);
+  window.removeEventListener("keydown", handleKeydown);
   cleanup();
 });
 
@@ -378,7 +375,7 @@ function selectLineContent(lineNumber: number) {
 <template>
   <div class="file-viewer">
     <SiliconeCard v-if="fileInfo" shadow="never">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 ml-1 mb-1 mt-1 mr-1">
         <SiliconeTag type="info">
           {{ fileInfo.path }}
         </SiliconeTag>
@@ -413,9 +410,9 @@ function selectLineContent(lineNumber: number) {
               </div>
             </div>
           </template>
-          <SiliconeTag type="danger">
+          <SiliconeButton :loading="loading" text size="small">
             <el-icon><More /></el-icon>
-          </SiliconeTag>
+          </SiliconeButton>
         </SiliconeTooltip>
       </div>
     </SiliconeCard>
@@ -514,7 +511,7 @@ function selectLineContent(lineNumber: number) {
       :search-query="searchQuery"
       :case-sensitive="caseSensitive"
       :use-regex="useRegex"
-      :loading="isSearch"
+      :loading="loading"
       @update:search-query="searchQuery = $event"
       @update:case-sensitive="caseSensitive = $event"
       @update:use-regex="useRegex = $event"
@@ -525,7 +522,7 @@ function selectLineContent(lineNumber: number) {
       v-model="showReplaceDialog"
       :search-query="searchQuery"
       @replace="handleReplace"
-      :loading="isReplace"
+      :loading="loading"
     />
 
     <GotoDialog

@@ -86,7 +86,7 @@ watch(nrows, () => {
   }
 });
 
-function handleGlobalKeydown(e: KeyboardEvent) {
+function handleKeydown(e: KeyboardEvent) {
   // Ctrl+O 打开文件
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o" && !e.shiftKey) {
     e.preventDefault();
@@ -94,10 +94,13 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 onMounted(() => {
-  window.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("keydown", handleKeydown);
   if (path.value) {
     loadPreview();
   }
+});
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeydown);
 });
 
 onUnmounted(() => {
@@ -139,7 +142,7 @@ onUnmounted(() => {
           :min="1"
           :max="500"
           controls-position="right"
-          style="width: 176px"
+          style="width: 150px"
           size="small"
         />
       </div>
