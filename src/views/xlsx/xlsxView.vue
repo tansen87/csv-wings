@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { FolderOpened, Files, Loading } from "@element-plus/icons-vue";
-import { useDynamicHeight } from "@/utils/utils";
+import { Document } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import { viewOpenFile, xlsxToJson } from "@/utils/view";
+import { useDynamicHeight } from "@/utils/utils";
 
 const path = ref("");
 const filename = ref("");
 const sheets = ref<string[]>([]);
 const selectedSheet = ref("");
-const nrows = ref(20);
+const nrows = ref(50);
 
 const [tableColumn, tableData] = [ref<any[]>([]), ref<any[]>([])];
 const isLoading = ref(false);
-const { dynamicHeight } = useDynamicHeight(80);
+const { dynamicHeight } = useDynamicHeight(136);
 
 async function selectFile() {
   const selected = await viewOpenFile(false, "xlsx", ["xlsx"]);
@@ -86,6 +86,20 @@ watch(nrows, () => {
   }
 });
 
+function handleGlobalKeydown(e: KeyboardEvent) {
+  // Ctrl+O 打开文件
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o" && !e.shiftKey) {
+    e.preventDefault();
+    selectFile();
+  }
+}
+onMounted(() => {
+  window.addEventListener("keydown", handleGlobalKeydown);
+  if (path.value) {
+    loadPreview();
+  }
+});
+
 onUnmounted(() => {
   // 清空数据
   [path, filename, selectedSheet].forEach(r => (r.value = ""));
@@ -94,69 +108,106 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-container">
-    <el-splitter>
-      <el-splitter-panel size="180" :resizable="false">
-        <div class="splitter-container mr-1">
-          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
-            Open xlsx
-          </SiliconeButton>
+  <div class="file-viewer">
+    <SiliconeCard v-if="path && sheets.length" shadow="never">
+      <div class="flex items-center gap-2 mt-1 mb-1 ml-1 mr-1">
+        <SiliconeButton
+          @click="selectFile()"
+          :loading="isLoading"
+          text
+          size="small"
+        >
+          Open Xlsx
+        </SiliconeButton>
+        <div class="flex-grow" />
+        <SiliconeSelect
+          v-model="selectedSheet"
+          placeholder="Select sheet"
+          filterable
+          style="width: 150px"
+          size="small"
+        >
+          <el-option
+            v-for="sheet in sheets"
+            :key="sheet"
+            :label="sheet"
+            :value="sheet"
+          />
+        </SiliconeSelect>
+        <SiliconeInputNumber
+          v-model="nrows"
+          :min="1"
+          :max="500"
+          controls-position="right"
+          style="width: 176px"
+          size="small"
+        />
+      </div>
+    </SiliconeCard>
 
-          <div v-if="sheets.length > 0" class="mt-2">
-            <el-text>Sheet:</el-text>
-            <SiliconeSelect
-              v-model="selectedSheet"
-              placeholder="Select sheet"
-              filterable
-            >
-              <el-option
-                v-for="sheet in sheets"
-                :key="sheet"
-                :label="sheet"
-                :value="sheet"
-              />
-            </SiliconeSelect>
-          </div>
+    <SiliconeCard v-if="path && sheets.length" shadow="never">
+      <SiliconeTag type="info" size="small" class="mb-1 mt-1 ml-1">
+        {{ path }}
+      </SiliconeTag>
+    </SiliconeCard>
 
-          <div v-if="sheets.length > 0" class="mt-2">
-            <el-text class="mb-1">Preview Rows:</el-text>
-            <SiliconeInputNumber
-              v-model="nrows"
-              :min="1"
-              :max="1000"
-              controls-position="right"
-              style="width: 176px"
-            />
-          </div>
-
-          <div class="mt-auto flex items-center">
-            <el-icon v-if="isLoading" class="mr-2 is-loading">
-              <Loading />
-            </el-icon>
-            <el-text v-if="isLoading" type="info">Loading...</el-text>
+    <el-empty v-if="!path" :image-size="200">
+      <template #image>
+        <el-icon :size="200" color="#909399">
+          <Document />
+        </el-icon>
+      </template>
+      <template #description>
+        <div class="flex flex-col text-center">
+          <div class="flex gap-4">
+            <SiliconeTag type="success" @click="selectFile">
+              Open Xlsx
+            </SiliconeTag>
+            <SiliconeTag>Ctrl + O</SiliconeTag>
           </div>
         </div>
-      </el-splitter-panel>
+      </template>
+    </el-empty>
 
-      <el-splitter-panel>
-        <SiliconeTable
-          :data="tableData"
-          :height="dynamicHeight"
-          show-overflow-tooltip
-          v-loading="isLoading"
-        >
-          <el-table-column
-            v-for="column in tableColumn"
-            :key="column.prop"
-            :prop="column.prop"
-            :label="column.label"
-          />
-        </SiliconeTable>
-
-        <SiliconeText class="mt-2" truncated :max-lines="1">
-          <el-icon><Files /></el-icon>{{ path }}
-        </SiliconeText>
-      </el-splitter-panel>
-    </el-splitter>
-  </el-form>
+    <div v-else class="flex-1 flex flex-col min-h-0">
+      <SiliconeCard shadow="never" class="flex-1 flex flex-col p-2">
+        <el-scrollbar>
+          <SiliconeTable
+            :data="tableData"
+            show-overflow-tooltip
+            v-loading="isLoading"
+            class="mb-1 ml-1 mr-1 mt-1"
+            :style="{ width: 'calc(100% - 8px)' }"
+            :height="dynamicHeight"
+          >
+            <el-table-column
+              v-for="column in tableColumn"
+              :key="column.prop"
+              :prop="column.prop"
+              :label="column.label"
+            />
+          </SiliconeTable>
+        </el-scrollbar>
+      </SiliconeCard>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+:deep(.el-card__body) {
+  padding: 0 !important;
+}
+
+.file-viewer {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 36px);
+  padding: 8px;
+  gap: 8px;
+  background: #f5f7fa;
+  user-select: none;
+}
+.dark .file-viewer {
+  background: #1a1a1a;
+}
+</style>

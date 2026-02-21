@@ -472,14 +472,13 @@ function selectLineContent(lineNumber: number) {
 
     <!-- 查找结果面板 -->
     <SiliconeCard v-if="searchResults.length" shadow="never">
-      <div class="flex gap-3 ml-2 mt-2 mb-2">
+      <div class="flex gap-3 ml-1 mt-1 mb-2 mr-1">
         <SiliconeTag :type="searchType === 'visible' ? 'success' : 'primary'">
           {{ totalMatches }} matches
           {{ searchType === "visible" ? "(Current View)" : "(All File)" }}
         </SiliconeTag>
         <div class="flex-grow" />
         <SiliconeButton
-          class="mr-2"
           size="small"
           type="warning"
           @click="clearSearchResults"
@@ -492,8 +491,8 @@ function selectLineContent(lineNumber: number) {
       <SiliconeTable
         :data="searchResults"
         max-height="200"
-        class="ml-2 mb-2"
-        :style="{ width: 'calc(100% - 16px)' }"
+        class="ml-1 mb-1"
+        :style="{ width: 'calc(100% - 8px)' }"
       >
         <el-table-column prop="line_number" label="Line" width="80" />
         <el-table-column prop="match_start" label="Column" width="80" />
