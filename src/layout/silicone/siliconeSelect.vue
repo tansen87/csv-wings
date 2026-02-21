@@ -13,9 +13,9 @@
       <slot name="header" />
     </template>
     <!-- 透传 footer 插槽 -->
-    <template #footer>
+    <!-- <template #footer>
       <slot name="footer" />
-    </template>
+    </template> -->
   </el-select>
 </template>
 

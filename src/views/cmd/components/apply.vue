@@ -177,7 +177,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view flex flex-col bg-gray-50 dark:bg-[#141414]">
+  <el-form class="page-view dark:bg-[#141414]">
     <el-splitter
       v-if="path && tableData.length"
       class="flex-1"
@@ -246,7 +246,6 @@ onUnmounted(() => {
                   filterable
                   multiple
                   placeholder="Select operations"
-                  class="w-full"
                 >
                   <el-option label="Copy" value="copy" />
                   <el-option label="Len" value="len" />

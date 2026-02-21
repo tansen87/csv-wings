@@ -1,22 +1,15 @@
 <script setup lang="ts">
-import { ref, watch, reactive } from "vue";
+import { ref, watch, reactive, onUnmounted } from "vue";
 import { save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import type { Event } from "@tauri-apps/api/event";
-import {
-  FolderOpened,
-  Loading,
-  SwitchButton,
-  Select as SelectIcon,
-  CloseBold
-} from "@element-plus/icons-vue";
-import { useDark } from "@pureadmin/utils";
+import { Loading } from "@element-plus/icons-vue";
+import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mdCat, useMarkdown } from "@/utils/markdown";
 import { message, closeAllMessage } from "@/utils/message";
 import { trimOpenFile } from "@/utils/view";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const mode = ref("csv");
 const modeOptions = [
@@ -29,8 +22,6 @@ const fileSelect = ref<
     filename: string;
     selectSheet?: string;
     sheets?: string[];
-    infoMsg?: string;
-    status?: "loading" | "success" | "error";
     message?: string;
   }>
 >([]);
@@ -41,7 +32,6 @@ const [isLoading, backendCompleted, dialog] = [
 ];
 const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdCat);
-const { isDark } = useDark();
 const quoting = useQuoting();
 const skiprows = useSkiprows();
 
@@ -80,44 +70,22 @@ function getSheetsForFile(fileName: string): string[] {
   return mapSheets.value?.[fileName] || [];
 }
 
-listen("info", (event: Event<string>) => {
-  const filename = event.payload;
-  fileSelect.value.forEach(f => {
-    if (f.filename === filename) f.status = "loading";
-  });
-});
-listen("err", (event: Event<string>) => {
-  const [filename, msg] = event.payload.split("|");
-  fileSelect.value.forEach(f => {
-    if (f.filename === filename) {
-      f.status = "error";
-      f.message = msg;
-    }
-  });
-});
-listen("success", (event: Event<string>) => {
-  const filename = event.payload;
-  fileSelect.value.forEach(f => {
-    if (f.filename === filename) f.status = "success";
-  });
-});
-
 async function loadExcelSheets() {
   if (!path.value || fileSelect.value.length === 0) return;
 
-  // 避免重复加载:检查是否已有 sheets
-  const alreadyLoaded = fileSelect.value.some(
-    f => f.sheets && f.sheets.length > 0
-  );
-  if (alreadyLoaded) return;
-
-  message("Fetching Excel sheets...", {
-    type: "info",
-    duration: 0,
-    icon: Loading
-  });
-
   try {
+    // 避免重复加载:检查是否已有 sheets
+    const alreadyLoaded = fileSelect.value.some(
+      f => f.sheets && f.sheets.length > 0
+    );
+    if (alreadyLoaded) return;
+
+    message("Fetching Excel sheets...", {
+      type: "info",
+      duration: 0,
+      icon: Loading
+    });
+
     const result = await invoke<
       [Record<string, string[]>, Record<string, string>]
     >("map_excel_sheets", { path: path.value });
@@ -168,7 +136,6 @@ async function selectFile() {
     if (mode.value === "excel") {
       await loadExcelSheets();
     } else {
-      backendInfo.value = "Files loaded";
       backendCompleted.value = true;
     }
   } catch (err) {
@@ -212,10 +179,7 @@ async function concatData() {
     ]
   });
 
-  if (!outputPath) {
-    message("Save cancelled", { type: "warning" });
-    return;
-  }
+  if (!outputPath) return;
 
   try {
     isLoading.value = true;
@@ -233,7 +197,7 @@ async function concatData() {
     } else {
       rtime = await invoke("cat_csv", {
         path: path.value,
-        output_path: outputPath,
+        outputPath,
         quoting: quoting.quoting,
         skiprows: skiprows.skiprows
       });
@@ -247,128 +211,165 @@ async function concatData() {
     isLoading.value = false;
   }
 }
+
+const removeFile = index => {
+  fileSelect.value.splice(index, 1);
+};
+
+useShortcuts({
+  onOpenFile: () => selectFile(),
+  onRun: () => concatData(),
+  onHelp: () => {
+    dialog.value = !dialog.value;
+  }
+});
+
+onUnmounted(() => {
+  [path, backendInfo].forEach(r => (r.value = ""));
+  [fileSelect, fileSheet].forEach(r => (r.value = []));
+});
 </script>
 
 <template>
-  <el-form class="page-container" :style="dynamicHeight">
-    <el-splitter>
-      <el-splitter-panel size="200" :resizable="false">
-        <div class="splitter-container mr-1">
-          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
-            Open File(s)
-          </SiliconeButton>
+  <el-form class="page-view dark:bg-gray-900">
+    <div
+      class="flex items-center justify-between px-2 py-2 bg-white dark:bg-gray-800"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold dark:text-white flex items-center gap-2"
+          @click="dialog = true"
+        >
+          <Icon icon="ri:merge-cells-vertical" />
+          Cat
+        </h1>
 
-          <div class="mode-toggle mt-2">
-            <span
-              v-for="item in modeOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{
-                active: mode === item.value,
-                'active-dark': isDark && mode === item.value
-              }"
-              @click="mode = item.value"
-            >
-              {{ item.label }}
-            </span>
-          </div>
+        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
 
-          <SiliconeTooltip
-            v-if="mode === 'excel'"
-            content="Merge all sheets of each file, or only one selected sheet per file"
-            placement="right"
+        <div class="mode-toggle w-40">
+          <span
+            v-for="item in modeOptions"
+            :key="item.value"
+            class="mode-item"
+            :class="{ active: mode === item.value }"
+            @click="mode = item.value"
           >
-            <div class="mode-toggle mt-2">
+            {{ item.label }}
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+          Open File(s)
+        </SiliconeButton>
+
+        <SiliconeButton @click="concatData()" :loading="isLoading" text>
+          Run
+        </SiliconeButton>
+      </div>
+    </div>
+
+    <div class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 hidden md:flex"
+      >
+        <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+          STATISTICS
+        </div>
+        <div class="space-y-4">
+          <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div class="text-2xl font-bold text-gray-800 dark:text-white">
+              {{ fileSelect.length }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              Files Loaded
+            </div>
+          </div>
+        </div>
+
+        <div v-if="mode === 'excel'" class="flex flex-col mt-4">
+          <span
+            class="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2"
+          >
+            SHEETS
+          </span>
+
+          <SiliconeTooltip content="Merge all sheets or select one per file">
+            <div class="mode-toggle">
               <span
                 v-for="item in sheetsOptions"
                 :key="String(item.value)"
-                class="mode-item"
-                :class="{
-                  active: allSheets === item.value,
-                  'active-dark': isDark && allSheets === item.value
-                }"
                 @click="allSheets = item.value"
+                class="mode-item"
+                :class="{ active: allSheets === item.value }"
               >
                 {{ item.label }}
               </span>
             </div>
           </SiliconeTooltip>
-
-          <el-link @click="dialog = true" class="mt-auto" underline="never">
-            <SiliconeText v-if="backendCompleted">
-              {{ backendInfo }}
-            </SiliconeText>
-            <SiliconeText v-else class="mb-[1px]">Cat</SiliconeText>
-          </el-link>
         </div>
-      </el-splitter-panel>
 
-      <el-splitter-panel>
-        <SiliconeButton
-          @click="concatData()"
-          :loading="isLoading"
-          :icon="SwitchButton"
-          text
-          class="mb-2 ml-2"
-        >
-          Run
-        </SiliconeButton>
+        <div class="mt-auto">
+          <div v-if="backendCompleted" class="text-xs text-gray-400">
+            {{ backendInfo }}
+          </div>
+        </div>
+      </aside>
 
-        <SiliconeTable
-          :data="fileSelect"
-          :height="dynamicHeight"
-          show-overflow-tooltip
-          :row-style="{ height: '40px' }"
-          :cell-style="{ padding: '0 8px' }"
-        >
-          <el-table-column type="index" width="35" />
-          <el-table-column prop="filename" label="File" />
-          <el-table-column label="Status" width="80">
-            <template #default="scope">
-              <ElIcon v-if="scope.row.status === 'loading'" class="is-loading">
-                <Loading />
-              </ElIcon>
-              <ElIcon
-                v-else-if="scope.row.status === 'success'"
-                color="#00CD66"
-              >
-                <SelectIcon />
-              </ElIcon>
-              <ElIcon v-else-if="scope.row.status === 'error'" color="#FF0000">
-                <CloseBold />
-              </ElIcon>
-              <span v-if="scope.row.message" class="ml-1">{{
-                scope.row.message
-              }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column label="Options / Info">
-            <template #default="scope">
-              <template v-if="mode === 'excel'">
-                <SiliconeSelect
-                  v-model="scope.row.selectSheet"
-                  placeholder="Select sheet"
-                  class="mb-[1px]"
-                  :disabled="!scope.row.sheets || scope.row.sheets.length === 0"
+      <div
+        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+      >
+        <div class="flex-1 overflow-auto p-2">
+          <SiliconeTable
+            :data="fileSelect"
+            :height="'100%'"
+            empty-text="No data. (Ctrl+D) to Open File(s)."
+            show-overflow-tooltip
+            :row-style="{ height: '50px' }"
+            :cell-style="{
+              padding: '0 12px',
+              borderBottom: '1px solid #f0f0f0'
+            }"
+          >
+            <el-table-column prop="filename" label="File Name" />
+            <el-table-column label="Options">
+              <template #default="scope">
+                <template
+                  v-if="
+                    mode === 'excel' &&
+                    scope.row.sheets &&
+                    scope.row.sheets.length > 0
+                  "
                 >
-                  <el-option
-                    v-for="sheet in scope.row.sheets"
-                    :key="sheet"
-                    :label="sheet"
-                    :value="sheet"
-                  />
-                </SiliconeSelect>
+                  <SiliconeSelect
+                    v-model="scope.row.selectSheet"
+                    placeholder="Select sheet"
+                    size="small"
+                    class="mb-[1px]"
+                  >
+                    <el-option
+                      v-for="sheet in scope.row.sheets"
+                      :key="sheet"
+                      :label="sheet"
+                      :value="sheet"
+                    />
+                  </SiliconeSelect>
+                </template>
               </template>
-              <!-- For CSV: show duplicate header info (if any) -->
-              <template v-else>
-                {{ scope.row.infoMsg }}
+            </el-table-column>
+
+            <el-table-column width="70">
+              <template #default="scope">
+                <SiliconeTag @click="removeFile(scope.$index)" type="danger">
+                  <Icon icon="ri:delete-bin-line" />
+                </SiliconeTag>
               </template>
-            </template>
-          </el-table-column>
-        </SiliconeTable>
-      </el-splitter-panel>
-    </el-splitter>
+            </el-table-column>
+          </SiliconeTable>
+        </div>
+      </div>
+    </div>
 
     <SiliconeDialog
       v-model="dialog"
