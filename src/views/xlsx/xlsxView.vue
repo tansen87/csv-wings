@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Document } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import { viewOpenFile, xlsxToJson } from "@/utils/view";
 import { useDynamicHeight } from "@/utils/utils";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const path = ref("");
 const filename = ref("");
@@ -86,21 +87,8 @@ watch(nrows, () => {
   }
 });
 
-function handleKeydown(e: KeyboardEvent) {
-  // Ctrl+O 打开文件
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o" && !e.shiftKey) {
-    e.preventDefault();
-    selectFile();
-  }
-}
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-  if (path.value) {
-    loadPreview();
-  }
-});
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
+useShortcuts({
+  onOpenFile: () => selectFile()
 });
 
 onUnmounted(() => {
@@ -166,7 +154,7 @@ onUnmounted(() => {
             <SiliconeTag type="success" @click="selectFile">
               Open Xlsx
             </SiliconeTag>
-            <SiliconeTag>Ctrl + O</SiliconeTag>
+            <SiliconeTag>Ctrl + D</SiliconeTag>
           </div>
         </div>
       </template>

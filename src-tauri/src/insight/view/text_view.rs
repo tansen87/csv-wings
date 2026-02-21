@@ -226,14 +226,8 @@ pub async fn replace_text(
 #[tauri::command]
 pub fn close_file(state: tauri::State<'_, AppState>, path: String) -> Result<(), String> {
   let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
-  // 显式获取并 drop Session
-  if let Some(session) = sessions.remove(&path) {
-    // 显式 drop,确保资源立即释放
-    drop(session);
-    Ok(())
-  } else {
-    Err(format!("File not open: {}", path))
-  }
+  sessions.remove(&path);
+  Ok(())
 }
 
 // 清理所有 Session

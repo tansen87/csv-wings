@@ -18,6 +18,7 @@ import {
   cleanupSessions
 } from "@/utils/textOperations";
 import { useEncoding } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const fileInfo = ref<FileInfo | null>(null);
 const searchQuery = ref("");
@@ -218,43 +219,6 @@ async function handleGotoLine(lineNumber: number) {
   message(`Jumped to line ${clampedLine}`, { type: "success" });
 }
 
-// 快捷键处理
-function handleKeydown(e: KeyboardEvent) {
-  // 排除输入框中触发
-  const target = e.target as HTMLElement;
-  const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
-  if (isInput) return;
-  // Ctrl+O 打开文件
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o" && !e.shiftKey) {
-    e.preventDefault();
-    openFileDialog();
-  }
-  // Ctrl+F 查找
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f" && !e.shiftKey) {
-    e.preventDefault();
-    showFindDialog.value = !showFindDialog.value;
-  }
-  // Ctrl+H 替换
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h" && !e.shiftKey) {
-    e.preventDefault();
-    showReplaceDialog.value = !showReplaceDialog.value;
-  }
-  // Ctrl+G 跳转
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g" && !e.shiftKey) {
-    e.preventDefault();
-    promptGoToLine();
-  }
-}
-onMounted(() => {
-  window.addEventListener("keydown", handleKeydown);
-  if (fileInfo.value) {
-    loadLines(0, VISIBLE_LINE_COUNT);
-  }
-});
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
-});
-
 // 处理替换
 async function handleReplace(params: {
   search: string;
@@ -337,16 +301,29 @@ async function cleanup() {
   visibleLines.value = [];
   currentLine.value = 0;
 }
+
+useShortcuts({
+  onOpenFile: () => openFileDialog(),
+  onSearch: () => {
+    showFindDialog.value = !showFindDialog.value;
+  },
+  onReplace: () => {
+    showReplaceDialog.value = !showReplaceDialog.value;
+  },
+  onJump: () => promptGoToLine()
+});
 onMounted(async () => {
+  if (fileInfo.value) {
+    loadLines(0, VISIBLE_LINE_COUNT);
+  }
+
   try {
     await cleanupSessions();
   } catch (e) {
     message(`cleanupSessions failed: ${e}`, { type: "warning" });
   }
-  window.addEventListener("keydown", handleKeydown);
 });
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeydown);
   cleanup();
 });
 
@@ -394,7 +371,7 @@ function selectLineContent(lineNumber: number) {
             <div class="empty-desc">
               <div class="desc-row">
                 <SiliconeTag type="info">Open File</SiliconeTag>
-                <SiliconeTag size="small">Ctrl + O</SiliconeTag>
+                <SiliconeTag size="small">Ctrl + D</SiliconeTag>
               </div>
               <div class="desc-row">
                 <SiliconeTag type="info">Search</SiliconeTag>
@@ -429,7 +406,7 @@ function selectLineContent(lineNumber: number) {
             <SiliconeTag type="success" @click="openFileDialog">
               Open File
             </SiliconeTag>
-            <SiliconeTag>Ctrl + O</SiliconeTag>
+            <SiliconeTag>Ctrl + D</SiliconeTag>
           </div>
           <div class="desc-row">
             <SiliconeTag type="info">Search</SiliconeTag>
