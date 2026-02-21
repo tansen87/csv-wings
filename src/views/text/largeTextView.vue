@@ -350,12 +350,14 @@ function selectLineContent(lineNumber: number) {
 </script>
 
 <template>
-  <div class="file-viewer">
+  <div class="page-view">
     <SiliconeCard v-if="fileInfo" shadow="never">
       <div class="flex items-center gap-2 ml-1 mb-1 mt-1 mr-1">
-        <SiliconeTag type="info">
-          {{ fileInfo.path }}
-        </SiliconeTag>
+        <el-scrollbar>
+          <SiliconeTag type="info">
+            {{ fileInfo.path }}
+          </SiliconeTag>
+        </el-scrollbar>
         <SiliconeTag v-if="fileInfo" type="warning">
           {{ fileInfo.encoding }}
         </SiliconeTag>
@@ -515,19 +517,6 @@ function selectLineContent(lineNumber: number) {
   padding: 0 !important;
 }
 
-.file-viewer {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 36px);
-  padding: 8px;
-  gap: 8px;
-  background: #f5f7fa;
-  user-select: none;
-}
-.dark .file-viewer {
-  background: #1a1a1a;
-}
-
 .content-wrapper {
   flex: 1;
   overflow: hidden;
@@ -624,18 +613,5 @@ mark {
 }
 .dark :deep(.el-overlay) {
   background: rgba(0, 0, 0, 0.7);
-}
-
-.empty-desc {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: center;
-}
-.desc-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
 }
 </style>

@@ -6,7 +6,16 @@
     @focus="isFocused = true"
     @blur="isFocused = false"
   >
+    <!-- 透传默认插槽 -->
     <slot />
+    <!-- 透传 header 插槽 -->
+    <template #header>
+      <slot name="header" />
+    </template>
+    <!-- 透传 footer 插槽 -->
+    <template #footer>
+      <slot name="footer" />
+    </template>
   </el-select>
 </template>
 

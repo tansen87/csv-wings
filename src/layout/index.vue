@@ -41,6 +41,7 @@ const handleMouseDown = e => {
     e.target.closest(".el-menu-item") ||
     e.target.closest(".el-backtop") ||
     e.target.closest(".el-tabs") ||
+    e.target.closest(".el-tag") ||
     e.target.closest(".el-table") ||
     e.target.closest(".el-link__inner") ||
     e.target.closest(".vue-flow__handle") ||
@@ -49,8 +50,7 @@ const handleMouseDown = e => {
     e.target.closest(".scrollbar-wrapper") ||
     e.target.closest(".validation-panel") ||
     e.target.closest(".line-number") ||
-    e.target.closest(".line-content") ||
-    e.target.closest(".file-viewer")
+    e.target.closest(".line-content")
   ) {
     return;
   }

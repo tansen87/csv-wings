@@ -2,9 +2,11 @@ import { onMounted, onUnmounted } from "vue";
 
 interface ShortcutOptions {
   onOpenFile?: () => void;
+  onRun?: () => void;
   onSearch?: () => void;
   onReplace?: () => void;
   onJump?: () => void;
+  onHelp?: () => void;
 }
 
 export function useShortcuts(opts: ShortcutOptions) {
@@ -22,6 +24,16 @@ export function useShortcuts(opts: ShortcutOptions) {
     ) {
       e.preventDefault();
       opts.onOpenFile?.();
+    }
+
+    // Ctrl+R 运行
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      e.key.toLowerCase() === "r" &&
+      !e.shiftKey
+    ) {
+      e.preventDefault();
+      opts.onRun?.();
     }
 
     // Ctrl+F 搜索
@@ -52,6 +64,16 @@ export function useShortcuts(opts: ShortcutOptions) {
     ) {
       e.preventDefault();
       opts.onJump?.();
+    }
+
+    // Ctrl+B 帮助
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      e.key.toLowerCase() === "b" &&
+      !e.shiftKey
+    ) {
+      e.preventDefault();
+      opts.onHelp?.();
     }
   };
 

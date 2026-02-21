@@ -99,7 +99,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="file-viewer">
+  <div class="page-view">
     <SiliconeCard v-if="path && sheets.length" shadow="never">
       <div class="flex items-center gap-2 mt-1 mb-1 ml-1 mr-1">
         <SiliconeButton
@@ -137,9 +137,11 @@ onUnmounted(() => {
     </SiliconeCard>
 
     <SiliconeCard v-if="path && sheets.length" shadow="never">
-      <SiliconeTag type="info" size="small" class="mb-1 mt-1 ml-1">
-        {{ path }}
-      </SiliconeTag>
+      <el-scrollbar>
+        <SiliconeTag type="info" size="small" class="mb-1 mt-1 ml-1">
+          {{ path }}
+        </SiliconeTag>
+      </el-scrollbar>
     </SiliconeCard>
 
     <el-empty v-if="!path" :image-size="200">
@@ -187,18 +189,5 @@ onUnmounted(() => {
 <style scoped>
 :deep(.el-card__body) {
   padding: 0 !important;
-}
-
-.file-viewer {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 36px);
-  padding: 8px;
-  gap: 8px;
-  background: #f5f7fa;
-  user-select: none;
-}
-.dark .file-viewer {
-  background: #1a1a1a;
 }
 </style>
