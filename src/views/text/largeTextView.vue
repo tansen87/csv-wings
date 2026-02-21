@@ -14,10 +14,10 @@ import {
   replaceText,
   type FileInfo,
   type SearchMatch,
-  closeFile
+  closeFile,
+  cleanupSessions
 } from "@/utils/textOperations";
 import { useEncoding } from "@/store/modules/options";
-import { invoke } from "@tauri-apps/api/core";
 
 const fileInfo = ref<FileInfo | null>(null);
 const searchQuery = ref("");
@@ -324,23 +324,6 @@ function clearSearchResults() {
   totalMatches.value = 0;
   searchQuery.value = "";
 }
-// 清理后端所有Session
-async function cleanupSessions() {
-  try {
-    await invoke<number>("cleanup_sessions");
-  } catch (err) {
-    message(`cleanupSessions failed: ${err}`, { type: "warning" });
-  }
-}
-// 清理前端数据
-function cleanupFrontend() {
-  fileInfo.value = null;
-  searchQuery.value = "";
-  searchResults.value = [];
-  totalMatches.value = 0;
-  visibleLines.value = [];
-  currentLine.value = 0;
-}
 // 完整清理
 async function cleanup() {
   if (fileInfo.value) {
@@ -350,10 +333,19 @@ async function cleanup() {
       message(`closeFile failed: ${e}`, { type: "warning" });
     }
   }
-  cleanupFrontend();
+  fileInfo.value = null;
+  searchQuery.value = "";
+  searchResults.value = [];
+  totalMatches.value = 0;
+  visibleLines.value = [];
+  currentLine.value = 0;
 }
 onMounted(async () => {
-  await cleanupSessions();
+  try {
+    await cleanupSessions();
+  } catch (e) {
+    message(`cleanupSessions failed: ${e}`, { type: "warning" });
+  }
   window.addEventListener("keydown", handleGlobalKeydown);
 });
 onUnmounted(() => {
@@ -390,7 +382,7 @@ function selectLineContent(lineNumber: number) {
         <SiliconeTag type="info">
           {{ fileInfo.path }}
         </SiliconeTag>
-        <SiliconeTag v-if="fileInfo" type="info">
+        <SiliconeTag v-if="fileInfo" type="warning">
           {{ fileInfo.encoding }}
         </SiliconeTag>
         <SiliconeTag type="primary">
@@ -421,7 +413,7 @@ function selectLineContent(lineNumber: number) {
               </div>
             </div>
           </template>
-          <SiliconeTag type="warning">
+          <SiliconeTag type="danger">
             <el-icon><More /></el-icon>
           </SiliconeTag>
         </SiliconeTooltip>
@@ -437,7 +429,9 @@ function selectLineContent(lineNumber: number) {
       <template #description>
         <div class="empty-desc">
           <div class="desc-row">
-            <SiliconeTag type="info">Open File</SiliconeTag>
+            <SiliconeTag type="success" @click="openFileDialog">
+              Open File
+            </SiliconeTag>
             <SiliconeTag>Ctrl + O</SiliconeTag>
           </div>
           <div class="desc-row">
@@ -454,7 +448,6 @@ function selectLineContent(lineNumber: number) {
           </div>
         </div>
       </template>
-      <SiliconeButton @click="openFileDialog" text>Open File</SiliconeButton>
     </el-empty>
 
     <!-- 内容显示区 -->

@@ -73,8 +73,8 @@ fn main() {
     .plugin(tauri_plugin_dialog::init())
     .setup(|app| {
       // 创建菜单项
-      let show_item = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
-      let quit_item = MenuItem::with_id(app, "quit", "退出程序", true, None::<&str>)?;
+      let show_item = MenuItem::with_id(app, "show", "show", true, None::<&str>)?;
+      let quit_item = MenuItem::with_id(app, "quit", "quit", true, None::<&str>)?;
       // 创建托盘菜单
       let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
       // 创建系统托盘

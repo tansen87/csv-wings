@@ -81,3 +81,8 @@ export async function replaceText(params: ReplaceParams): Promise<number> {
 export async function closeFile(path: string): Promise<void> {
   return await invoke("close_file", { path });
 }
+
+// 清理后端所有Session
+export async function cleanupSessions() {
+  return await invoke<number>("cleanup_sessions");
+}
