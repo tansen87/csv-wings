@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ElMessageBox } from "element-plus";
+import { Document, More } from "@element-plus/icons-vue";
 import ReplaceDialog from "./replaceDialog.vue";
 import FindDialog from "./findDialog.vue";
 import GotoDialog from "@/views/text/gotoDialog.vue";
@@ -224,17 +225,22 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   const target = e.target as HTMLElement;
   const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
   if (isInput) return;
-  // Ctrl+F - 查找
+  // Ctrl+O 打开文件
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o" && !e.shiftKey) {
+    e.preventDefault();
+    openFileDialog();
+  }
+  // Ctrl+F 查找
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f" && !e.shiftKey) {
     e.preventDefault();
     showFindDialog.value = !showFindDialog.value;
   }
-  // Ctrl+H - 替换
+  // Ctrl+H 替换
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h" && !e.shiftKey) {
     e.preventDefault();
     showReplaceDialog.value = !showReplaceDialog.value;
   }
-  // Ctrl+G - 跳转
+  // Ctrl+G 跳转
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g" && !e.shiftKey) {
     e.preventDefault();
     promptGoToLine();
@@ -379,58 +385,77 @@ function selectLineContent(lineNumber: number) {
 
 <template>
   <div class="file-viewer">
-    <SiliconeCard shadow="never">
-      <div class="flex items-center ml-1 mb-1 mt-1">
-        <SiliconeButton @click="openFileDialog" text>Open File</SiliconeButton>
-
-        <div class="flex-grow" />
-
-        <SiliconeButton
-          type="success"
-          @click="showFindDialog = true"
-          :loading="isSearch"
-          text
-        >
-          Search
-        </SiliconeButton>
-
-        <SiliconeButton
-          type="warning"
-          @click="showReplaceDialog = true"
-          :loading="isReplace"
-          text
-        >
-          Replace
-        </SiliconeButton>
-
-        <SiliconeButton @click="promptGoToLine" class="mr-1" text>
-          Jump
-        </SiliconeButton>
-      </div>
-    </SiliconeCard>
-
     <SiliconeCard v-if="fileInfo" shadow="never">
       <div class="flex items-center gap-2">
-        <SiliconeText class="file-path">
+        <SiliconeTag type="info">
           {{ fileInfo.path }}
-        </SiliconeText>
+        </SiliconeTag>
         <SiliconeTag v-if="fileInfo" type="info">
           {{ fileInfo.encoding }}
         </SiliconeTag>
-        <SiliconeTag size="small" type="primary">
+        <SiliconeTag type="primary">
           {{ formatSize(fileInfo.size) }}
         </SiliconeTag>
-        <SiliconeTag size="small" type="success">
+        <SiliconeTag type="success">
           {{ fileInfo.line_count }} lines
         </SiliconeTag>
+        <div class="flex-grow" />
+        <SiliconeTooltip>
+          <template #content>
+            <div class="empty-desc">
+              <div class="desc-row">
+                <SiliconeTag type="info">Open File</SiliconeTag>
+                <SiliconeTag size="small">Ctrl + O</SiliconeTag>
+              </div>
+              <div class="desc-row">
+                <SiliconeTag type="info">Search</SiliconeTag>
+                <SiliconeTag size="small">Ctrl + F</SiliconeTag>
+              </div>
+              <div class="desc-row">
+                <SiliconeTag type="info">Replace</SiliconeTag>
+                <SiliconeTag>Ctrl + H</SiliconeTag>
+              </div>
+              <div class="desc-row">
+                <SiliconeTag type="info">Jump</SiliconeTag>
+                <SiliconeTag>Ctrl + G</SiliconeTag>
+              </div>
+            </div>
+          </template>
+          <SiliconeTag type="warning">
+            <el-icon><More /></el-icon>
+          </SiliconeTag>
+        </SiliconeTooltip>
       </div>
     </SiliconeCard>
 
-    <el-empty
-      v-if="!fileInfo"
-      description="Large Text View"
-      :image-size="200"
-    />
+    <el-empty v-if="!fileInfo" :image-size="200">
+      <template #image>
+        <el-icon :size="200" color="#909399">
+          <Document />
+        </el-icon>
+      </template>
+      <template #description>
+        <div class="empty-desc">
+          <div class="desc-row">
+            <SiliconeTag type="info">Open File</SiliconeTag>
+            <SiliconeTag>Ctrl + O</SiliconeTag>
+          </div>
+          <div class="desc-row">
+            <SiliconeTag type="info">Search</SiliconeTag>
+            <SiliconeTag>Ctrl + F</SiliconeTag>
+          </div>
+          <div class="desc-row">
+            <SiliconeTag type="info">Replace</SiliconeTag>
+            <SiliconeTag>Ctrl + H</SiliconeTag>
+          </div>
+          <div class="desc-row">
+            <SiliconeTag type="info">Jump</SiliconeTag>
+            <SiliconeTag>Ctrl + G</SiliconeTag>
+          </div>
+        </div>
+      </template>
+      <SiliconeButton @click="openFileDialog" text>Open File</SiliconeButton>
+    </el-empty>
 
     <!-- 内容显示区 -->
     <div v-else class="content-wrapper">
@@ -459,7 +484,14 @@ function selectLineContent(lineNumber: number) {
           {{ totalMatches }} matches
           {{ searchType === "visible" ? "(Current View)" : "(All File)" }}
         </SiliconeTag>
-        <SiliconeButton size="small" @click="clearSearchResults" text>
+        <div class="flex-grow" />
+        <SiliconeButton
+          class="mr-2"
+          size="small"
+          type="warning"
+          @click="clearSearchResults"
+          text
+        >
           Clear
         </SiliconeButton>
       </div>
@@ -467,7 +499,7 @@ function selectLineContent(lineNumber: number) {
       <SiliconeTable
         :data="searchResults"
         max-height="200"
-        class="ml-2 mr-2 mb-2"
+        class="ml-2 mb-2"
         :style="{ width: 'calc(100% - 16px)' }"
       >
         <el-table-column prop="line_number" label="Line" width="80" />
@@ -524,6 +556,7 @@ function selectLineContent(lineNumber: number) {
   padding: 8px;
   gap: 8px;
   background: #f5f7fa;
+  user-select: none;
 }
 .dark .file-viewer {
   background: #1a1a1a;
@@ -593,6 +626,7 @@ function selectLineContent(lineNumber: number) {
   overflow: hidden;
   cursor: text;
   user-select: text;
+  margin-left: 8px;
 }
 
 .search-line-content {
@@ -624,5 +658,18 @@ mark {
 }
 .dark :deep(.el-overlay) {
   background: rgba(0, 0, 0, 0.7);
+}
+
+.empty-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+.desc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 </style>
