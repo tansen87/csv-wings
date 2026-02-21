@@ -103,6 +103,7 @@ async function loadExcelSheets() {
     backendCompleted.value = true;
   } catch (err) {
     message(err.toString(), { type: "error" });
+    closeAllMessage();
   } finally {
     closeAllMessage();
   }
@@ -231,13 +232,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view dark:bg-gray-900">
-    <div
-      class="flex items-center justify-between px-2 py-2 bg-white dark:bg-gray-800"
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800"
     >
       <div class="flex items-center gap-4">
         <h1
-          class="text-xl font-bold dark:text-white flex items-center gap-2"
+          class="text-xl font-bold dark:text-white flex items-center gap-4"
           @click="dialog = true"
         >
           <Icon icon="ri:merge-cells-vertical" />
@@ -268,9 +269,9 @@ onUnmounted(() => {
           Run
         </SiliconeButton>
       </div>
-    </div>
+    </header>
 
-    <div class="flex-1 flex overflow-hidden">
+    <main class="flex-1 flex overflow-hidden">
       <aside
         class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 hidden md:flex"
       >
@@ -328,7 +329,6 @@ onUnmounted(() => {
             show-overflow-tooltip
             :row-style="{ height: '50px' }"
             :cell-style="{
-              padding: '0 12px',
               borderBottom: '1px solid #f0f0f0'
             }"
           >
@@ -359,7 +359,7 @@ onUnmounted(() => {
               </template>
             </el-table-column>
 
-            <el-table-column width="70">
+            <el-table-column width="55">
               <template #default="scope">
                 <SiliconeTag @click="removeFile(scope.$index)" type="danger">
                   <Icon icon="ri:delete-bin-line" />
@@ -369,7 +369,7 @@ onUnmounted(() => {
           </SiliconeTable>
         </div>
       </div>
-    </div>
+    </main>
 
     <SiliconeDialog
       v-model="dialog"
