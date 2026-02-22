@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { CheckboxValueType } from "element-plus";
-import { FolderOpened, Files, SwitchButton } from "@element-plus/icons-vue";
-import { useDark } from "@pureadmin/utils";
+import { Icon } from "@iconify/vue";
 import { message } from "@/utils/message";
 import { viewOpenFile, mapHeaders, toJson } from "@/utils/view";
 import { useDynamicHeight } from "@/utils/utils";
@@ -16,6 +15,7 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const path = ref("");
 const [currentRows, totalRows] = [ref(0), ref(0)];
@@ -33,7 +33,6 @@ const [isLoading, dialog, checkAll, indeterminate] = [
 ];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSelect);
-const { isDark } = useDark();
 const quoting = useQuoting();
 const skiprows = useSkiprows();
 const progress = useProgress();
@@ -120,47 +119,102 @@ async function selectColumns() {
   }
   isLoading.value = false;
 }
+
+useShortcuts({
+  onOpenFile: () => selectFile(),
+  onRun: () => selectColumns(),
+  onHelp: () => {
+    dialog.value = !dialog.value;
+  }
+});
+
+onUnmounted(() => {
+  [path].forEach(r => (r.value = ""));
+  [originalColumns, tableColumn, tableData].forEach(r => (r.value = []));
+});
 </script>
 
 <template>
-  <el-form class="page-container">
-    <el-splitter>
-      <el-splitter-panel size="220" :resizable="false">
-        <div class="splitter-container mr-1">
-          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
-            Open File
-          </SiliconeButton>
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+          @click="dialog = true"
+        >
+          <Icon icon="ri:check-double-line" />
+          Select
+        </h1>
 
-          <div class="mode-toggle mt-2">
+        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+
+        <div class="text-xs font-semibold text-gray-400">
+          Select drop re-order columns
+        </div>
+      </div>
+
+      <div class="flex items-center">
+        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+          Open File
+        </SiliconeButton>
+        <SiliconeButton @click="selectColumns()" :loading="isLoading" text>
+          Run
+        </SiliconeButton>
+      </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
+      >
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            SELECTION MODE
+          </label>
+          <div class="mode-toggle-v h-8">
             <span
               v-for="item in selModeOptions"
               :key="item.value"
               class="mode-item"
-              :class="{
-                active: selMode === item.value,
-                'active-dark': isDark && selMode === item.value
-              }"
+              :class="{ active: selMode === item.value }"
               @click="selMode = item.value"
             >
               {{ item.label }}
             </span>
           </div>
+        </div>
+
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            COLUMNS ({{ selColumns.length }} / {{ originalColumns.length }})
+          </label>
 
           <SiliconeSelect
             v-model="selColumns"
             multiple
             filterable
             placeholder="Select columns"
-            class="mt-2"
           >
             <template #header>
-              <el-checkbox
-                v-model="checkAll"
-                :indeterminate="indeterminate"
-                @change="handleCheckAll"
-              >
-                All
-              </el-checkbox>
+              <div class="flex items-center justify-between px-2 py-1">
+                <el-checkbox
+                  v-model="checkAll"
+                  :indeterminate="indeterminate"
+                  @change="handleCheckAll"
+                  class="text-xs"
+                >
+                  All
+                </el-checkbox>
+                <span class="text-xs text-gray-400">
+                  {{ selColumns.length }} selected
+                </span>
+              </div>
             </template>
             <el-option
               v-for="item in originalColumns"
@@ -169,49 +223,149 @@ async function selectColumns() {
               :value="item.value"
             />
           </SiliconeSelect>
+        </div>
 
-          <div class="flex flex-col mt-auto">
-            <SiliconeProgress
-              v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
-              :percentage="Math.round((currentRows / totalRows) * 100)"
-              class="mb-2 ml-2"
-            />
-            <el-link @click="dialog = true" underline="never">
-              <SiliconeText class="mb-[1px]">Select</SiliconeText>
-            </el-link>
+        <div
+          v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
+          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
+          </div>
+          <SiliconeProgress
+            :percentage="Math.round((currentRows / totalRows) * 100)"
+          />
+        </div>
+
+        <div class="mt-auto">
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
+            STATISTICS
+          </div>
+
+          <div class="space-y-2">
+            <div
+              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-lg font-bold text-gray-800 dark:text-white">
+                    {{ originalColumns.length }}
+                  </div>
+                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
+                    Total Columns
+                  </div>
+                </div>
+                <Icon icon="ri:table-line" class="w-6 h-6 text-gray-400" />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {{ selColumns.length }}
+                  </div>
+                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                    Selected Columns
+                  </div>
+                </div>
+                <Icon
+                  icon="ri:checkbox-multiple-line"
+                  class="w-6 h-6 text-blue-500"
+                />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-lg font-bold text-gray-800 dark:text-white">
+                    {{ totalRows }}
+                  </div>
+                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
+                    Total Rows
+                  </div>
+                </div>
+                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {{ currentRows }}
+                  </div>
+                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                    Scanned Rows
+                  </div>
+                </div>
+                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
           </div>
         </div>
-      </el-splitter-panel>
+      </aside>
 
-      <el-splitter-panel>
-        <SiliconeButton
-          @click="selectColumns()"
-          :loading="isLoading"
-          :icon="SwitchButton"
-          text
-          class="ml-1 mb-2"
-          >Run
-        </SiliconeButton>
-
-        <SiliconeTable
-          :data="tableData"
-          :height="dynamicHeight"
-          show-overflow-tooltip
+      <div
+        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+      >
+        <div
+          v-if="path"
+          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
         >
-          <el-table-column
-            v-for="column in tableColumn"
-            :prop="column.prop"
-            :label="column.label"
-            :key="column.prop"
-          />
-        </SiliconeTable>
+          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
+        </div>
 
-        <SiliconeText class="mt-2" truncated :max-lines="1">
-          <el-icon><Files /></el-icon>
-          {{ path }}
-        </SiliconeText>
-      </el-splitter-panel>
-    </el-splitter>
+        <div
+          class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              Preview ({{ tableData?.length || 0 }} rows)
+            </span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400">
+                Mode:
+                <span class="font-medium text-gray-600 dark:text-gray-300">
+                  {{ selMode }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-auto p-2 min-h-0">
+          <SiliconeTable
+            :data="tableData"
+            :height="'100%'"
+            empty-text="No data. (Ctrl+D) to Open File."
+            show-overflow-tooltip
+            :cell-style="{
+              borderBottom: '1px solid #f0f0f0'
+            }"
+            class="select-text"
+          >
+            <el-table-column
+              v-for="column in tableColumn"
+              :prop="column.prop"
+              :label="column.label"
+              :key="column.prop"
+            />
+          </SiliconeTable>
+        </div>
+      </div>
+    </main>
 
     <SiliconeDialog
       v-model="dialog"
