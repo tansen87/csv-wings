@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
-import { Files, FolderOpened, SwitchButton } from "@element-plus/icons-vue";
+import { Icon } from "@iconify/vue";
 import { message } from "@/utils/message";
 import { useDynamicHeight } from "@/utils/utils";
 import { toJson, viewOpenFile, mapHeaders } from "@/utils/view";
@@ -15,6 +15,7 @@ import {
   useSkiprows,
   useThreads
 } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const mode = ref("equal");
 const placeholderText = ref(
@@ -24,7 +25,7 @@ const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
 const [column, path, condition] = [ref(""), ref(""), ref("")];
 const [dialog, isLoading] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const { dynamicHeight } = useDynamicHeight(120);
+const { dynamicHeight } = useDynamicHeight(121);
 const { mdShow } = useMarkdown(mdSearch);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
@@ -102,112 +103,280 @@ async function searchData() {
   }
   isLoading.value = false;
 }
+
+interface FilterModeOption {
+  label: string;
+  value: string;
+  description?: string;
+}
+const filterModeOptions: FilterModeOption[] = [
+  // 精确匹配
+  { label: "equal", value: "equal" },
+  { label: "equal_multi", value: "equal_multi" },
+  { label: "not_equal", value: "not_equal" },
+  // 包含匹配
+  { label: "contains", value: "contains" },
+  { label: "contains_multi", value: "contains_multi" },
+  { label: "not_contains", value: "not_contains" },
+  // 前缀匹配
+  { label: "starts_with", value: "starts_with" },
+  { label: "starts_with_multi", value: "starts_with_multi" },
+  { label: "not_starts_with", value: "not_starts_with" },
+  // 后缀匹配
+  { label: "ends_with", value: "ends_with" },
+  { label: "ends_with_multi", value: "ends_with_multi" },
+  { label: "not_ends_with", value: "not_ends_with" },
+  // 正则匹配
+  { label: "regex", value: "regex" },
+  { label: "irregular_regex", value: "irregular_regex" },
+  // 空值判断
+  { label: "is_null", value: "is_null" },
+  { label: "is_not_null", value: "is_not_null" },
+  // 数值比较
+  { label: "gt(>)", value: "gt" },
+  { label: "ge(≥)", value: "ge" },
+  { label: "lt(<)", value: "lt" },
+  { label: "le(≤)", value: "le" },
+  { label: "between", value: "between" }
+];
+
+const conditionsCollapsed = ref(false);
+const statisticsCollapsed = ref(false);
+
+useShortcuts({
+  onOpenFile: () => selectFile(),
+  onRun: () => searchData(),
+  onHelp: () => {
+    dialog.value = !dialog.value;
+  }
+});
+
+onUnmounted(() => {
+  [column, path, condition].forEach(r => (r.value = ""));
+  [tableHeader, tableColumn, tableData].forEach(r => (r.value = []));
+});
 </script>
 
 <template>
-  <el-form class="page-container">
-    <el-splitter>
-      <el-splitter-panel size="260" :resizable="false">
-        <div class="splitter-container mr-1">
-          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
-            Open File
-          </SiliconeButton>
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+          @click="dialog = true"
+        >
+          <Icon icon="ri:filter-2-line" />
+          Search
+        </h1>
 
-          <SiliconeSelect
-            v-model="column"
-            filterable
-            placeholder="Select column"
-            class="mt-2"
+        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+
+        <div class="text-xs font-semibold text-gray-400 tracking-wider">
+          Filter rows matching conditions
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+          Open File
+        </SiliconeButton>
+        <SiliconeButton @click="searchData()" :loading="isLoading" text>
+          Run
+        </SiliconeButton>
+      </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 min-w-[280px]"
+      >
+        <div class="mb-4">
+          <div
+            class="flex items-center justify-between cursor-pointer mb-3"
+            @click="conditionsCollapsed = !conditionsCollapsed"
           >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              CONDITIONS
+            </div>
+            <Icon
+              :icon="
+                conditionsCollapsed
+                  ? 'ri:arrow-down-s-line'
+                  : 'ri:arrow-up-s-line'
+              "
+              class="text-gray-400"
             />
-          </SiliconeSelect>
+          </div>
 
-          <SiliconeTooltip content="Search mode" placement="right">
-            <SiliconeSelect v-model="mode" filterable class="mt-2">
-              <el-option label="equal" value="equal" />
-              <el-option label="equal_multi" value="equal_multi" />
-              <el-option label="not_equal" value="not_equal" />
-              <el-option label="contains" value="contains" />
-              <el-option label="contains_multi" value="contains_multi" />
-              <el-option label="not_contains" value="not_contains" />
-              <el-option label="starts_with" value="starts_with" />
-              <el-option label="starts_with_multi" value="starts_with_multi" />
-              <el-option label="not_starts_with" value="not_starts_with" />
-              <el-option label="ends_with" value="ends_with" />
-              <el-option label="ends_with_multi" value="ends_with_multi" />
-              <el-option label="not_ends_with" value="not_ends_with" />
-              <el-option label="regex" value="regex" />
-              <el-option label="is_null" value="is_null" />
-              <el-option label="is_not_null" value="is_not_null" />
-              <el-option label="gt(>)" value="gt" />
-              <el-option label="ge(≥)" value="ge" />
-              <el-option label="lt(<)" value="lt" />
-              <el-option label="le(≤)" value="le" />
-              <el-option label="between" value="between" />
-              <el-option label="irregular_regex" value="irregular_regex" />
-            </SiliconeSelect>
-          </SiliconeTooltip>
+          <div v-show="!conditionsCollapsed" class="space-y-3">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-gray-500 dark:text-gray-400"
+                >Column</label
+              >
+              <SiliconeSelect
+                v-model="column"
+                filterable
+                placeholder="Select column"
+              >
+                <el-option
+                  v-for="item in tableHeader"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </SiliconeSelect>
+            </div>
 
-          <SiliconeInput
-            v-model="condition"
-            :autosize="{ minRows: 12, maxRows: 12 }"
-            type="textarea"
-            :placeholder="placeholderText"
-            class="mt-2"
-          />
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-gray-500 dark:text-gray-400">
+                Mode
+              </label>
+              <SiliconeSelect v-model="mode" filterable>
+                <el-option
+                  v-for="option in filterModeOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </SiliconeSelect>
+            </div>
 
-          <div class="flex flex-col mt-auto">
-            <SiliconeProgress
-              v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
-              :percentage="Math.round((currentRows / totalRows) * 100)"
-              class="mb-2 ml-1"
-            />
-            <el-link @click="dialog = true" underline="never">
-              <SiliconeText class="mb-[1px]">Search</SiliconeText>
-            </el-link>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs text-gray-500 dark:text-gray-400">
+                Condition
+              </label>
+              <SiliconeInput
+                v-model="condition"
+                :autosize="{ minRows: 4, maxRows: 4 }"
+                type="textarea"
+                :placeholder="placeholderText"
+              />
+            </div>
           </div>
         </div>
-      </el-splitter-panel>
 
-      <el-splitter-panel>
-        <div class="flex justify-between items-center">
-          <SiliconeButton
-            @click="searchData()"
-            :loading="isLoading"
-            :icon="SwitchButton"
-            text
-            class="ml-1 mb-2"
-            >Run
-          </SiliconeButton>
-
-          <SiliconeText v-if="matchRows" style="margin-right: 4px">
-            match rows: {{ matchRows }}
-          </SiliconeText>
+        <div
+          v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
+          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
+          </div>
+          <SiliconeProgress
+            :percentage="Math.round((currentRows / totalRows) * 100)"
+          />
         </div>
 
-        <SiliconeTable
-          :data="tableData"
-          :height="dynamicHeight"
-          show-overflow-tooltip
-        >
-          <el-table-column
-            v-for="column in tableColumn"
-            :prop="column.prop"
-            :label="column.label"
-            :key="column.prop"
-          />
-        </SiliconeTable>
+        <el-scrollbar min-size="1" class="mt-auto overflow-y-auto">
+          <div
+            class="flex items-center justify-between cursor-pointer mb-3"
+            @click="statisticsCollapsed = !statisticsCollapsed"
+          >
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              STATISTICS
+            </div>
+            <Icon
+              :icon="
+                statisticsCollapsed
+                  ? 'ri:arrow-down-s-line'
+                  : 'ri:arrow-up-s-line'
+              "
+              class="text-gray-400"
+            />
+          </div>
 
-        <SiliconeText class="mt-2" truncated :max-lines="1">
-          <el-icon><Files /></el-icon>{{ path }}
-        </SiliconeText>
-      </el-splitter-panel>
-    </el-splitter>
+          <div v-show="!statisticsCollapsed" class="space-y-2">
+            <div
+              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-lg font-bold text-gray-800 dark:text-white">
+                    {{ totalRows }}
+                  </div>
+                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
+                    Total
+                  </div>
+                </div>
+                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-green-600 dark:text-green-400"
+                  >
+                    {{ matchRows }}
+                  </div>
+                  <div class="text-[12px] text-green-600 dark:text-green-400">
+                    Matched
+                  </div>
+                </div>
+                <Icon
+                  icon="ri:checkbox-circle-line"
+                  class="w-6 h-6 text-green-500"
+                />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {{ currentRows }}
+                  </div>
+                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                    Scanned
+                  </div>
+                </div>
+                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </aside>
+
+      <div
+        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+      >
+        <div
+          v-if="path"
+          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
+        >
+          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
+        </div>
+
+        <div class="flex-1 overflow-auto p-2">
+          <SiliconeTable
+            :data="tableData"
+            :height="'100%'"
+            empty-text="No data. (Ctrl+D) to Open File(s)."
+            show-overflow-tooltip
+            :cell-style="{
+              borderBottom: '1px solid #f0f0f0'
+            }"
+            class="select-text"
+          >
+            <el-table-column
+              v-for="column in tableColumn"
+              :prop="column.prop"
+              :label="column.label"
+              :key="column.prop"
+            />
+          </SiliconeTable>
+        </div>
+      </div>
+    </main>
 
     <SiliconeDialog
       v-model="dialog"

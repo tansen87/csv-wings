@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -22,6 +22,7 @@ import {
   useSkiprows,
   useThreads
 } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const [activeTab, chunksize, csvMode, quote, quoteStyle] = [
   ref("excel"),
@@ -367,6 +368,15 @@ async function convert() {
   }
   isLoading.value = false;
 }
+
+useShortcuts({
+  onOpenFile: () => selectFile(),
+  onRun: () => convert()
+});
+
+onUnmounted(() => {
+  [path, detectedEncoding, manualEncoding].forEach(r => (r.value = ""));
+});
 </script>
 
 <template>
