@@ -171,7 +171,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center">
         <SiliconeButton @click="addColumn()" text> Add Filter </SiliconeButton>
         <SiliconeButton @click="selectFile()" :loading="isLoading" text>
           Open File
