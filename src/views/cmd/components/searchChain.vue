@@ -279,18 +279,6 @@ onUnmounted(() => {
           </div>
         </el-scrollbar>
 
-        <div
-          v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
-          </div>
-          <SiliconeProgress
-            :percentage="Math.round((currentRows / totalRows) * 100)"
-          />
-        </div>
-
         <div class="mt-auto">
           <div
             class="flex items-center justify-between cursor-pointer mb-3"
@@ -327,6 +315,34 @@ onUnmounted(() => {
             </div>
 
             <div
+              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {{ currentRows }}
+                  </div>
+                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                    Scanned
+                  </div>
+                </div>
+                <div class="relative w-6 h-6 flex items-center justify-center">
+                  <Icon
+                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
+                    icon="ri:scan-line"
+                    class="w-6 h-6 text-blue-500"
+                  />
+                  <SiliconeProgress
+                    v-else
+                    :percentage="Math.round((currentRows / totalRows) * 100)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
               class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
             >
               <div class="flex items-center justify-between">
@@ -344,24 +360,6 @@ onUnmounted(() => {
                   icon="ri:checkbox-circle-line"
                   class="w-6 h-6 text-green-500"
                 />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned
-                  </div>
-                </div>
-                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
               </div>
             </div>
           </div>
@@ -384,9 +382,6 @@ onUnmounted(() => {
             :height="'100%'"
             empty-text="No data. (Ctrl+D) to Open File."
             show-overflow-tooltip
-            :cell-style="{
-              borderBottom: '1px solid #f0f0f0'
-            }"
             class="select-text"
           >
             <el-table-column

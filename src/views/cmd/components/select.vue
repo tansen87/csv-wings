@@ -225,18 +225,6 @@ onUnmounted(() => {
           </SiliconeSelect>
         </div>
 
-        <div
-          v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
-          </div>
-          <SiliconeProgress
-            :percentage="Math.round((currentRows / totalRows) * 100)"
-          />
-        </div>
-
         <div class="mt-auto">
           <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
             STATISTICS
@@ -310,7 +298,17 @@ onUnmounted(() => {
                     Scanned Rows
                   </div>
                 </div>
-                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
+                <div class="relative w-6 h-6 flex items-center justify-center">
+                  <Icon
+                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
+                    icon="ri:scan-line"
+                    class="w-6 h-6 text-blue-500"
+                  />
+                  <SiliconeProgress
+                    v-else
+                    :percentage="Math.round((currentRows / totalRows) * 100)"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -335,10 +333,12 @@ onUnmounted(() => {
               Preview ({{ tableData?.length || 0 }} rows)
             </span>
             <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-400">
-                Mode:
+              <span
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
+              >
+                <Icon icon="ri:check-double-line" class="w-3.5 h-3.5" />
                 <span class="font-medium text-gray-600 dark:text-gray-300">
-                  {{ selMode }}
+                  Mode: {{ selMode }}
                 </span>
               </span>
             </div>
@@ -351,9 +351,6 @@ onUnmounted(() => {
             :height="'100%'"
             empty-text="No data. (Ctrl+D) to Open File."
             show-overflow-tooltip
-            :cell-style="{
-              borderBottom: '1px solid #f0f0f0'
-            }"
             class="select-text"
           >
             <el-table-column

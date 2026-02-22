@@ -175,18 +175,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div
-          v-if="totalRows !== 0 && isFinite(currentRows / totalRows)"
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
-          </div>
-          <SiliconeProgress
-            :percentage="Math.round((currentRows / totalRows) * 100)"
-          />
-        </div>
-
         <div class="mt-auto">
           <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
             STATISTICS
@@ -223,7 +211,17 @@ onUnmounted(() => {
                     Scanned Rows
                   </div>
                 </div>
-                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
+                <div class="relative w-6 h-6 flex items-center justify-center">
+                  <Icon
+                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
+                    icon="ri:scan-line"
+                    class="w-6 h-6 text-blue-500"
+                  />
+                  <SiliconeProgress
+                    v-else
+                    :percentage="Math.round((currentRows / totalRows) * 100)"
+                  />
+                </div>
               </div>
             </div>
 
@@ -283,10 +281,6 @@ onUnmounted(() => {
             :height="'100%'"
             empty-text="No data. (Ctrl+D) to Open File."
             show-overflow-tooltip
-            :row-style="{ height: '50px' }"
-            :cell-style="{
-              borderBottom: '1px solid #f0f0f0'
-            }"
             class="select-text"
           >
             <el-table-column prop="col1" label="Header" min-width="150">

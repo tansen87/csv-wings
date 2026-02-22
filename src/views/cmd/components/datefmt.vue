@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
-import { Files, FolderOpened, SwitchButton } from "@element-plus/icons-vue";
+import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { message } from "@/utils/message";
@@ -14,6 +14,7 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [isLoading, dialog] = [ref(false), ref(false)];
@@ -202,23 +203,67 @@ async function convertDates() {
     isLoading.value = false;
   }
 }
+
+useShortcuts({
+  onOpenFile: () => selectFile(),
+  onRun: () => convertDates(),
+  onHelp: () => {
+    dialog.value = !dialog.value;
+  }
+});
+
+onUnmounted(() => {
+  [path].forEach(r => (r.value = ""));
+  [tableHeader, tableColumn, tableData].forEach(r => (r.value = []));
+});
 </script>
 
 <template>
-  <el-form class="page-container">
-    <el-splitter>
-      <el-splitter-panel size="300" :resizable="false">
-        <div class="splitter-container mr-1">
-          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
-            Open File
-          </SiliconeButton>
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+          @click="dialog = true"
+        >
+          <Icon icon="ri:calendar-event-line" />
+          Date Format
+        </h1>
 
+        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+
+        <div class="text-xs font-semibold text-gray-400">
+          Convert date columns between formats
+        </div>
+      </div>
+
+      <div class="flex items-center">
+        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+          Open File
+        </SiliconeButton>
+        <SiliconeButton @click="convertDates()" :loading="isLoading" text>
+          Run
+        </SiliconeButton>
+      </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
+      >
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            DATE COLUMNS ({{ columns.length }})
+          </label>
           <SiliconeSelect
             v-model="columns"
             multiple
             filterable
             placeholder="Select date columns"
-            class="mt-2"
           >
             <el-option
               v-for="item in tableHeader"
@@ -227,19 +272,41 @@ async function convertDates() {
               :value="item.value"
             />
           </SiliconeSelect>
+        </div>
 
-          <div v-for="col in columns" :key="col" class="mt-2 ml-2 mr-2">
-            <SiliconeTooltip :content="`Column: ${col}`" placement="right">
-              <div class="flex gap-3 w-full">
-                <div class="flex flex-col items-start">
-                  <span class="text-[10px] text-blue-500 font-medium mb-1">
-                    IN
+        <div class="flex-1 overflow-y-auto mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            FORMAT SETTINGS
+          </label>
+
+          <div v-if="columns.length === 0" class="p-4 text-center">
+            <Icon
+              icon="ri:calendar-line"
+              class="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2"
+            />
+            <p class="text-xs text-gray-400">No columns selected</p>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="col in columns"
+              :key="col"
+              class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+            >
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <span
+                    class="text-[10px] text-blue-500 font-medium block mb-1"
+                  >
+                    IN FORMAT
                   </span>
                   <SiliconeSelect
                     v-model="inputFormats[col]"
                     filterable
                     placeholder="Auto"
-                    style="width: 135px"
+                    size="small"
                   >
                     <el-option
                       v-for="fmt in dateFormats"
@@ -250,11 +317,18 @@ async function convertDates() {
                   </SiliconeSelect>
                 </div>
 
-                <div class="flex flex-col items-start">
-                  <span class="text-[10px] text-green-600 font-medium mb-1">
-                    OUT
+                <div class="flex-1">
+                  <span
+                    class="text-[10px] text-green-600 font-medium block mb-1"
+                  >
+                    OUT FORMAT
                   </span>
-                  <SiliconeSelect v-model="outputFormats[col]" filterable>
+                  <SiliconeSelect
+                    v-model="outputFormats[col]"
+                    filterable
+                    placeholder="Select"
+                    size="small"
+                  >
                     <el-option
                       v-for="fmt in outputDateFormats"
                       :key="fmt.value"
@@ -264,51 +338,129 @@ async function convertDates() {
                   </SiliconeSelect>
                 </div>
               </div>
-            </SiliconeTooltip>
-          </div>
-
-          <div class="flex flex-col mt-auto">
-            <SiliconeProgress
-              v-if="totalRows > 0"
-              :percentage="Math.round((currentRows / totalRows) * 100)"
-              class="mb-2 ml-2"
-            />
-            <el-link @click="dialog = true" underline="never">
-              <SiliconeText class="mb-[1px]">Date Format</SiliconeText>
-            </el-link>
+            </div>
           </div>
         </div>
-      </el-splitter-panel>
 
-      <el-splitter-panel>
-        <SiliconeButton
-          @click="convertDates()"
-          :loading="isLoading"
-          :icon="SwitchButton"
-          text
-          class="ml-1 mb-2"
+        <div
+          v-if="totalRows > 0"
+          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
         >
-          Convert Dates
-        </SiliconeButton>
-
-        <SiliconeTable
-          :data="tableData"
-          :height="dynamicHeight"
-          show-overflow-tooltip
-        >
-          <el-table-column
-            v-for="column in tableColumn"
-            :prop="column.prop"
-            :label="column.label"
-            :key="column.prop"
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
+          </div>
+          <SiliconeProgress
+            :percentage="Math.round((currentRows / totalRows) * 100)"
           />
-        </SiliconeTable>
+        </div>
 
-        <SiliconeText class="mt-2" truncated :max-lines="1">
-          <el-icon><Files /></el-icon>{{ path }}
-        </SiliconeText>
-      </el-splitter-panel>
-    </el-splitter>
+        <div class="mt-auto">
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
+            STATISTICS
+          </div>
+
+          <div class="space-y-2">
+            <div
+              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {{ columns.length }}
+                  </div>
+                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                    Date Columns
+                  </div>
+                </div>
+                <Icon icon="ri:calendar-line" class="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-lg font-bold text-gray-800 dark:text-white">
+                    {{ totalRows }}
+                  </div>
+                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
+                    Total Rows
+                  </div>
+                </div>
+                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+              </div>
+            </div>
+
+            <div
+              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div
+                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {{ currentRows }}
+                  </div>
+                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                    Scanned Rows
+                  </div>
+                </div>
+                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div
+        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+      >
+        <div
+          v-if="path"
+          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
+        >
+          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
+        </div>
+
+        <div
+          class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              Preview ({{ tableData?.length || 0 }} rows)
+            </span>
+            <div class="flex items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
+              >
+                <Icon icon="ri:calendar-line" class="w-3.5 h-3.5" />
+                {{ columns.length }} date columns
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-auto p-2">
+          <SiliconeTable
+            :data="tableData"
+            :height="'100%'"
+            empty-text="No data. (Ctrl+D) to Open File."
+            show-overflow-tooltip
+            class="select-text"
+          >
+            <el-table-column
+              v-for="column in tableColumn"
+              :prop="column.prop"
+              :label="column.label"
+              :key="column.prop"
+            />
+          </SiliconeTable>
+        </div>
+      </div>
+    </main>
 
     <SiliconeDialog v-model="dialog" title="Date Format Converter" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
