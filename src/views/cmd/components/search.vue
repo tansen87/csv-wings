@@ -360,7 +360,7 @@ onUnmounted(() => {
           <SiliconeTable
             :data="tableData"
             :height="'100%'"
-            empty-text="No data. (Ctrl+D) to Open File(s)."
+            empty-text="No data. (Ctrl+D) to Open File."
             show-overflow-tooltip
             :cell-style="{
               borderBottom: '1px solid #f0f0f0'
