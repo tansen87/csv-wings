@@ -4,14 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { ElIcon } from "element-plus";
-import {
-  CloseBold,
-  Select,
-  FolderOpened,
-  Loading,
-  SwitchButton
-} from "@element-plus/icons-vue";
-import { useDark } from "@pureadmin/utils";
+import { Icon } from "@iconify/vue";
+import { CloseBold, Select, Loading } from "@element-plus/icons-vue";
 import {
   useDynamicHeight,
   filterFileStatus,
@@ -97,8 +91,7 @@ const bomOptions = [
 ];
 const sheetsData = ref({});
 const fileSelect = ref<ListenEvent[]>([]);
-const { dynamicHeight } = useDynamicHeight(82);
-const { isDark } = useDark();
+const { dynamicHeight } = useDynamicHeight(162);
 const quoting = useQuoting();
 const flexible = useFlexible();
 const progress = useProgress();
@@ -272,7 +265,7 @@ async function selectFile() {
           message(
             `编码检测置信度较低 (${(result.confidence * 100).toFixed(
               1
-            )}%)，建议手动确认`,
+            )}%),建议手动确认`,
             {
               type: "warning",
               duration: 5000
@@ -377,316 +370,479 @@ async function convert() {
 </script>
 
 <template>
-  <el-form class="page-container">
-    <el-splitter>
-      <el-splitter-panel size="240" :resizable="false">
-        <div class="splitter-container mr-1">
-          <SiliconeButton @click="selectFile()" :icon="FolderOpened" text>
-            Open File(s)
-          </SiliconeButton>
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+        >
+          <Icon icon="ri:exchange-2-line" />
+          Convert
+        </h1>
+      </div>
 
-          <!-- mode choice -->
-          <div class="mode-toggle-v mb-2 mt-2 h-[128px]">
+      <div class="flex items-center gap-2">
+        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+          Open File(s)
+        </SiliconeButton>
+        <SiliconeButton @click="convert()" :loading="isLoading" text>
+          Run
+        </SiliconeButton>
+      </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 overflow-hidden"
+      >
+        <div class="mb-4">
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+            MODE
+          </div>
+          <div class="mode-toggle-v h-[128px] overflow-y-auto">
             <span
               v-for="item in modeOptions"
               :key="item.value"
               class="mode-item"
-              :class="{
-                active: activeTab === item.value,
-                'active-dark': isDark && activeTab === item.value
-              }"
+              :class="{ active: activeTab === item.value }"
               @click="activeTab = item.value"
             >
               {{ item.label }}
             </span>
           </div>
+        </div>
 
-          <!-- excel to csv -->
-          <SiliconeTooltip
-            v-if="activeTab === 'excel'"
-            content="Convert all sheets or not"
-            placement="right"
-          >
-            <div class="mode-toggle">
-              <span
-                v-for="item in sheetsOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{
-                  active: allSheets === item.value,
-                  'active-dark': isDark && allSheets === item.value
-                }"
-                @click="allSheets = item.value"
-              >
-                {{ item.label }}
-              </span>
-            </div>
-          </SiliconeTooltip>
+        <div class="border-t border-gray-200 dark:border-gray-700 my-3" />
 
-          <SiliconeTooltip
-            v-if="activeTab === 'excel'"
-            content="Write sheet name or not"
-            placement="right"
-          >
-            <div class="mode-toggle mt-2">
-              <span
-                v-for="item in writeOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{
-                  active: writeSheetname === item.value,
-                  'active-dark': isDark && writeSheetname === item.value
-                }"
-                @click="writeSheetname = item.value"
-              >
-                {{ item.label }}
-              </span>
-            </div>
-          </SiliconeTooltip>
+        <div
+          class="text-xs font-semibold text-gray-400 tracking-wider mb-3 flex items-center justify-between"
+        >
+          <span>OPTIONS</span>
+        </div>
 
-          <!-- format csv -->
-          <SiliconeTooltip
-            v-if="activeTab === 'fmt'"
-            content="Quote character"
-            placement="right"
-          >
-            <div class="mode-toggle">
-              <span
-                v-for="item in quoteOptions"
-                :key="item.value"
-                class="mode-item"
-                :class="{
-                  active: quote === item.value,
-                  'active-dark': isDark && quote === item.value
-                }"
-                @click="quote = item.value"
-              >
-                {{ item.label }}
-              </span>
-            </div>
-          </SiliconeTooltip>
-
-          <SiliconeTooltip
-            v-if="activeTab === 'fmt'"
-            content="Quote style"
-            placement="right"
-          >
-            <div class="mode-toggle-v mt-2 h-[64px]">
-              <span
-                v-for="item in fmtOptions"
-                :key="item.value"
-                class="mode-item"
-                :class="{
-                  active: quoteStyle === item.value,
-                  'active-dark': isDark && quoteStyle === item.value
-                }"
-                @click="quoteStyle = item.value"
-              >
-                {{ item.label }}
-              </span>
-            </div>
-          </SiliconeTooltip>
-
-          <!-- csv to xlsx -->
-          <div class="mode-toggle" v-if="activeTab === 'csv'">
-            <span
-              v-for="item in csvModeOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{
-                active: csvMode === item.value,
-                'active-dark': isDark && csvMode === item.value
-              }"
-              @click="csvMode = item.value"
-            >
-              {{ item.label }}
-            </span>
-          </div>
-
-          <SiliconeTooltip
-            v-if="activeTab === 'csv'"
-            content="Split every N rows into a sheet"
-            placement="right"
-          >
-            <SiliconeInput v-model="chunksize" class="mt-2" />
-          </SiliconeTooltip>
-
-          <!-- jsonl to csv -->
-          <SiliconeTooltip
-            v-if="activeTab === 'jsonl'"
-            content="Ignore errors"
-            placement="right"
-          >
-            <div class="mode-toggle">
-              <span
-                v-for="item in iErrOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{
-                  active: ignoreErr === item.value,
-                  'active-dark': isDark && ignoreErr === item.value
-                }"
-                @click="ignoreErr = item.value"
-              >
-                {{ item.label }}
-              </span>
-            </div>
-          </SiliconeTooltip>
-
-          <!-- encoding 模式专用选项 -->
-          <template v-if="activeTab === 'encoding'">
-            <SiliconeTooltip content="BOM" placement="right">
-              <div class="mode-toggle-v h-[32px] mb-2">
-                <span
-                  v-for="item in bomOptions"
-                  :key="String(item.value)"
-                  class="mode-item"
-                  :class="{
-                    active: bom === item.value,
-                    'active-dark': isDark && bom === item.value
-                  }"
-                  @click="bom = item.value"
-                >
-                  {{ item.label }}
-                </span>
+        <el-scrollbar class="flex-1">
+          <div class="space-y-4">
+            <!-- Excel to CSV 选项 -->
+            <template v-if="activeTab === 'excel'">
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Convert Mode</span>
+                  <SiliconeTooltip
+                    content="Convert all sheets or not"
+                    placement="right"
+                  >
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[32px]">
+                  <span
+                    v-for="item in sheetsOptions"
+                    :key="String(item.value)"
+                    class="mode-item"
+                    :class="{ active: allSheets === item.value }"
+                    @click="allSheets = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
               </div>
-            </SiliconeTooltip>
 
-            <SiliconeTooltip
-              content="Manual selection of encoding (leave blank for automatic detection)"
-              placement="right"
-            >
-              <SiliconeSelect
-                v-model="manualEncoding"
-                placeholder="Auto"
-                clearable
-              >
-                <el-option
-                  v-for="item in encodingOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </SiliconeSelect>
-            </SiliconeTooltip>
-          </template>
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Sheet Name</span>
+                  <SiliconeTooltip
+                    content="When set True, write sheet name"
+                    placement="right"
+                  >
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[32px]">
+                  <span
+                    v-for="item in writeOptions"
+                    :key="String(item.value)"
+                    class="mode-item"
+                    :class="{ active: writeSheetname === item.value }"
+                    @click="writeSheetname = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
+              </div>
+            </template>
 
+            <!-- Format CSV 选项 -->
+            <template v-if="activeTab === 'fmt'">
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Quote Character</span>
+                  <SiliconeTooltip content="Quote character" placement="right">
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[32px]">
+                  <span
+                    v-for="item in quoteOptions"
+                    :key="item.value"
+                    class="mode-item"
+                    :class="{ active: quote === item.value }"
+                    @click="quote = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Quote Style</span>
+                  <SiliconeTooltip content="Quote style" placement="right">
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[64px]">
+                  <span
+                    v-for="item in fmtOptions"
+                    :key="item.value"
+                    class="mode-item"
+                    :class="{ active: quoteStyle === item.value }"
+                    @click="quoteStyle = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
+              </div>
+            </template>
+
+            <!-- CSV to XLSX 选项 -->
+            <template v-if="activeTab === 'csv'">
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Mode</span>
+                  <SiliconeTooltip content="CSV to XLSX mode" placement="right">
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[32px]">
+                  <span
+                    v-for="item in csvModeOptions"
+                    :key="item.value"
+                    class="mode-item"
+                    :class="{ active: csvMode === item.value }"
+                    @click="csvMode = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Chunk Size</span>
+                  <SiliconeTooltip
+                    content="Split every N rows into a sheet"
+                    placement="right"
+                  >
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <SiliconeInput v-model="chunksize" placeholder="10000" />
+              </div>
+            </template>
+
+            <!-- JSONL to CSV 选项 -->
+            <template v-if="activeTab === 'jsonl'">
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Error Handling</span>
+                  <SiliconeTooltip content="Ignore errors" placement="right">
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[32px]">
+                  <span
+                    v-for="item in iErrOptions"
+                    :key="String(item.value)"
+                    class="mode-item"
+                    :class="{ active: ignoreErr === item.value }"
+                    @click="ignoreErr = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Encoding 选项 -->
+            <template v-if="activeTab === 'encoding'">
+              <div class="option-group">
+                <div class="option-label">
+                  <span>BOM</span>
+                  <SiliconeTooltip content="BOM" placement="right">
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <div class="mode-toggle-v h-[32px]">
+                  <span
+                    v-for="item in bomOptions"
+                    :key="String(item.value)"
+                    class="mode-item"
+                    :class="{ active: bom === item.value }"
+                    @click="bom = item.value"
+                  >
+                    {{ item.label }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="option-group">
+                <div class="option-label">
+                  <span>Encoding</span>
+                  <SiliconeTooltip
+                    content="Manual selection of encoding (leave blank for automatic detection)"
+                    placement="right"
+                  >
+                    <Icon
+                      icon="ri:question-line"
+                      class="w-4 h-4 text-gray-400 cursor-help"
+                    />
+                  </SiliconeTooltip>
+                </div>
+                <SiliconeSelect
+                  v-model="manualEncoding"
+                  placeholder="Auto Detect"
+                  clearable
+                >
+                  <el-option
+                    v-for="item in encodingOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </SiliconeSelect>
+              </div>
+            </template>
+          </div>
+        </el-scrollbar>
+
+        <div class="mt-4 pt-4">
           <text
             v-if="backendCompleted && activeTab === 'excel'"
-            class="ml-2 mt-auto"
+            class="text-xs text-gray-500 dark:text-gray-400"
           >
             {{ backendInfo }}
           </text>
         </div>
-      </el-splitter-panel>
+      </aside>
 
-      <el-splitter-panel>
-        <SiliconeButton
-          @click="convert()"
-          :loading="isLoading"
-          :icon="SwitchButton"
-          text
-          class="ml-1 mb-2"
-          >Run
-        </SiliconeButton>
-
-        <SiliconeTable
-          :data="fileSelect"
-          :height="dynamicHeight"
-          show-overflow-tooltip
-          :key="activeTab"
+      <div
+        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+      >
+        <div
+          class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700"
         >
-          <el-table-column type="index" width="35" />
-          <el-table-column prop="filename" label="File" />
-          <el-table-column
-            prop="status"
-            label="Status"
-            :filters="[
-              { text: 'x', value: 'error' },
-              { text: '√', value: 'success' }
-            ]"
-            :filter-method="filterFileStatus"
+          <div class="flex items-center gap-2">
+            <SiliconeTag v-if="fileSelect.length" type="info" size="small">
+              {{ fileSelect.length }} files
+            </SiliconeTag>
+            <SiliconeTag v-else type="info" size="small">
+              No files loaded
+            </SiliconeTag>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <SiliconeTag v-if="activeTab === 'fmt'" size="small">
+              Format CSV
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'encoding'" size="small">
+              Other Encoding To UTF-8
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'excel'" size="small">
+              Excel to CSV
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'csv'" size="small">
+              CSV to Xlsx
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'access'" size="small">
+              Access to CSV
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'dbf'" size="small">
+              DBF to CSV
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'json'" size="small">
+              Json to CSV
+            </SiliconeTag>
+            <SiliconeTag v-else-if="activeTab === 'jsonl'" size="small">
+              JSONL to CSV
+            </SiliconeTag>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-auto p-2">
+          <SiliconeTable
+            :data="fileSelect"
+            :height="dynamicHeight"
+            show-overflow-tooltip
+            :key="activeTab"
+            empty-text="No data. (Ctrl+D) to Open File(s)."
           >
-            <template #default="scope">
-              <ElIcon v-if="scope.row.status === 'loading'" class="is-loading">
-                <Loading />
-              </ElIcon>
-              <ElIcon
-                v-else-if="scope.row.status === 'success'"
-                color="#00CD66"
-              >
-                <Select />
-              </ElIcon>
-              <ElIcon v-else-if="scope.row.status === 'error'" color="#FF0000">
-                <CloseBold />
-              </ElIcon>
-              <span
-                v-if="
-                  scope.row.message &&
-                  scope.row.status !== 'loading' &&
-                  activeTab === 'excel'
-                "
-              >
-                {{ scope.row.message || scope.row.status }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="message"
-            label="Message"
-            :filters="[
-              { text: 'No worksheet', value: 'zero' },
-              { text: '1 worksheet', value: 'one' },
-              { text: 'Multiple worksheets', value: 'many' }
-            ]"
-            :filter-method="filterBySheetCount"
-          >
-            <template #default="scope">
-              <template v-if="activeTab === 'excel'">
-                <SiliconeSelect
-                  v-model="scope.row.selectSheet"
-                  placeholder="Select a sheet"
-                  class="mb-[1px]"
-                  @change="updateFileSheet(scope.row)"
-                  :disabled="!scope.row.sheets || scope.row.sheets.length === 0"
-                >
-                  <el-option
-                    v-for="sheet in scope.row.sheets"
-                    :key="sheet"
-                    :label="sheet"
-                    :value="sheet"
+            <el-table-column prop="filename" label="File" min-width="200">
+              <template #default="scope">
+                <span>
+                  {{ scope.row.filename }}
+                </span>
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              prop="status"
+              label="Status"
+              width="90"
+              :filters="[
+                { text: '✓', value: 'success' },
+                { text: '✗', value: 'error' }
+              ]"
+              :filter-method="filterFileStatus"
+            >
+              <template #default="scope">
+                <div class="flex items-center">
+                  <ElIcon v-if="scope.row.status === 'loading'">
+                    <Loading />
+                  </ElIcon>
+                  <ElIcon v-else-if="scope.row.status === 'success'">
+                    <Select />
+                  </ElIcon>
+                  <ElIcon v-else-if="scope.row.status === 'error'">
+                    <CloseBold />
+                  </ElIcon>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              prop="message"
+              label="Message"
+              :filters="[
+                { text: 'No worksheet', value: 'zero' },
+                { text: '1 worksheet', value: 'one' },
+                { text: 'Multiple worksheets', value: 'many' }
+              ]"
+              :filter-method="filterBySheetCount"
+            >
+              <template #default="scope">
+                <template v-if="activeTab === 'excel'">
+                  <SiliconeSelect
+                    v-model="scope.row.selectSheet"
+                    placeholder="Select a sheet"
+                    class="mb-[1px]"
+                    @change="updateFileSheet(scope.row)"
+                    :disabled="
+                      !scope.row.sheets || scope.row.sheets.length === 0
+                    "
+                    size="small"
+                  >
+                    <el-option
+                      v-for="sheet in scope.row.sheets"
+                      :key="sheet"
+                      :label="sheet"
+                      :value="sheet"
+                    />
+                  </SiliconeSelect>
+                  <span
+                    v-if="scope.row.message && scope.row.status !== 'loading'"
+                    class="text-xs text-gray-500 dark:text-gray-400"
+                  >
+                    {{ scope.row.message || scope.row.status }}
+                  </span>
+                </template>
+                <template v-else-if="activeTab === 'fmt'">
+                  <SiliconeProgress
+                    v-if="
+                      scope.row.totalRows > 0 &&
+                      isFinite(scope.row.currentRows / scope.row.totalRows)
+                    "
+                    :percentage="
+                      Math.round(
+                        (scope.row.currentRows / scope.row.totalRows) * 100
+                      )
+                    "
                   />
-                </SiliconeSelect>
+                  <span v-else-if="scope.row.status === 'error'">
+                    {{ scope.row.message }}
+                  </span>
+                </template>
+                <template v-else-if="activeTab === 'encoding'">
+                  <span v-if="detectedEncoding">
+                    {{ detectedEncoding }} ({{
+                      (encodingConfidence * 100).toFixed(1)
+                    }}%)
+                  </span>
+                  <span
+                    v-else-if="scope.row.status === 'error'"
+                    class="text-xs text-red-500"
+                  >
+                    {{ scope.row.message }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span
+                    v-if="scope.row.status === 'error'"
+                    class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"
+                  >
+                    {{ scope.row.message }}
+                  </span>
+                </template>
               </template>
-              <template v-else>
-                <span v-if="scope.row.status === 'error'">
-                  {{ scope.row.message }}
-                </span>
-                <SiliconeProgress
-                  v-else-if="
-                    activeTab === 'fmt' &&
-                    scope.row.totalRows > 0 &&
-                    isFinite(scope.row.currentRows / scope.row.totalRows)
-                  "
-                  :percentage="
-                    Math.round(
-                      (scope.row.currentRows / scope.row.totalRows) * 100
-                    )
-                  "
-                />
-                <span
-                  v-else-if="activeTab === 'encoding' && detectedEncoding"
-                  class="text-gray-500"
-                >
-                  {{ detectedEncoding }} ({{
-                    (encodingConfidence * 100).toFixed(1)
-                  }}%)
-                </span>
-              </template>
-            </template>
-          </el-table-column>
-        </SiliconeTable>
-      </el-splitter-panel>
-    </el-splitter>
+            </el-table-column>
+          </SiliconeTable>
+        </div>
+      </div>
+    </main>
   </el-form>
 </template>
+
+<style scoped>
+.option-group {
+  margin-bottom: 16px;
+}
+.option-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.option-label span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.dark .option-label span {
+  color: #e5e7eb;
+}
+</style>
