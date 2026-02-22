@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { FolderOpened, Files, SwitchButton } from "@element-plus/icons-vue";
-import { useDark } from "@pureadmin/utils";
+import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { message } from "@/utils/message";
 import { mdJoin, useMarkdown } from "@/utils/markdown";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
+import { useShortcuts } from "@/utils/globalShortcut";
 
 const joinType = ref("left");
 const [sel1, sel2] = [ref(""), ref("")];
@@ -27,7 +27,6 @@ const [
 const data = reactive({ path1: "", path2: "" });
 const { dynamicHeight } = useDynamicHeight(36);
 const { mdShow } = useMarkdown(mdJoin);
-const { isDark } = useDark();
 const quoting = useQuoting();
 const skiprows = useSkiprows();
 
@@ -84,139 +83,345 @@ async function joinData() {
   }
   isLoading.value = false;
 }
+
+useShortcuts({
+  onRun: () => joinData(),
+  onHelp: () => {
+    dialog.value = !dialog.value;
+  }
+});
+
+onUnmounted(() => {
+  [sel1, sel2].forEach(r => (r.value = ""));
+  [
+    tableHeader1,
+    tableHeader2,
+    tableColumn1,
+    tableColumn2,
+    tableData1,
+    tableData2
+  ].forEach(r => (r.value = []));
+});
 </script>
 
 <template>
-  <el-form class="page-container" :style="{ height: dynamicHeight + 'px' }">
-    <el-splitter>
-      <el-splitter-panel size="240" :resizable="false">
-        <div class="splitter-container mr-1">
-          <div class="flex flex-center">
-            <SiliconeButton @click="selectFile(1)" :icon="FolderOpened" text>
-              data 1
-            </SiliconeButton>
-            <SiliconeButton @click="selectFile(2)" :icon="FolderOpened" text>
-              data 2
-            </SiliconeButton>
-          </div>
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+          @click="dialog = true"
+        >
+          <Icon icon="ri:merge-cells-horizontal" />
+          Join
+        </h1>
 
-          <div class="flex flex-center mt-2">
-            <SiliconeSelect v-model="sel1" filterable placeholder="Column1">
-              <el-option
-                v-for="item in tableHeader1"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </SiliconeSelect>
+        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
 
-            <SiliconeSelect v-model="sel2" filterable placeholder="Column2">
-              <el-option
-                v-for="item in tableHeader2"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </SiliconeSelect>
-          </div>
+        <div class="text-xs font-semibold text-gray-400">
+          Joins two sets of CSV data on the specified columns
+        </div>
+      </div>
 
-          <SiliconeTooltip
-            content="When set True, joins will work on empty fields"
-            placement="right"
+      <div class="flex items-center gap-2">
+        <SiliconeButton @click="dialog = true" text> Help </SiliconeButton>
+        <SiliconeButton @click="joinData()" :loading="isLoading" text>
+          Run
+        </SiliconeButton>
+      </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
+      >
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
-            <div class="mode-toggle mt-2 mb-2">
+            DATA FILES
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <SiliconeButton
+              @click="selectFile(1)"
+              text
+              class="p-2 text-xs rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              :class="
+                data.path1
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                  : ''
+              "
+            >
+              <Icon
+                icon="ri:file-text-line"
+                class="w-4 h-4 mx-auto mb-1"
+                :class="data.path1 ? 'text-green-500' : 'text-gray-400'"
+              />
+              <span
+                :class="
+                  data.path1
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-gray-500 dark:text-gray-400'
+                "
+              >
+                {{ data.path1 ? "✓ Loaded" : "Data 1" }}
+              </span>
+            </SiliconeButton>
+            <SiliconeButton
+              @click="selectFile(2)"
+              text
+              class="p-2 text-xs rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              :class="
+                data.path2
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                  : ''
+              "
+            >
+              <Icon
+                icon="ri:file-text-line"
+                class="w-4 h-4 mx-auto mb-1"
+                :class="data.path2 ? 'text-green-500' : 'text-gray-400'"
+              />
+              <span
+                :class="
+                  data.path2
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-gray-500 dark:text-gray-400'
+                "
+              >
+                {{ data.path2 ? "✓ Loaded" : "Data 2" }}
+              </span>
+            </SiliconeButton>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            JOIN COLUMNS
+          </label>
+          <div class="space-y-2">
+            <div>
+              <span
+                class="text-[10px] text-gray-500 dark:text-gray-400 block mb-1"
+              >
+                Data 1 Column
+              </span>
+              <SiliconeSelect
+                v-model="sel1"
+                filterable
+                placeholder="Select column"
+              >
+                <el-option
+                  v-for="item in tableHeader1"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </SiliconeSelect>
+            </div>
+
+            <div>
+              <span
+                class="text-[10px] text-gray-500 dark:text-gray-400 block mb-1"
+                >Data 2 Column
+              </span>
+              <SiliconeSelect
+                v-model="sel2"
+                filterable
+                placeholder="Select column"
+              >
+                <el-option
+                  v-for="item in tableHeader2"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </SiliconeSelect>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            NULL HANDLING
+          </label>
+          <SiliconeTooltip
+            content="When True, joins will work on empty fields"
+            placement="top"
+          >
+            <div class="mode-toggle-v h-8">
               <span
                 v-for="item in nullOptions"
                 :key="String(item.value)"
                 class="mode-item"
-                :class="{
-                  active: nulls === item.value,
-                  'active-dark': isDark && nulls === item.value
-                }"
+                :class="{ active: nulls === item.value }"
                 @click="nulls = item.value"
               >
                 {{ item.label }}
               </span>
             </div>
           </SiliconeTooltip>
-
-          <SiliconeTooltip content="Join type" placement="right">
-            <SiliconeSelect v-model="joinType">
-              <el-option label="left" value="left" />
-              <el-option label="right" value="right" />
-              <el-option label="full" value="full" />
-              <el-option label="cross" value="cross" />
-              <el-option label="inner" value="inner" />
-              <el-option label="left-semi" value="left_semi" />
-              <el-option label="left-anti" value="left_anti" />
-              <el-option label="right-semi" value="right_semi" />
-              <el-option label="right-anti" value="right_anti" />
-            </SiliconeSelect>
-          </SiliconeTooltip>
-
-          <el-link @click="dialog = true" class="mt-auto" underline="never">
-            <SiliconeText class="mb-[1px]">Join</SiliconeText>
-          </el-link>
         </div>
-      </el-splitter-panel>
 
-      <el-splitter-panel>
-        <el-splitter layout="vertical">
-          <el-splitter-panel size="40" :resizable="false">
-            <SiliconeButton
-              @click="joinData()"
-              :loading="isLoading"
-              :icon="SwitchButton"
-              text
-              class="ml-1"
-              >Run
-            </SiliconeButton>
-          </el-splitter-panel>
+        <div class="mb-4">
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+          >
+            JOIN TYPE
+          </label>
+          <SiliconeSelect v-model="joinType">
+            <el-option label="Inner" value="inner" />
+            <el-option label="Left" value="left" />
+            <el-option label="Right" value="right" />
+            <el-option label="Full" value="full" />
+            <el-option label="Cross" value="cross" />
+            <el-option label="Left Semi" value="left_semi" />
+            <el-option label="Left Anti" value="left_anti" />
+            <el-option label="Right Semi" value="right_semi" />
+            <el-option label="Right Anti" value="right_anti" />
+          </SiliconeSelect>
+        </div>
 
-          <el-splitter-panel :resizable="false">
-            <SiliconeTable
-              :data="tableData1"
-              :height="dynamicHeight / 2 - 52"
-              empty-text="data 1"
-              show-overflow-tooltip
+        <div
+          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+        >
+          <div class="text-[12px] text-blue-700 dark:text-blue-300">
+            <div v-if="joinType === 'inner'">
+              Returns only matching rows from both datasets
+            </div>
+            <div v-else-if="joinType === 'left'">
+              Returns all rows from data 1, matched from data 2
+            </div>
+            <div v-else-if="joinType === 'right'">
+              Returns all rows from data 2, matched from data 1
+            </div>
+            <div v-else-if="joinType === 'full'">
+              Returns all rows from both datasets
+            </div>
+            <div v-else-if="joinType === 'cross'">
+              Returns cartesian product of both datasets
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+        >
+          <label
+            class="text-xs font-semibold text-gray-400 tracking-wider block mb-2"
+          >
+            CONFIG
+          </label>
+          <div class="space-y-1 text-xs">
+            <div class="flex justify-between">
+              <span class="text-gray-500 dark:text-gray-400">Data 1:</span>
+              <span class="font-mono text-green-600 dark:text-green-400">{{
+                sel1 || "-"
+              }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500 dark:text-gray-400">Data 2:</span>
+              <span class="font-mono text-blue-600 dark:text-blue-400">{{
+                sel2 || "-"
+              }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500 dark:text-gray-400">Type:</span>
+              <span class="font-mono">{{ joinType }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500 dark:text-gray-400">Nulls:</span>
+              <span class="font-mono">{{ nulls }}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div
+        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
+      >
+        <div
+          class="flex-1 flex flex-col overflow-hidden border-b border-gray-200 dark:border-gray-700"
+        >
+          <div
+            class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span
+                  class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                  >DATA1</span
+                >
+                <SiliconeText v-if="data.path1">{{ data.path1 }}</SiliconeText>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto p-2 min-h-0">
+            <div
+              class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
-              <el-table-column
-                v-for="column in tableColumn1"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
-            </SiliconeTable>
+              <SiliconeTable
+                :data="tableData1"
+                :height="'100%'"
+                empty-text="No data. (Ctrl+D) to Open File."
+                show-overflow-tooltip
+                class="select-text"
+              >
+                <el-table-column
+                  v-for="column in tableColumn1"
+                  :prop="column.prop"
+                  :label="column.label"
+                  :key="column.prop"
+                />
+              </SiliconeTable>
+            </div>
+          </div>
+        </div>
 
-            <SiliconeText truncated :max-lines="1">
-              <el-icon><Files /></el-icon>
-              data 1 => {{ data.path1 }}
-            </SiliconeText>
-          </el-splitter-panel>
-
-          <el-splitter-panel :resizable="false">
-            <SiliconeTable
-              :data="tableData2"
-              :height="dynamicHeight / 2 - 52"
-              empty-text="data 2"
-              show-overflow-tooltip
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div
+            class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span
+                  class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                  >DATA2</span
+                >
+                <SiliconeText v-if="data.path2">{{ data.path2 }}</SiliconeText>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto p-2 min-h-0">
+            <div
+              class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
-              <el-table-column
-                v-for="column in tableColumn2"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
-            </SiliconeTable>
-
-            <SiliconeText truncated :max-lines="1">
-              <el-icon><Files /></el-icon>
-              data 2 => {{ data.path2 }}
-            </SiliconeText>
-          </el-splitter-panel>
-        </el-splitter>
-      </el-splitter-panel>
-    </el-splitter>
+              <SiliconeTable
+                :data="tableData2"
+                :height="'100%'"
+                empty-text="No data. (Ctrl+D) to Open File."
+                show-overflow-tooltip
+                class="select-text"
+              >
+                <el-table-column
+                  v-for="column in tableColumn2"
+                  :prop="column.prop"
+                  :label="column.label"
+                  :key="column.prop"
+                  min-width="100"
+                />
+              </SiliconeTable>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
 
     <SiliconeDialog
       v-model="dialog"
