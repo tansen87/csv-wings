@@ -257,16 +257,10 @@ onUnmounted(() => {
                 <ElIcon v-if="scope.row.status === ''" class="is-loading">
                   <Loading />
                 </ElIcon>
-                <ElIcon
-                  v-else-if="scope.row.status === 'success'"
-                  color="#00CD66"
-                >
+                <ElIcon v-else-if="scope.row.status === 'success'">
                   <Select />
                 </ElIcon>
-                <ElIcon
-                  v-else-if="scope.row.status === 'error'"
-                  color="#FF0000"
-                >
+                <ElIcon v-else-if="scope.row.status === 'error'">
                   <CloseBold />
                 </ElIcon>
               </template>

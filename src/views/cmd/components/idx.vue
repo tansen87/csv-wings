@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -40,6 +40,13 @@ listen("success", (event: Event<string>) => {
     file.status = "success";
     file.message = message;
   });
+});
+
+const successCount = computed(() => {
+  return fileSelect.value.filter(f => f.status === "success").length;
+});
+const failedCount = computed(() => {
+  return fileSelect.value.filter(f => f.status === "error").length;
 });
 
 async function selectFile() {
@@ -88,6 +95,10 @@ async function createIndex() {
   isLoading.value = false;
 }
 
+const removeFile = index => {
+  fileSelect.value.splice(index, 1);
+};
+
 useShortcuts({
   onOpenFile: () => selectFile(),
   onRun: () => createIndex(),
@@ -103,94 +114,169 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="page-view">
-    <SiliconeCard v-if="path && fileSelect.length" shadow="never">
-      <div class="flex gap-2 mt-1 mb-1 ml-1 mr-1">
+  <el-form class="page-view">
+    <header
+      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
+      <div class="flex items-center gap-4">
+        <h1
+          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
+          @click="dialog = true"
+        >
+          <Icon icon="ri:rocket-line" />
+          Index
+        </h1>
+
+        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+
+        <div class="text-xs font-semibold text-gray-400 tracking-wider">
+          Create an index for CSVs
+        </div>
+      </div>
+
+      <div class="flex items-center">
         <SiliconeButton @click="selectFile()" :loading="isLoading" text>
           Open File(s)
         </SiliconeButton>
         <SiliconeButton @click="createIndex()" :loading="isLoading" text>
           Run
         </SiliconeButton>
-        <div class="flex-grow" />
-        <SiliconeTag @click="dialog = true" type="warning" size="large">
-          Index
-        </SiliconeTag>
       </div>
-    </SiliconeCard>
+    </header>
 
-    <el-empty v-if="!path" :image-size="160">
-      <template #image>
-        <Icon icon="ri:rocket-line" />
-        <SiliconeTag @click="dialog = true" class="w-16" type="warning">
-          Index
-        </SiliconeTag>
-      </template>
+    <main class="flex-1 flex overflow-hidden">
+      <aside
+        class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
+      >
+        <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+          STATISTICS
+        </div>
 
-      <template #description>
-        <div class="empty-desc mt-6">
-          <div class="desc-row">
-            <SiliconeTag type="success" @click="selectFile">
-              Open File(s)
-            </SiliconeTag>
-            <SiliconeTag>Ctrl + D</SiliconeTag>
+        <div class="space-y-3">
+          <div
+            class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+          >
+            <div class="flex items-center justify-between">
+              <div class="text-2xl font-bold text-gray-800 dark:text-white">
+                {{ fileSelect.length }}
+              </div>
+              <Icon icon="ri:file-list-3-line" class="w-6 h-6 text-gray-400" />
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Files Loaded
+            </div>
           </div>
-          <div class="desc-row">
-            <SiliconeTag type="info">Run</SiliconeTag>
-            <SiliconeTag>Ctrl + R</SiliconeTag>
+
+          <div
+            class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+          >
+            <div class="flex items-center justify-between">
+              <div
+                class="text-2xl font-bold text-green-600 dark:text-green-400"
+              >
+                {{ successCount }}
+              </div>
+              <Icon
+                icon="ri:checkbox-circle-line"
+                class="w-6 h-6 text-green-500"
+              />
+            </div>
+            <div class="text-xs text-green-600 dark:text-green-400 mt-1">
+              Succeed
+            </div>
           </div>
-          <div class="desc-row">
-            <SiliconeTag type="info">Help</SiliconeTag>
-            <SiliconeTag>Ctrl + B</SiliconeTag>
+
+          <div
+            class="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+          >
+            <div class="flex items-center justify-between">
+              <div class="text-2xl font-bold text-red-600 dark:text-red-400">
+                {{ failedCount }}
+              </div>
+              <Icon icon="ri:error-warning-line" class="w-6 h-6 text-red-500" />
+            </div>
+            <div class="text-xs text-red-600 dark:text-red-400 mt-1">
+              Failed
+            </div>
           </div>
         </div>
-      </template>
+      </aside>
 
-      <SiliconeTag type="info"> Create an index for a CSV </SiliconeTag>
-    </el-empty>
-
-    <div v-else class="flex-1 flex flex-col">
-      <SiliconeCard shadow="never" class="flex-1 flex flex-col">
-        <el-scrollbar>
+      <div
+        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
+      >
+        <div class="flex-1 overflow-auto p-2">
           <SiliconeTable
             :data="fileSelect"
+            :height="'100%'"
+            empty-text="No data. (Ctrl+D) to Open File(s)."
             show-overflow-tooltip
-            class="ml-1 mr-1 mt-1 mb-1"
-            :style="{ width: 'calc(100% - 8px)' }"
-            :height="dynamicHeight"
+            :row-style="{ height: '50px' }"
+            :cell-style="{
+              borderBottom: '1px solid #f0f0f0'
+            }"
+            class="select-text"
           >
-            <el-table-column type="index" width="35" />
-            <el-table-column prop="filename" label="File" />
-            <el-table-column prop="status" label="Status">
+            <el-table-column prop="filename" label="File" min-width="200">
               <template #default="scope">
-                <ElIcon v-if="scope.row.status === ''" class="is-loading">
-                  <Loading />
-                </ElIcon>
-                <ElIcon
-                  v-else-if="scope.row.status === 'success'"
-                  color="#00CD66"
-                >
-                  <Select />
-                </ElIcon>
-                <ElIcon
-                  v-else-if="scope.row.status === 'error'"
-                  color="#FF0000"
-                >
-                  <CloseBold />
-                </ElIcon>
-              </template>
-            </el-table-column>
-            <el-table-column prop="message" label="Message">
-              <template #default="scope">
-                <span v-if="scope.row.status === 'error'">
-                  {{ scope.row.message }}
+                <span>
+                  {{ scope.row.filename }}
                 </span>
               </template>
             </el-table-column>
+
+            <el-table-column prop="status" label="Status" width="70">
+              <template #default="scope">
+                <div class="flex items-center gap-2">
+                  <ElIcon
+                    v-if="scope.row.status === ''"
+                    class="is-loading text-blue-500"
+                  >
+                    <Loading />
+                  </ElIcon>
+                  <ElIcon v-else-if="scope.row.status === 'success'">
+                    <Select />
+                  </ElIcon>
+                  <ElIcon v-else-if="scope.row.status === 'error'">
+                    <CloseBold />
+                  </ElIcon>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="message" label="Message">
+              <template #default="scope">
+                <span
+                  v-if="scope.row.status === 'error'"
+                  class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"
+                >
+                  {{ scope.row.message }}
+                </span>
+                <span
+                  v-else-if="scope.row.message"
+                  class="text-xs text-green-500 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded"
+                >
+                  {{ scope.row.message }}
+                </span>
+                <span v-else class="text-xs text-gray-400"> - </span>
+              </template>
+            </el-table-column>
+
+            <el-table-column width="70">
+              <template #default="scope">
+                <SiliconeTag
+                  @click="removeFile(scope.$index)"
+                  type="danger"
+                  class="cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <Icon icon="ri:delete-bin-line" />
+                </SiliconeTag>
+              </template>
+            </el-table-column>
           </SiliconeTable>
-        </el-scrollbar>
-      </SiliconeCard>
-    </div>
+        </div>
+      </div>
+    </main>
 
     <SiliconeDialog
       v-model="dialog"
@@ -201,11 +287,5 @@ onUnmounted(() => {
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </div>
+  </el-form>
 </template>
-
-<style scoped>
-:deep(.el-card__body) {
-  padding: 0 !important;
-}
-</style>
