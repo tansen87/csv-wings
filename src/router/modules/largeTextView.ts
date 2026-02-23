@@ -1,10 +1,14 @@
+const Layout = () => import("@/layout/index.vue");
+
 export default {
-  path: "/text",
+  path: "/",
+  name: "text",
+  component: Layout,
   redirect: "/text/largeTextView",
   meta: {
     icon: "text",
     title: "largeTextView",
-    rank: 3
+    rank: 0
   },
   children: [
     {

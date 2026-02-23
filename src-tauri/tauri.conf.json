@@ -21,6 +21,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["*"],
+        "description": "text-view"
+      }
+    ],
     "copyright": "",
     "category": "DeveloperTool",
     "shortDescription": "",

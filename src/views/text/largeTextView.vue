@@ -3,6 +3,10 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ElMessageBox } from "element-plus";
 import { Document, More } from "@element-plus/icons-vue";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { useRoute } from "vue-router";
 import ReplaceDialog from "./replaceDialog.vue";
 import FindDialog from "./findDialog.vue";
 import GotoDialog from "@/views/text/gotoDialog.vue";
@@ -38,6 +42,7 @@ const showFindDialog = ref(false);
 const showGotoDialog = ref(false);
 
 const encoding = useEncoding();
+const route = useRoute();
 
 // 打开文件
 async function openFileDialog() {
@@ -69,6 +74,23 @@ async function loadLines(start: number, count: number) {
     number: start + i + 1,
     content
   }));
+}
+
+async function loadFileFromPath(path: string) {
+  try {
+    const win = getCurrentWindow();
+    await win.show();
+    await win.setFocus();
+
+    fileInfo.value = await openFile({
+      path: path,
+      encoding: encoding.encoding || undefined
+    });
+
+    await loadLines(0, VISIBLE_LINE_COUNT);
+  } catch (e) {
+    message(`loadFileFromPath failed: ${e}`, { type: "error" });
+  }
 }
 
 function doSearch(type: "visible" | "all") {
@@ -312,18 +334,48 @@ useShortcuts({
   },
   onJump: () => promptGoToLine()
 });
+
+let unlisten: (() => void) | null = null;
+
 onMounted(async () => {
+  // 加载现有文件
   if (fileInfo.value) {
-    loadLines(0, VISIBLE_LINE_COUNT);
+    await loadLines(0, VISIBLE_LINE_COUNT);
   }
 
+  // 清理会话
   try {
     await cleanupSessions();
   } catch (e) {
     message(`cleanupSessions failed: ${e}`, { type: "warning" });
   }
+
+  // 先查询是否有待打开的文件(防止事件丢失)
+  try {
+    const pendingPath = await invoke<string | null>("get_pending_file_path");
+    if (pendingPath) {
+      await loadFileFromPath(pendingPath);
+      return;
+    }
+  } catch (e) {
+    message(`open-text-file failed: ${e}`, { type: "error" });
+  }
+
+  // 监听Rust发送的文件打开事件
+  unlisten = await listen<string>("open-text-file", async event => {
+    const path = event.payload;
+    console.log("=== 收到文件打开事件:", path);
+    await loadFileFromPath(path);
+  });
+
+  // 检查路由query参数
+  if (route.query.file) {
+    await loadFileFromPath(route.query.file as string);
+  }
 });
+
 onUnmounted(() => {
+  if (unlisten) unlisten();
   cleanup();
 });
 
@@ -421,6 +473,9 @@ function selectLineContent(lineNumber: number) {
           <div class="desc-row">
             <SiliconeTag type="info">Jump</SiliconeTag>
             <SiliconeTag>Ctrl + G</SiliconeTag>
+          </div>
+          <div class="mt-6">
+            <SiliconeTag>Large Text View</SiliconeTag>
           </div>
         </div>
       </template>

@@ -240,3 +240,9 @@ pub fn cleanup_sessions(state: tauri::State<AppState>) -> Result<usize, String> 
 
   Ok(count)
 }
+
+#[tauri::command]
+pub fn get_pending_file_path(state: tauri::State<AppState>) -> Option<String> {
+  // 从 AppState 中获取待打开的文件路径
+  state.pending_file_path.lock().unwrap().clone()
+}

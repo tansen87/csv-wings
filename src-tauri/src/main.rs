@@ -4,7 +4,7 @@
 )]
 
 use tauri::{
-  Manager, WindowEvent,
+  Emitter, Manager, WindowEvent,
   menu::{Menu, MenuItem},
   tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
 };
@@ -72,43 +72,48 @@ fn main() {
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .setup(|app| {
+      let args: Vec<String> = std::env::args().collect();
+      if args.len() > 1 {
+        let file_path = &args[1];
+        // 将文件路径存储到AppState中,前端可以主动查询
+        let state = app.state::<text_view_utils::AppState>();
+        *state.pending_file_path.lock().unwrap() = Some(file_path.clone());
+
+        if let Some(window) = app.get_webview_window("main") {
+          window.show().unwrap();
+          window.set_focus().unwrap();
+          let _ = window.emit("open-text-file", file_path);
+        }
+      }
+
       // 创建菜单项
       let show_item = MenuItem::with_id(app, "show", "show", true, None::<&str>)?;
       let quit_item = MenuItem::with_id(app, "quit", "quit", true, None::<&str>)?;
-      // 创建托盘菜单
       let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
-      // 创建系统托盘
       let _tray = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&tray_menu)
-        .show_menu_on_left_click(false) // 左键不显示菜单，触发 Click 事件
+        .show_menu_on_left_click(false)
         .tooltip("insight-x")
-        .on_tray_icon_event(|tray, event| {
-          match event {
-            // 只处理左键点击
-            TrayIconEvent::Click {
-              button: MouseButton::Left,
-              button_state: tauri::tray::MouseButtonState::Up,
-              ..
-            } => {
-              let app = tray.app_handle();
-              if let Some(window) = app.get_webview_window("main") {
-                // 左键单击:直接显示窗口
-                window.show().unwrap();
-                window.set_focus().unwrap();
-                window.set_always_on_top(true).unwrap();
-                window.set_always_on_top(false).unwrap();
-              }
+        .on_tray_icon_event(|tray, event| match event {
+          TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: tauri::tray::MouseButtonState::Up,
+            ..
+          } => {
+            let app = tray.app_handle();
+            if let Some(window) = app.get_webview_window("main") {
+              window.show().unwrap();
+              window.set_focus().unwrap();
+              window.set_always_on_top(true).unwrap();
+              window.set_always_on_top(false).unwrap();
             }
-            // 处理右键点击
-            TrayIconEvent::Click {
-              button: MouseButton::Right,
-              ..
-            } => {
-              // 右键不需要处理，show_menu_on_left_click(false) 会自动显示菜单
-            }
-            _ => {}
           }
+          TrayIconEvent::Click {
+            button: MouseButton::Right,
+            ..
+          } => {}
+          _ => {}
         })
         .on_menu_event(|app, event| match event.id.as_ref() {
           "show" => {
@@ -148,6 +153,7 @@ fn main() {
       text_view::replace_text,
       text_view::close_file,
       text_view::cleanup_sessions,
+      text_view::get_pending_file_path,
       apply::apply,
       cat::cat_csv,
       cat::cat_excel,

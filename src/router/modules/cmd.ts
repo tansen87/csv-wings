@@ -1,14 +1,10 @@
-const Layout = () => import("@/layout/index.vue");
-
 export default {
-  path: "/",
-  name: "cmd",
-  component: Layout,
+  path: "/cmd",
   redirect: "/cmd/index",
   meta: {
     icon: "command",
     title: "cmd",
-    rank: 0
+    rank: 1
   },
   children: [
     {

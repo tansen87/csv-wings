@@ -81,12 +81,14 @@ pub struct FileSession {
 
 pub struct AppState {
   pub sessions: Mutex<HashMap<String, FileSession>>,
+  pub pending_file_path: Mutex<Option<String>>,
 }
 
 impl Default for AppState {
   fn default() -> Self {
     Self {
       sessions: Mutex::new(HashMap::new()),
+      pending_file_path: Mutex::new(None),
     }
   }
 }

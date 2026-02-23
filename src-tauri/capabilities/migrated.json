@@ -86,6 +86,7 @@
     "process:default",
     "fs:default",
     "notification:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "core:event:allow-emit"
   ]
 }

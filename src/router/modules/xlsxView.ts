@@ -4,7 +4,7 @@ export default {
   meta: {
     icon: "fileExcel",
     title: "xlsxview",
-    rank: 2
+    rank: 3
   },
   children: [
     {
