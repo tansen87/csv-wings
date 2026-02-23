@@ -51,7 +51,7 @@ const encodingOptions = [
 ];
 
 const modeOptions = [
-  { label: "FormtCsv", value: "fmt" },
+  { label: "FormatCsv", value: "fmt" },
   { label: "EncodingCsv", value: "encoding" },
   { label: "Excel2Csv", value: "excel" },
   { label: "Csv2Xlsx", value: "csv" },
@@ -411,7 +411,7 @@ onUnmounted(() => {
           <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
             MODE
           </div>
-          <div class="mode-toggle-v h-[128px] overflow-y-auto">
+          <div class="mode-toggle-v h-28 overflow-y-auto">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -439,53 +439,45 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>Convert Mode</span>
-                  <SiliconeTooltip
-                    content="Convert all sheets or not"
-                    placement="right"
-                  >
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[32px]">
-                  <span
-                    v-for="item in sheetsOptions"
-                    :key="String(item.value)"
-                    class="mode-item"
-                    :class="{ active: allSheets === item.value }"
-                    @click="allSheets = item.value"
-                  >
-                    {{ item.label }}
-                  </span>
-                </div>
+                <SiliconeTooltip
+                  content="Convert all sheets or one sheet"
+                  placement="right"
+                >
+                  <div class="mode-toggle-v h-8">
+                    <span
+                      v-for="item in sheetsOptions"
+                      :key="String(item.value)"
+                      class="mode-item"
+                      :class="{ active: allSheets === item.value }"
+                      @click="allSheets = item.value"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </div>
+                </SiliconeTooltip>
               </div>
 
               <div class="option-group">
                 <div class="option-label">
                   <span>Sheet Name</span>
-                  <SiliconeTooltip
-                    content="When set True, write sheet name"
-                    placement="right"
-                  >
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[32px]">
-                  <span
-                    v-for="item in writeOptions"
-                    :key="String(item.value)"
-                    class="mode-item"
-                    :class="{ active: writeSheetname === item.value }"
-                    @click="writeSheetname = item.value"
-                  >
-                    {{ item.label }}
-                  </span>
-                </div>
+                <SiliconeTooltip
+                  content="When set True, write sheet name"
+                  placement="right"
+                >
+                  <div class="mode-toggle-v h-8">
+                    <span
+                      v-for="item in writeOptions"
+                      :key="String(item.value)"
+                      class="mode-item"
+                      :class="{ active: writeSheetname === item.value }"
+                      @click="writeSheetname = item.value"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </div>
+                </SiliconeTooltip>
               </div>
             </template>
 
@@ -494,14 +486,8 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>Quote Character</span>
-                  <SiliconeTooltip content="Quote character" placement="right">
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[32px]">
+                <div class="mode-toggle-v h-8">
                   <span
                     v-for="item in quoteOptions"
                     :key="item.value"
@@ -517,14 +503,8 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>Quote Style</span>
-                  <SiliconeTooltip content="Quote style" placement="right">
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[64px]">
+                <div class="mode-toggle-v h-16">
                   <span
                     v-for="item in fmtOptions"
                     :key="item.value"
@@ -543,40 +523,35 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>Mode</span>
-                  <SiliconeTooltip content="CSV to XLSX mode" placement="right">
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[32px]">
-                  <span
-                    v-for="item in csvModeOptions"
-                    :key="item.value"
-                    class="mode-item"
-                    :class="{ active: csvMode === item.value }"
-                    @click="csvMode = item.value"
-                  >
-                    {{ item.label }}
-                  </span>
-                </div>
+                <SiliconeTooltip
+                  content="When set One, write multiple sheets of xlsx"
+                  placement="right"
+                >
+                  <div class="mode-toggle-v h-8">
+                    <span
+                      v-for="item in csvModeOptions"
+                      :key="item.value"
+                      class="mode-item"
+                      :class="{ active: csvMode === item.value }"
+                      @click="csvMode = item.value"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </div>
+                </SiliconeTooltip>
               </div>
 
               <div class="option-group">
                 <div class="option-label">
                   <span>Chunk Size</span>
-                  <SiliconeTooltip
-                    content="Split every N rows into a sheet"
-                    placement="right"
-                  >
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <SiliconeInput v-model="chunksize" placeholder="10000" />
+                <SiliconeTooltip
+                  content="Split every N rows into a sheet"
+                  placement="right"
+                >
+                  <SiliconeInput v-model="chunksize" />
+                </SiliconeTooltip>
               </div>
             </template>
 
@@ -585,24 +560,23 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>Error Handling</span>
-                  <SiliconeTooltip content="Ignore errors" placement="right">
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[32px]">
-                  <span
-                    v-for="item in iErrOptions"
-                    :key="String(item.value)"
-                    class="mode-item"
-                    :class="{ active: ignoreErr === item.value }"
-                    @click="ignoreErr = item.value"
-                  >
-                    {{ item.label }}
-                  </span>
-                </div>
+                <SiliconeTooltip
+                  content="When set True, ignore errors"
+                  placement="right"
+                >
+                  <div class="mode-toggle-v h-8">
+                    <span
+                      v-for="item in iErrOptions"
+                      :key="String(item.value)"
+                      class="mode-item"
+                      :class="{ active: ignoreErr === item.value }"
+                      @click="ignoreErr = item.value"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </div>
+                </SiliconeTooltip>
               </div>
             </template>
 
@@ -611,14 +585,8 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>BOM</span>
-                  <SiliconeTooltip content="BOM" placement="right">
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <div class="mode-toggle-v h-[32px]">
+                <div class="mode-toggle-v h-8">
                   <span
                     v-for="item in bomOptions"
                     :key="String(item.value)"
@@ -634,28 +602,24 @@ onUnmounted(() => {
               <div class="option-group">
                 <div class="option-label">
                   <span>Encoding</span>
-                  <SiliconeTooltip
-                    content="Manual selection of encoding (leave blank for automatic detection)"
-                    placement="right"
-                  >
-                    <Icon
-                      icon="ri:question-line"
-                      class="w-4 h-4 text-gray-400 cursor-help"
-                    />
-                  </SiliconeTooltip>
                 </div>
-                <SiliconeSelect
-                  v-model="manualEncoding"
-                  placeholder="Auto Detect"
-                  clearable
+                <SiliconeTooltip
+                  content="Manual selection of encoding (leave blank for automatic detection)"
+                  placement="right"
                 >
-                  <el-option
-                    v-for="item in encodingOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
-                  />
-                </SiliconeSelect>
+                  <SiliconeSelect
+                    v-model="manualEncoding"
+                    placeholder="Auto Detect"
+                    clearable
+                  >
+                    <el-option
+                      v-for="item in encodingOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </SiliconeSelect>
+                </SiliconeTooltip>
               </div>
             </template>
           </div>

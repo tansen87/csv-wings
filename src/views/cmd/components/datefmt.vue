@@ -342,42 +342,12 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div
-          v-if="totalRows > 0"
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-xs text-gray-500 dark:text-gray-400">Progress</div>
-          </div>
-          <SiliconeProgress
-            :percentage="Math.round((currentRows / totalRows) * 100)"
-          />
-        </div>
-
-        <div class="mt-auto">
+        <div class="mt-auto" v-if="totalRows > 0">
           <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
             STATISTICS
           </div>
 
           <div class="space-y-2">
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ columns.length }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Date Columns
-                  </div>
-                </div>
-                <Icon icon="ri:calendar-line" class="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-
             <div
               class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
             >
@@ -408,7 +378,17 @@ onUnmounted(() => {
                     Scanned Rows
                   </div>
                 </div>
-                <Icon icon="ri:scan-line" class="w-6 h-6 text-blue-500" />
+                <div class="relative w-6 h-6 flex items-center justify-center">
+                  <Icon
+                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
+                    icon="ri:scan-line"
+                    class="w-6 h-6 text-blue-500"
+                  />
+                  <SiliconeProgress
+                    v-else
+                    :percentage="Math.round((currentRows / totalRows) * 100)"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -434,7 +414,7 @@ onUnmounted(() => {
             </span>
             <div class="flex items-center gap-2">
               <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
               >
                 <Icon icon="ri:calendar-line" class="w-3.5 h-3.5" />
                 {{ columns.length }} date columns
