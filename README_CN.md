@@ -6,11 +6,19 @@
 
 
 ## 📷截图
+* Large Text View
+  
+  ![view.png](/docs/img/text_view.png)
+  
 * Flow
   ![flow.gif](/docs/img/flow.gif)
 
+  ![flow.png](/docs/img/csv_flow.png)
+
 * command
   ![cmd.png](/docs/img/cmd.png)
+
+  ![count.png](/docs/img/count.png)
 
 
 ## ✨Features
