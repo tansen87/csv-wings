@@ -399,6 +399,43 @@ function selectLineContent(lineNumber: number) {
     selection.addRange(range);
   }, 0);
 }
+
+const lineNumberRef = ref<HTMLElement | null>(null);
+const codeScrollbarRef = ref<any>(null); // Element Plus scrollbar 实例
+let isSyncing = false;
+const handleCodeScroll = (event: any) => {
+  if (isSyncing || !lineNumberRef.value) return;
+  isSyncing = true;
+
+  // 获取代码区域的滚动顶部距离
+  // 注意：el-scrollbar 的 event 可能包含 scrollTop，或者直接访问 ref 的 wrapRef
+  const scrollTop =
+    event?.scrollTop ?? codeScrollbarRef.value?.wrapRef?.scrollTop ?? 0;
+
+  lineNumberRef.value.scrollTop = scrollTop;
+
+  // 下一帧释放锁
+  requestAnimationFrame(() => {
+    isSyncing = false;
+  });
+};
+
+// 当行号区域滚动时（虽然用户很少直接滚行号，但为了完整性），同步代码区域
+const handleLineNumberScroll = () => {
+  if (isSyncing || !codeScrollbarRef.value) return;
+  isSyncing = true;
+
+  const scrollTop = lineNumberRef.value?.scrollTop ?? 0;
+
+  // 设置 el-scrollbar 内部容器的滚动
+  if (codeScrollbarRef.value.wrapRef) {
+    codeScrollbarRef.value.wrapRef.scrollTop = scrollTop;
+  }
+
+  requestAnimationFrame(() => {
+    isSyncing = false;
+  });
+};
 </script>
 
 <template>
@@ -482,19 +519,42 @@ function selectLineContent(lineNumber: number) {
     </el-empty>
 
     <!-- 内容显示区 -->
-    <div v-else class="content-wrapper">
-      <el-scrollbar>
-        <div class="content-area">
+    <div
+      v-else
+      class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden"
+    >
+      <div
+        class="line-number-wrapper"
+        ref="lineNumberRef"
+        @scroll="handleLineNumberScroll"
+      >
+        <div class="line-number-container">
           <div
             v-for="line in visibleLines"
             :key="line.number"
-            class="line"
+            class="line-number-row"
             :class="{ match: isMatchLine(line.number) }"
-            :ref="(el) => { if (el) lineRefs[line.number] = el as HTMLElement }"
           >
             <span class="line-number" @click="selectLineContent(line.number)">
               {{ line.number }}
             </span>
+          </div>
+        </div>
+      </div>
+
+      <el-scrollbar
+        ref="codeScrollbarRef"
+        class="code-content-wrapper"
+        @scroll="handleCodeScroll"
+      >
+        <div class="content-area">
+          <div
+            v-for="line in visibleLines"
+            :key="line.number"
+            class="line-row"
+            :class="{ match: isMatchLine(line.number) }"
+            :ref="(el) => { if (el) lineRefs[line.number] = el as HTMLElement }"
+          >
             <span class="line-content" v-html="highlightMatch(line.content)" />
           </div>
         </div>
@@ -573,100 +633,128 @@ function selectLineContent(lineNumber: number) {
 }
 
 .content-wrapper {
-  flex: 1;
-  overflow: hidden;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-.dark .content-wrapper {
-  background: #2d2d2d;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
-}
-
-.content-area {
-  height: 100%;
-  overflow-y: auto;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
-    sans-serif;
-  font-size: 14px;
-}
-.dark .content-area {
-  color: #e0e0e0;
-  background: #1e1e1e;
-}
-
-.line {
   display: flex;
-  width: 100%;
-  white-space: pre;
-  cursor: text;
-}
-.line:hover {
-  background: #f5f7fa;
-}
-.dark .line:hover {
-  background: #3d3d3d;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
-.line.match {
-  background: #fff3cd;
-}
-.dark .line.match {
-  background: #665c00;
-}
-
-.line-number {
-  min-width: 60px;
-  text-align: right;
-  padding-right: 12px;
-  color: #909399;
-  user-select: none;
+.line-number-wrapper {
+  flex-shrink: 0;
+  width: 70px;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: #fafafa;
   border-right: 1px solid #e4e7ed;
+  z-index: 10;
+  scrollbar-width: none;
 }
-.dark .line-number {
-  color: #6b6b6b;
+
+.dark .line-number-wrapper {
   background: #252525;
   border-right: 1px solid #404040;
 }
 
-.line-content {
-  flex: 1;
-  overflow: hidden;
-  cursor: text;
-  user-select: text;
-  margin-left: 8px;
+.line-number-container {
+  width: 100%;
 }
 
-.search-line-content {
+.line-number-row {
+  display: flex;
+  height: 24px;
+  line-height: 24px;
+  white-space: pre;
+}
+
+.line-number-row.match {
+  background: #fff3cd;
+}
+.dark .line-number-row.match {
+  background: #665c00;
+}
+
+.line-number-wrapper:hover .line-number-row:hover {
+  background: #f5f7fa;
+}
+.dark .line-number-wrapper:hover .line-number-row:hover {
+  background: #3d3d3d;
+}
+
+.line-number {
+  width: 100%;
+  text-align: right;
+  padding-right: 12px;
+  color: #909399;
+  user-select: none;
   cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+  font-size: 14px;
+}
+.dark .line-number {
+  color: #6b6b6b;
+}
+
+.code-content-wrapper {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+.dark .code-content-wrapper {
+  background: #1e1e1e;
+}
+
+.content-area {
+  min-width: 100%;
+  width: max-content;
+}
+
+.line-row {
+  display: flex;
+  height: 24px;
+  line-height: 24px;
+  white-space: pre;
+  cursor: text;
+}
+
+.line-row.match {
+  background: #fff3cd;
+}
+.dark .line-row.match {
+  background: #665c00;
+}
+
+.line-row:hover {
+  background: #f5f7fa;
+}
+.dark .line-row:hover {
+  background: #3d3d3d;
+}
+
+.line-content {
+  flex: 1;
+  margin-left: 8px;
+  cursor: text;
+  user-select: text;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+  font-size: 14px;
   color: #303133;
 }
-.search-line-content:hover {
-  color: #409eff;
-  text-decoration: underline;
-}
-.dark .search-line-content {
+.dark .line-content {
   color: #e0e0e0;
-}
-.dark .search-line-content:hover {
-  color: #64b5f6;
 }
 
 mark {
   background: #ffeb3b;
   padding: 0 2px;
+  border-radius: 2px;
 }
 .dark mark {
   background: #ff9800;
   color: #000;
-}
-
-:deep(.el-overlay) {
-  background: rgba(255, 255, 255, 0.7);
-}
-.dark :deep(.el-overlay) {
-  background: rgba(0, 0, 0, 0.7);
 }
 </style>

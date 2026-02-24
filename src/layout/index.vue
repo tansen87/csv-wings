@@ -49,6 +49,7 @@ const handleMouseDown = e => {
     e.target.closest(".el-input__inner") ||
     e.target.closest(".scrollbar-wrapper") ||
     e.target.closest(".validation-panel") ||
+    e.target.closest(".main-content") ||
     e.target.closest(".line-number") ||
     e.target.closest(".line-content")
   ) {
