@@ -101,15 +101,14 @@ async function loadExcelSheets() {
 
     backendInfo.value = "Sheet detection completed";
     backendCompleted.value = true;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
-    closeAllMessage();
+  } catch (e) {
+    message(`loadExcelSheets failed: ${e}`, { type: "error" });
   } finally {
     closeAllMessage();
   }
 }
 
-async function selectFile() {
+async function openFile() {
   fileSelect.value = [];
   fileSheet.value = [];
   mapSheets.value = null;
@@ -139,9 +138,8 @@ async function selectFile() {
     } else {
       backendCompleted.value = true;
     }
-  } catch (err) {
-    closeAllMessage();
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    message(`failed to open file: ${e}`, { type: "error" });
   }
 }
 
@@ -163,7 +161,7 @@ watch(
   }
 );
 
-async function concatData() {
+async function run() {
   if (path.value === "") {
     message("No files selected", { type: "warning" });
     return;
@@ -206,8 +204,8 @@ async function concatData() {
 
     backendInfo.value = `Merge completed in ${rtime}s`;
     message(backendInfo.value, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    message(`cat failed: ${e}`, { type: "error" });
   } finally {
     isLoading.value = false;
   }
@@ -218,8 +216,8 @@ const removeFile = index => {
 };
 
 useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => concatData(),
+  onOpenFile: () => openFile(),
+  onRun: () => run(),
   onHelp: () => {
     dialog.value = !dialog.value;
   }
@@ -261,11 +259,11 @@ onUnmounted(() => {
       </div>
 
       <div>
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+        <SiliconeButton @click="openFile()" :loading="isLoading" text>
           Open File(s)
         </SiliconeButton>
 
-        <SiliconeButton @click="concatData()" :loading="isLoading" text>
+        <SiliconeButton @click="run()" :loading="isLoading" text>
           Run
         </SiliconeButton>
       </div>

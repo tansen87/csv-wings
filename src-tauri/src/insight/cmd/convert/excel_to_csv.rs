@@ -183,6 +183,22 @@ pub async fn get_all_sheetnames<P: AsRef<Path>>(path: P) -> HashSet<String> {
   sheetnames
 }
 
+/// 检查文件扩展名是否在允许的Excel/ODS列表中
+fn is_excel_file(path: &str) -> bool {
+  let path_obj = Path::new(path);
+  // 获取扩展名并转为小写进行比较
+  match path_obj.extension().and_then(OsStr::to_str) {
+    Some(ext) => {
+      let ext_lower = ext.to_lowercase();
+      matches!(
+        ext_lower.as_str(),
+        "xlsx" | "xls" | "xlsb" | "xlsm" | "xla" | "xlam" | "ods"
+      )
+    }
+    None => false,
+  }
+}
+
 #[tauri::command]
 pub async fn map_excel_sheets(
   path: String,
@@ -195,20 +211,25 @@ pub async fn map_excel_sheets(
     return (map_sheets, errors);
   }
 
-  for file in paths.iter() {
-    let filename = Path::new(file)
+  for file_path in paths.iter() {
+    if !is_excel_file(file_path) {
+      continue;
+    }
+
+    let filename = Path::new(file_path)
       .file_name()
       .unwrap_or_else(|| OsStr::new(""))
       .to_str()
       .unwrap_or("")
       .to_string();
-    match calamine::open_workbook_auto(file).map_err(|e| e.to_string()) {
+
+    match calamine::open_workbook_auto(file_path) {
       Ok(workbook) => {
         let sheets = workbook.sheet_names();
         map_sheets.insert(filename, sheets);
       }
-      Err(err) => {
-        errors.insert(filename, format!("get sheets error|{}", err));
+      Err(e) => {
+        errors.insert(filename, format!("get sheets error|{}", e));
       }
     }
   }
