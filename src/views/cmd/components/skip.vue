@@ -305,6 +305,7 @@ onUnmounted(() => {
                     <Icon
                       v-if="row.status === 'loading'"
                       icon="ri:loader-4-line"
+                      class="table-loading"
                     />
                     <Icon
                       v-else-if="row.status === 'success'"
@@ -318,11 +319,7 @@ onUnmounted(() => {
                 </template>
               </el-table-column>
 
-              <el-table-column
-                prop="message"
-                label="Message / Progress"
-                min-width="200"
-              >
+              <el-table-column prop="message" label="Message" min-width="200">
                 <template #default="{ row }">
                   <div v-if="row.status === 'error'">
                     {{ row.message }}
@@ -358,3 +355,18 @@ onUnmounted(() => {
     </SiliconeDialog>
   </el-form>
 </template>
+
+<style>
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.table-loading {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+</style>

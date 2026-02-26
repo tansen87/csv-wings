@@ -228,10 +228,7 @@ onUnmounted(() => {
             <el-table-column prop="status" label="Status" width="70">
               <template #default="scope">
                 <div class="flex items-center gap-2">
-                  <ElIcon
-                    v-if="scope.row.status === ''"
-                    class="is-loading text-blue-500"
-                  >
+                  <ElIcon v-if="scope.row.status === ''" class="is-loading">
                     <Loading />
                   </ElIcon>
                   <ElIcon v-else-if="scope.row.status === 'success'">
@@ -258,7 +255,6 @@ onUnmounted(() => {
                 >
                   {{ scope.row.message }}
                 </span>
-                <span v-else class="text-xs text-gray-400"> - </span>
               </template>
             </el-table-column>
 

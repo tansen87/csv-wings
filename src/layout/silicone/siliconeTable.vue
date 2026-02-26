@@ -1,5 +1,10 @@
 <template>
-  <el-table class="silicone-table" v-bind="$attrs" tooltip-effect="light">
+  <el-table
+    class="silicone-table"
+    v-bind="$attrs"
+    tooltip-effect="light"
+    show-overflow-tooltip
+  >
     <slot />
   </el-table>
 </template>

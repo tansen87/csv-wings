@@ -706,7 +706,10 @@ onUnmounted(() => {
             >
               <template #default="scope">
                 <div class="flex items-center">
-                  <ElIcon v-if="scope.row.status === 'loading'">
+                  <ElIcon
+                    v-if="scope.row.status === 'loading'"
+                    class="is-loading"
+                  >
                     <Loading />
                   </ElIcon>
                   <ElIcon v-else-if="scope.row.status === 'success'">
