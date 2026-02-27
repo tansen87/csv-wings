@@ -10,14 +10,8 @@ import { mdApply, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 import { useShortcuts } from "@/utils/globalShortcut";
 
-const [
-  isLoading,
-  checkAll,
-  indeterminate,
-  newColumn,
-  dialog,
-  backendCompleted
-] = [ref(false), ref(false), ref(false), ref(false), ref(false), ref(false)];
+const [loading, checkAll, indeterminate, newColumn, dialog, backendCompleted] =
+  [ref(false), ref(false), ref(false), ref(false), ref(false), ref(false)];
 const [operations, tableHeader, tableColumn, tableData] = [
   ref([]),
   ref([]),
@@ -110,7 +104,7 @@ async function applyData() {
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
     const result: string = await invoke("apply", {
       path: path.value,
       columns: finalColumns.join("|"),
@@ -130,7 +124,7 @@ async function applyData() {
   } catch (err) {
     message(err.toString(), { type: "error" });
   }
-  isLoading.value = false;
+  loading.value = false;
 }
 
 function addNewColumn() {
@@ -191,10 +185,10 @@ onUnmounted(() => {
       </div>
 
       <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
+        <SiliconeButton @click="selectFile()" :loading="loading" text>
           Open File
         </SiliconeButton>
-        <SiliconeButton @click="applyData()" :loading="isLoading" text>
+        <SiliconeButton @click="applyData()" :loading="loading" text>
           Run
         </SiliconeButton>
       </div>
@@ -204,15 +198,7 @@ onUnmounted(() => {
       <aside
         class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
       >
-        <SiliconeTag
-          @click="addNewColumn"
-          :disabled="mode === 'cat' || mode === 'calcconv'"
-          text
-        >
-          {{ columnContent }}
-        </SiliconeTag>
-
-        <div class="mb-3 mt-3">
+        <div class="flex-shrink-0">
           <label
             class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
@@ -229,129 +215,144 @@ onUnmounted(() => {
               {{ item.label }}
             </div>
           </div>
+
+          <SiliconeTag
+            @click="addNewColumn"
+            :disabled="mode === 'cat' || mode === 'calcconv'"
+            text
+            class="mb-3 mt-3 w-full"
+          >
+            {{ columnContent }}
+          </SiliconeTag>
         </div>
 
-        <template v-if="mode === 'operations'">
-          <div class="mb-3">
-            <label
-              class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-            >
-              COLUMNS
-            </label>
-            <SiliconeSelect
-              v-model="columns"
-              filterable
-              multiple
-              placeholder="Select column(s)"
-            >
-              <template #header>
-                <div class="flex items-center justify-between px-2 py-1">
-                  <el-checkbox
-                    v-model="checkAll"
-                    :indeterminate="indeterminate"
-                    @change="handleCheckAll"
-                  >
-                    All
-                  </el-checkbox>
-                  <span class="text-xs text-gray-400">
-                    {{ columns.length }} selected
-                  </span>
-                </div>
-              </template>
-              <el-option
-                v-for="item in tableHeader"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </SiliconeSelect>
-          </div>
-
-          <div class="mb-3">
-            <label
-              class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-            >
-              OPERATIONS ({{ operations.length }})
-            </label>
-            <SiliconeSelect
-              v-model="operations"
-              filterable
-              multiple
-              placeholder="Select operations"
-            >
-              <el-option label="Copy" value="copy" />
-              <el-option label="Len" value="len" />
-              <el-option label="Lower" value="lower" />
-              <el-option label="Upper" value="upper" />
-              <el-option label="Trim" value="trim" />
-              <el-option label="Ltrim" value="ltrim" />
-              <el-option label="Rtrim" value="rtrim" />
-              <el-option label="Replace" value="replace" />
-              <el-option label="Round" value="round" />
-              <el-option label="Squeeze" value="squeeze" />
-              <el-option label="Strip" value="strip" />
-              <el-option label="Reverse" value="reverse" />
-              <el-option label="Abs" value="abs" />
-              <el-option label="Neg" value="neg" />
-              <el-option label="Normalize" value="normalize" />
-            </SiliconeSelect>
-          </div>
-
-          <template v-if="operations.includes('replace')">
-            <div
-              class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
+        <el-scrollbar class="flex-1 overflow-y-auto min-h-0 pr-1 -mr-1">
+          <template v-if="mode === 'operations'">
+            <div class="mb-3">
               <label
-                class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
+                class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
               >
-                REPLACE OPTIONS
+                COLUMNS
               </label>
-              <div class="space-y-2">
-                <SiliconeInput
-                  v-model="comparand"
-                  placeholder="Find (old)"
-                  size="small"
+              <SiliconeSelect
+                v-model="columns"
+                filterable
+                multiple
+                placeholder="Select column(s)"
+              >
+                <template #header>
+                  <div class="flex items-center justify-between px-2 py-1">
+                    <el-checkbox
+                      v-model="checkAll"
+                      :indeterminate="indeterminate"
+                      @change="handleCheckAll"
+                    >
+                      All
+                    </el-checkbox>
+                    <span class="text-xs text-gray-400">
+                      {{ columns.length }} selected
+                    </span>
+                  </div>
+                </template>
+                <el-option
+                  v-for="item in tableHeader"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
                 />
-                <SiliconeInput
-                  v-model="replacement"
-                  placeholder="Replace with (new)"
-                  size="small"
-                />
+              </SiliconeSelect>
+            </div>
+
+            <div class="mb-3">
+              <label
+                class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+              >
+                OPERATIONS ({{ operations.length }})
+              </label>
+              <SiliconeSelect
+                v-model="operations"
+                filterable
+                multiple
+                placeholder="Select operations"
+              >
+                <el-option label="Copy" value="copy" />
+                <el-option label="Len" value="len" />
+                <el-option label="Lower" value="lower" />
+                <el-option label="Upper" value="upper" />
+                <el-option label="Trim" value="trim" />
+                <el-option label="Ltrim" value="ltrim" />
+                <el-option label="Rtrim" value="rtrim" />
+                <el-option label="Replace" value="replace" />
+                <el-option label="Round" value="round" />
+                <el-option label="Squeeze" value="squeeze" />
+                <el-option label="Strip" value="strip" />
+                <el-option label="Reverse" value="reverse" />
+                <el-option label="Abs" value="abs" />
+                <el-option label="Neg" value="neg" />
+                <el-option label="Normalize" value="normalize" />
+              </SiliconeSelect>
+            </div>
+
+            <template v-if="operations.includes('replace')">
+              <div
+                class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+              >
+                <label
+                  class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
+                >
+                  REPLACE OPTIONS
+                </label>
+                <div class="space-y-2">
+                  <SiliconeInput
+                    v-model="comparand"
+                    placeholder="Find (old)"
+                    size="small"
+                  />
+                  <SiliconeInput
+                    v-model="replacement"
+                    placeholder="Replace with (new)"
+                    size="small"
+                  />
+                </div>
               </div>
+            </template>
+          </template>
+
+          <template v-if="['cat', 'calcconv'].includes(mode)">
+            <div class="flex flex-col min-h-0">
+              <label
+                class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
+              >
+                FORMULA / FORMAT
+              </label>
+              <SiliconeInput
+                v-model="formatstr"
+                :autosize="{ minRows: 10, maxRows: 10 }"
+                type="textarea"
+                :placeholder="placeholderText"
+              />
             </div>
           </template>
-        </template>
 
-        <template v-if="['cat', 'calcconv'].includes(mode)">
-          <div class="flex-1 flex flex-col min-h-0">
-            <label
-              class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-            >
-              FORMULA / FORMAT
-            </label>
-            <SiliconeInput
-              v-model="formatstr"
-              :autosize="{ minRows: 10, maxRows: 12 }"
-              type="textarea"
-              :placeholder="placeholderText"
-              class="flex-1 font-mono text-sm"
-            />
+          <div
+            v-if="backendCompleted"
+            class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+          >
+            <div class="flex items-center gap-2">
+              <Icon
+                icon="ri:check-circle-line"
+                class="w-4 h-4 text-green-500"
+              />
+              <span class="text-xs text-green-700 dark:text-green-300">
+                {{ backendInfo }}
+              </span>
+            </div>
           </div>
-        </template>
+        </el-scrollbar>
 
         <div
-          v-if="backendCompleted"
-          class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+          class="flex-shrink-0 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700"
         >
-          <div class="flex items-center gap-2">
-            <Icon icon="ri:check-circle-line" class="w-4 h-4 text-green-500" />
-            <span class="text-xs text-green-700 dark:text-green-300">
-              {{ backendInfo }}
-            </span>
-          </div>
-        </div>
-
-        <div class="mt-auto pt-4">
           <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
             STATISTICS
           </div>
@@ -391,22 +392,6 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <Icon icon="ri:function-line" class="w-6 h-6 text-purple-500" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    TODO
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
               </div>
             </div>
           </div>
