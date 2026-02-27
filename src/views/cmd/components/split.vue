@@ -138,14 +138,12 @@ onUnmounted(() => {
           >
             SPLIT SIZE
           </label>
-          <SiliconeTooltip content="Number of rows per file" placement="right">
-            <SiliconeInput
-              v-model="size"
-              :min="1"
-              placeholder="Enter split size"
-              type="number"
-            />
-          </SiliconeTooltip>
+          <SiliconeInputNumber
+            v-model="size"
+            :min="1"
+            placeholder="Enter split size"
+            style="width: 100%"
+          />
           <p class="mt-1 text-[12px] text-gray-400">
             Each output file will contain this many rows
           </p>

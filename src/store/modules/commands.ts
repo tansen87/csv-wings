@@ -73,7 +73,7 @@ export const useCommandStore = defineStore("command", {
       },
       {
         title: "Split",
-        icon: "ri:split-cells-horizontal",
+        icon: "ri:scissors-cut-line",
         description: "Split one CSV file into many CSV files",
         route: "/cmd/components/split"
       },

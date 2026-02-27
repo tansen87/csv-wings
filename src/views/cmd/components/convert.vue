@@ -26,7 +26,7 @@ import { useShortcuts } from "@/utils/globalShortcut";
 
 const [activeTab, chunksize, csvMode, quote, quoteStyle] = [
   ref("excel"),
-  ref("700000"),
+  ref("1000000"),
   ref("one"),
   ref('"'),
   ref("necessary")
