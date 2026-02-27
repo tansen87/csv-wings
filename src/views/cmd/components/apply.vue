@@ -7,12 +7,7 @@ import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { message } from "@/utils/message";
 import { CheckboxValueType } from "element-plus";
 import { mdApply, useMarkdown } from "@/utils/markdown";
-import {
-  useFlexible,
-  useQuoting,
-  useSkiprows,
-  useThreads
-} from "@/store/modules/options";
+import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 import { useShortcuts } from "@/utils/globalShortcut";
 
 const [
@@ -69,7 +64,6 @@ const { mdShow } = useMarkdown(mdApply);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
 const flexible = useFlexible();
-const threads = useThreads();
 
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
@@ -128,8 +122,7 @@ async function applyData() {
       newColumn: newColumn.value,
       quoting: quoting.quoting,
       skiprows: skiprows.skiprows,
-      flexible: flexible.flexible,
-      threads: threads.threads
+      flexible: flexible.flexible
     });
     backendCompleted.value = true;
     backendInfo.value = `Apply done, elapsed time: ${result} s`;
