@@ -115,11 +115,7 @@ onUnmounted(() => {
             EXPECTED COLUMNS
           </label>
           <SiliconeTooltip content="Expected number of columns">
-            <SiliconeInput
-              v-model="expectedColumns"
-              placeholder="e.g. 5"
-              type="number"
-            >
+            <SiliconeInput v-model="expectedColumns" placeholder="e.g. 5">
               <template #prefix>
                 <Icon icon="ri:hashtag" class="w-4 h-4 text-gray-400" />
               </template>

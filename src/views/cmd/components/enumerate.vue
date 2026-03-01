@@ -246,27 +246,6 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-
-            <div
-              class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-green-600 dark:text-green-400"
-                  >
-                    {{ (tableColumn?.length || 0) + 1 }}
-                  </div>
-                  <div class="text-[12px] text-green-600 dark:text-green-400">
-                    After Enumerate
-                  </div>
-                </div>
-                <Icon
-                  icon="ri:add-circle-line"
-                  class="w-6 h-6 text-green-500"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </aside>

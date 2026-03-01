@@ -210,42 +210,6 @@ onUnmounted(() => {
 
           <div class="space-y-2">
             <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ columns.length }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Selected Columns
-                  </div>
-                </div>
-                <Icon icon="ri:translate-2" class="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-purple-600 dark:text-purple-400"
-                  >
-                    {{ pinyinStyle }}
-                  </div>
-                  <div class="text-[12px] text-purple-600 dark:text-purple-400">
-                    Output Style
-                  </div>
-                </div>
-                <Icon icon="ri:font-size" class="w-6 h-6 text-purple-500" />
-              </div>
-            </div>
-
-            <div
               class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
             >
               <div class="flex items-center justify-between">

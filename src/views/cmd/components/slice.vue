@@ -144,19 +144,31 @@ onUnmounted(() => {
           </label>
 
           <div class="space-y-2">
-            <SiliconeTooltip
-              content="The index of the row to slice from"
-              placement="right"
-            >
-              <SiliconeInput v-model="start" placeholder="Start (e.g. 0)" />
-            </SiliconeTooltip>
+            <div class="flex items-center gap-2">
+              <span
+                class="text-sm text-gray-600 dark:text-gray-300 w-12 shrink-0"
+              >
+                Start
+              </span>
+              <SiliconeInput
+                v-model="start"
+                placeholder="Start (e.g. 0)"
+                class="flex-1"
+              />
+            </div>
 
-            <SiliconeTooltip
-              content="The index of the row to slice to"
-              placement="right"
-            >
-              <SiliconeInput v-model="end" placeholder="End (e.g. 100)" />
-            </SiliconeTooltip>
+            <div class="flex items-center gap-2">
+              <span
+                class="text-sm text-gray-600 dark:text-gray-300 w-12 shrink-0"
+              >
+                End
+              </span>
+              <SiliconeInput
+                v-model="end"
+                placeholder="End (e.g. 100)"
+                class="flex-1"
+              />
+            </div>
           </div>
         </div>
 
@@ -210,48 +222,6 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-green-600 dark:text-green-400"
-                  >
-                    {{ start || 0 }}
-                  </div>
-                  <div class="text-[12px] text-green-600 dark:text-green-400">
-                    Start Index
-                  </div>
-                </div>
-                <Icon
-                  icon="ri:arrow-right-down-line"
-                  class="w-6 h-6 text-green-500"
-                />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-purple-600 dark:text-purple-400"
-                  >
-                    {{ end }}
-                  </div>
-                  <div class="text-[12px] text-purple-600 dark:text-purple-400">
-                    End Index
-                  </div>
-                </div>
-                <Icon
-                  icon="ri:arrow-left-up-line"
-                  class="w-6 h-6 text-purple-500"
-                />
               </div>
             </div>
           </div>

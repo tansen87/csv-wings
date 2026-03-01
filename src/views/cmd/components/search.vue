@@ -249,7 +249,7 @@ onUnmounted(() => {
               </label>
               <SiliconeInput
                 v-model="condition"
-                :autosize="{ minRows: 4, maxRows: 4 }"
+                :autosize="{ minRows: 6, maxRows: 6 }"
                 type="textarea"
                 :placeholder="placeholderText"
               />
@@ -257,7 +257,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <el-scrollbar min-size="1" class="mt-auto overflow-y-auto">
+        <el-scrollbar class="mt-auto overflow-y-auto">
           <div
             class="flex items-center justify-between cursor-pointer mb-3"
             @click="statisticsCollapsed = !statisticsCollapsed"

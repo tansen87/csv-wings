@@ -232,7 +232,7 @@ onUnmounted(() => {
               <label
                 class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
               >
-                COLUMNS
+                COLUMNS ({{ columns.length }})
               </label>
               <SiliconeSelect
                 v-model="columns"
@@ -368,53 +368,6 @@ onUnmounted(() => {
             </div>
           </div>
         </el-scrollbar>
-
-        <div
-          class="flex-shrink-0 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700"
-        >
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
-
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ columns.length }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Columns
-                  </div>
-                </div>
-                <Icon icon="ri:table-line" class="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-
-            <div
-              v-if="mode === 'operations'"
-              class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-purple-600 dark:text-purple-400"
-                  >
-                    {{ operations.length }}
-                  </div>
-                  <div class="text-[12px] text-purple-600 dark:text-purple-400">
-                    Operations
-                  </div>
-                </div>
-                <Icon icon="ri:function-line" class="w-6 h-6 text-purple-500" />
-              </div>
-            </div>
-          </div>
-        </div>
       </aside>
 
       <div

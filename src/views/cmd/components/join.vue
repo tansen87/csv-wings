@@ -25,7 +25,7 @@ const [
   tableData2
 ] = [ref([]), ref([]), ref([]), ref([]), ref([]), ref([])];
 const data = reactive({ path1: "", path2: "" });
-const { dynamicHeight } = useDynamicHeight(36);
+const { dynamicHeight } = useDynamicHeight(50);
 const { mdShow } = useMarkdown(mdJoin);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
@@ -126,7 +126,6 @@ onUnmounted(() => {
       </div>
 
       <div class="flex items-center gap-2">
-        <SiliconeButton @click="dialog = true" text> Help </SiliconeButton>
         <SiliconeButton @click="joinData()" :loading="isLoading" text>
           Run
         </SiliconeButton>

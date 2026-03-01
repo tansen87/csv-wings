@@ -225,49 +225,12 @@ onUnmounted(() => {
           </SiliconeSelect>
         </div>
 
-        <div class="mt-auto">
+        <div class="mt-auto" v-if="totalRows > 0">
           <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
             STATISTICS
           </div>
 
           <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ originalColumns.length }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Columns
-                  </div>
-                </div>
-                <Icon icon="ri:table-line" class="w-6 h-6 text-gray-400" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ selColumns.length }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Selected Columns
-                  </div>
-                </div>
-                <Icon
-                  icon="ri:checkbox-multiple-line"
-                  class="w-6 h-6 text-blue-500"
-                />
-              </div>
-            </div>
-
             <div
               class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
             >

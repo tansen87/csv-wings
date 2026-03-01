@@ -97,7 +97,7 @@ export const useCommandStore = defineStore("command", {
       },
       {
         title: "Pinyin",
-        icon: "ri:pinyin-input",
+        icon: "ri:translate-2",
         description: "Convert Chinese to Pinyin for specific column in CSV",
         route: "/cmd/components/pinyin"
       },

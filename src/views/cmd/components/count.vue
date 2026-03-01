@@ -156,7 +156,7 @@ onUnmounted(() => {
           Open File(s)
         </SiliconeButton>
         <SiliconeButton @click="countData()" :loading="isLoading" text>
-          {{ mode === "count" ? "Count" : "Check" }}
+          Run
         </SiliconeButton>
       </div>
     </header>

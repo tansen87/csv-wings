@@ -178,27 +178,6 @@ onUnmounted(() => {
 
           <div class="space-y-2">
             <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ skipRows || 0 }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Skip Rows
-                  </div>
-                </div>
-                <Icon
-                  icon="ri:skip-forward-line"
-                  class="w-6 h-6 text-blue-500"
-                />
-              </div>
-            </div>
-
-            <div
               class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
             >
               <div class="flex items-center justify-between">
