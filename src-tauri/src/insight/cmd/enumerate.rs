@@ -23,6 +23,9 @@ pub async fn enumerate_index<E, P>(
   quoting: bool,
   skiprows: usize,
   flexible: bool,
+  name: String,
+  start: String,
+  step: String,
   emitter: E,
 ) -> Result<()>
 where
@@ -55,7 +58,7 @@ where
   let mut wtr = config.build_writer(&output_path)?;
 
   let headers = rdr.headers()?;
-  let mut new_headers = vec![String::from("enumerate_idx")];
+  let mut new_headers = vec![name];
   new_headers.extend(headers.into_iter().map(String::from));
   wtr.write_record(&new_headers)?;
 
@@ -93,12 +96,10 @@ where
   let counter_task = tokio::task::spawn_blocking(move || {
     let mut record = ByteRecord::new();
     while rdr.read_byte_record(&mut record)? {
-      let i = {
-        let count = rows.fetch_add(1, Ordering::Relaxed);
-        count
-      };
+      let i = rows.fetch_add(1, Ordering::Relaxed);
 
-      let mut new_record = vec![i.to_string()];
+      let enum_value = start.parse::<usize>()? + i * step.parse::<usize>()?;
+      let mut new_record = vec![enum_value.to_string()];
       new_record.extend(
         record
           .iter()
@@ -128,11 +129,18 @@ pub async fn enumer(
   quoting: bool,
   skiprows: usize,
   flexible: bool,
+  name: String,
+  start: String,
+  step: String,
   app_handle: AppHandle,
 ) -> Result<String, String> {
   let start_time = Instant::now();
 
-  match enumerate_index(path, progress, quoting, skiprows, flexible, app_handle).await {
+  match enumerate_index(
+    path, progress, quoting, skiprows, flexible, name, start, step, app_handle,
+  )
+  .await
+  {
     Ok(_) => {
       let end_time = Instant::now();
       let elapsed_time = end_time.duration_since(start_time).as_secs_f64();

@@ -20,6 +20,9 @@ const path = ref("");
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [dialog, isLoading] = [ref(false), ref(false)];
 const [tableColumn, tableData] = [ref([]), ref([])];
+const name = ref("row_number");
+const [start, step] = [ref("0"), ref("1")];
+
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdEnumer);
 const quoting = useQuoting();
@@ -61,6 +64,14 @@ async function enumerate() {
     message("File not selected", { type: "warning" });
     return;
   }
+  if (parseInt(start.value) < 0) {
+    message("start must be greater than 0", { type: "warning" });
+    return;
+  }
+  if (parseInt(step.value) < 1) {
+    message("step must be greater than 1", { type: "warning" });
+    return;
+  }
 
   try {
     isLoading.value = true;
@@ -69,7 +80,10 @@ async function enumerate() {
       progress: progress.progress,
       quoting: quoting.quoting,
       skiprows: skiprows.skiprows,
-      flexible: flexible.flexible
+      flexible: flexible.flexible,
+      name: name.value,
+      start: start.value,
+      step: step.value
     });
     message(`Enumerate done, elapsed time: ${rtime} s`, { type: "success" });
   } catch (err) {
@@ -131,18 +145,18 @@ onUnmounted(() => {
           <label
             class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
-            TODO: COLUMN NAME
+            COLUMN NAME
           </label>
-          <SiliconeInput v-model="columnName" placeholder="TODO" />
+          <SiliconeInput v-model="name" placeholder="column name" />
         </div>
 
         <div class="mb-4">
           <label
             class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
-            TODO: START VALUE
+            START
           </label>
-          <SiliconeInput v-model="startValue" placeholder="TODO" />
+          <SiliconeInput v-model="start" placeholder="start" />
           <p class="mt-1 text-[10px] text-gray-400">
             The first row will have this value
           </p>
@@ -152,9 +166,9 @@ onUnmounted(() => {
           <label
             class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
-            TODO: STEP VALUE
+            STEP
           </label>
-          <SiliconeInput v-model="stepValue" placeholder="TODO" />
+          <SiliconeInput v-model="step" placeholder="step" />
           <p class="mt-1 text-[10px] text-gray-400">
             Increment value for each row
           </p>
@@ -171,29 +185,21 @@ onUnmounted(() => {
           <div
             class="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300"
           >
-            <span
-              class="font-mono bg-white dark:bg-gray-700 px-2 py-1 rounded"
-              >{{ columnName || "row" }}</span
-            >
+            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
+              {{ name || "row_number" }}
+            </span>
             <span>=</span>
-            <span
-              class="font-mono bg-white dark:bg-gray-700 px-2 py-1 rounded"
-              >{{ parseInt(startValue) || 1 }}</span
-            >
-            <span>, </span>
-            <span
-              class="font-mono bg-white dark:bg-gray-700 px-2 py-1 rounded"
-              >{{
-                (parseInt(startValue) || 1) + (parseInt(stepValue) || 1)
-              }}</span
-            >
-            <span>, </span>
-            <span
-              class="font-mono bg-white dark:bg-gray-700 px-2 py-1 rounded"
-              >{{
-                (parseInt(startValue) || 1) + 2 * (parseInt(stepValue) || 1)
-              }}</span
-            >
+            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
+              {{ parseInt(start) || 0 }}
+            </span>
+            <span>,</span>
+            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
+              {{ (parseInt(start) || 0) + (parseInt(step) || 1) }}
+            </span>
+            <span>,</span>
+            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
+              {{ (parseInt(start) || 0) + 2 * (parseInt(step) || 1) }}
+            </span>
           </div>
         </div>
 
@@ -272,9 +278,7 @@ onUnmounted(() => {
                 class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
               >
                 <Icon icon="ri:sort-number-asc" class="w-3.5 h-3.5" />
-                {{ columnName || "row_number" }}: {{ startValue || 1 }} +{{
-                  stepValue || 1
-                }}
+                {{ name || "row_number" }}: {{ start || 0 }} + {{ step || 1 }}
               </span>
             </div>
           </div>

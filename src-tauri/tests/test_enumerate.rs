@@ -23,6 +23,9 @@ async fn test_enumerate() -> anyhow::Result<()> {
     true,
     1,
     false,
+    "enumerate_idx".to_string(),
+    "0".to_string(),
+    "1".to_string(),
     insight::utils::MockEmitter::default(),
   )
   .await?;
