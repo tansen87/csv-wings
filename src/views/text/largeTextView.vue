@@ -40,6 +40,7 @@ const loading = ref(false);
 const showReplaceDialog = ref(false);
 const showFindDialog = ref(false);
 const showGotoDialog = ref(false);
+const isLoadingLines = ref(false);
 
 const encoding = useEncoding();
 const route = useRoute();
@@ -64,16 +65,21 @@ async function openFileDialog() {
 
 async function loadLines(start: number, count: number) {
   if (!fileInfo.value) return;
-  const lines = await getFileContent({
-    path: fileInfo.value.path,
-    start_line: start,
-    end_line: start + count,
-    encoding: undefined
-  });
-  visibleLines.value = lines.map((content, i) => ({
-    number: start + i + 1,
-    content
-  }));
+  isLoadingLines.value = true;
+  try {
+    const lines = await getFileContent({
+      path: fileInfo.value.path,
+      start_line: start,
+      end_line: start + count,
+      encoding: undefined
+    });
+    visibleLines.value = lines.map((content, i) => ({
+      number: start + i + 1,
+      content
+    }));
+  } finally {
+    isLoadingLines.value = false;
+  }
 }
 
 async function loadFileFromPath(path: string) {
@@ -183,11 +189,21 @@ async function searchAllFile() {
   }
 }
 
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // 高亮匹配文本
 function highlightMatch(content: string) {
-  if (!searchQuery.value) return content;
+  if (!searchQuery.value) return escapeHtml(content);
   try {
     let regex: RegExp;
+    const escapedContent = escapeHtml(content);
     if (useRegex.value) {
       // 用户输入就是正则,加上全局和大小写标志
       const flags = "g" + (caseSensitive.value ? "" : "i");
@@ -198,11 +214,11 @@ function highlightMatch(content: string) {
       const flags = "g" + (caseSensitive.value ? "" : "i");
       regex = new RegExp(`(${escaped})`, flags);
     }
-    return content.replace(regex, "<mark>$1</mark>");
+    return escapedContent.replace(regex, "<mark>$1</mark>");
   } catch (e) {
     // 正则无效时,不高亮
-    message(`highlightMatch falied: ${e}`);
-    return content;
+    message(`highlightMatch failed: ${e}`);
+    return escapeHtml(content);
   }
 }
 
@@ -349,16 +365,20 @@ onMounted(async () => {
   } catch (e) {
     message(`cleanupSessions failed: ${e}`, { type: "warning" });
   }
-
+  let hasLoaded = false;
   // 先查询是否有待打开的文件(防止事件丢失)
   try {
     const pendingPath = await invoke<string | null>("get_pending_file_path");
     if (pendingPath) {
       await loadFileFromPath(pendingPath);
-      return;
+      hasLoaded = true;
     }
   } catch (e) {
-    message(`open-text-file failed: ${e}`, { type: "error" });
+    message(`get_pending_file_path failed: ${e}`, { type: "error" });
+  }
+
+  if (!hasLoaded && route.query.file) {
+    await loadFileFromPath(route.query.file as string);
   }
 
   // 监听Rust发送的文件打开事件
