@@ -316,6 +316,25 @@ onUnmounted(() => {
                 </div>
               </div>
             </template>
+
+            <template v-if="operations.includes('round')">
+              <div
+                class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+              >
+                <label
+                  class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
+                >
+                  ROUND OPTIONS
+                </label>
+                <div class="space-y-2">
+                  <SiliconeInput
+                    v-model="formatstr"
+                    placeholder="round place"
+                    size="small"
+                  />
+                </div>
+              </div>
+            </template>
           </template>
 
           <template v-if="['cat', 'calcconv'].includes(mode)">

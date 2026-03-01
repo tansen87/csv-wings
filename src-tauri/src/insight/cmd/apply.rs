@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Neg, path::Path, sync::OnceLock, time::Instant};
+use std::{collections::HashMap, ops::Neg, path::Path, time::Instant};
 
 use anyhow::{Result, anyhow};
 use cpc::{eval, units::Unit};
@@ -23,8 +23,6 @@ macro_rules! regex_oncelock {
     RE.get_or_init(|| regex::Regex::new($re).expect("Invalid regex"))
   }};
 }
-
-static ROUND_PLACES: OnceLock<u32> = OnceLock::new();
 
 #[derive(Clone, PartialEq)]
 enum Operations {
@@ -105,29 +103,20 @@ fn round_num(dec_f64: f64, places: u32) -> String {
 }
 
 fn validate_operations(
-  operations: &Vec<&str>,
+  operations: &[&str],
   comparand: &str,
   new_column: Option<&String>,
   formatstr: &str,
-) -> Result<SmallVec<[Operations; 4]>> {
+) -> Result<(SmallVec<[Operations; 4]>, Option<u32>)> {
   let mut ops_vec = SmallVec::with_capacity(operations.len());
+  let mut round_places = None;
 
   for op in operations {
     let operation = Operations::from_str(op)?;
     match operation {
-      Operations::Copy => {
+      Operations::Copy | Operations::Len | Operations::Reverse => {
         if new_column.is_none() {
-          return Err(anyhow!("new_column is required for copy operation."));
-        }
-      }
-      Operations::Len => {
-        if new_column.is_none() {
-          return Err(anyhow!("new_column is required for len operation."));
-        }
-      }
-      Operations::Reverse => {
-        if new_column.is_none() {
-          return Err(anyhow!("new_column is required for reverse operation."));
+          return Err(anyhow!("new_column is required for {} operation.", op));
         }
       }
       Operations::Replace => {
@@ -136,19 +125,14 @@ fn validate_operations(
         }
       }
       Operations::Round => {
-        if ROUND_PLACES
-          .set(formatstr.parse::<u32>().unwrap_or(2))
-          .is_err()
-        {
-          return Err(anyhow!("Cannot initialize Round precision."));
-        };
+        round_places = Some(formatstr.parse::<u32>().unwrap_or(2));
       }
       _ => {}
     }
     ops_vec.push(operation);
   }
 
-  Ok(ops_vec) // no validation errors
+  Ok((ops_vec, round_places))
 }
 
 fn apply_operations(
@@ -156,6 +140,7 @@ fn apply_operations(
   cell: &mut String,
   comparand: &str,
   replacement: &str,
+  round_places: Option<u32>,
 ) {
   for op in ops_vec {
     match op {
@@ -182,17 +167,20 @@ fn apply_operations(
       }
       Operations::Round => {
         if let Ok(num) = cell.parse::<f64>() {
-          // safety: we set ROUND_PLACES in validate_operations()
-          *cell = round_num(num, *ROUND_PLACES.get().unwrap());
+          let places = round_places.unwrap_or(2);
+          *cell = round_num(num, places);
         }
       }
       Operations::Squeeze => {
-        let squeezer: &'static Regex = regex_oncelock!(r"\s+");
-        *cell = squeezer.replace_all(cell, " ").into_owned();
+        let trimmed = cell.trim();
+        if trimmed.is_empty() {
+          cell.clear();
+        } else {
+          *cell = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
+        }
       }
       Operations::Strip => {
-        let striper: &'static Regex = regex_oncelock!(r"[\r\n]+");
-        *cell = striper.replace_all(cell, " ").into_owned();
+        cell.retain(|c| c != '\r' && c != '\n');
       }
       Operations::Normalize => {
         let normalizer: &'static Regex = regex_oncelock!(r"^(\d+(?:\.\d+)?)([+-])$");
@@ -336,16 +324,15 @@ async fn apply_perform<P: AsRef<Path> + Send + Sync>(
     String::new()
   };
 
-  let mut ops_vec = SmallVec::<[Operations; 4]>::new();
+  let (mut ops_vec, mut round_places) = (SmallVec::new(), None);
 
   let apply_cmd = if mode == "operations" {
-    match validate_operations(
-      &operations.split('|').collect(),
-      &comparand,
-      new_column.as_ref(),
-      &formatstr,
-    ) {
-      Ok(operations_vec) => ops_vec = operations_vec,
+    let ops_list: Vec<&str> = operations.split('|').collect();
+    match validate_operations(&ops_list, &comparand, new_column.as_ref(), &formatstr) {
+      Ok((validated_ops, validated_places)) => {
+        ops_vec = validated_ops;
+        round_places = validated_places;
+      }
       Err(e) => return Err(e),
     }
     ApplyCmd::Operations
@@ -385,7 +372,7 @@ async fn apply_perform<P: AsRef<Path> + Send + Sync>(
             let mut cell = String::new();
             for col_index in &*column_index {
               record[*col_index].clone_into(&mut cell);
-              apply_operations(&ops_vec, &mut cell, &comparand, &replacement);
+              apply_operations(&ops_vec, &mut cell, &comparand, &replacement, round_places);
               if new_column.is_some() {
                 record.push_field(&cell);
               } else {
