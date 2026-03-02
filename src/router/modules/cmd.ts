@@ -61,6 +61,15 @@ export default {
       }
     },
     {
+      path: "/cmd/components/dedup",
+      name: "dedup",
+      component: () => import("@/views/cmd/components/dedup.vue"),
+      meta: {
+        title: "dedup",
+        showLink: false
+      }
+    },
+    {
       path: "/cmd/components/rename",
       name: "rename",
       component: () => import("@/views/cmd/components/rename.vue"),

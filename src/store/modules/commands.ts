@@ -30,6 +30,12 @@ export const useCommandStore = defineStore("command", {
         route: "/cmd/components/count"
       },
       {
+        title: "Dedup",
+        icon: "ri:numbers-line",
+        description: "Deduplicate the rows of a CSV file",
+        route: "/cmd/components/dedup"
+      },
+      {
         title: "Convert",
         icon: "ri:exchange-2-line",
         description: "File type conversion",

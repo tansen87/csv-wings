@@ -13,16 +13,23 @@ type _GetField = for<'c> fn(&mut &'c ByteRecord, &usize) -> Option<&'c [u8]>;
 
 impl Selection {
   pub fn from_headers(headers: &ByteRecord, columns: &[&str]) -> Result<Self> {
+    if columns.is_empty() {
+      // select all columns
+      let indices: Vec<usize> = (0..headers.len()).collect();
+      return Ok(Selection { indices });
+    }
+
     let header_map: HashMap<_, _> = headers
       .iter()
       .enumerate()
       .map(|(idx, name)| (String::from_utf8_lossy(name).into_owned(), idx))
       .collect();
+
     let mut indices = Vec::new();
     for &column in columns {
       match header_map.get(column) {
         Some(&index) => indices.push(index),
-        None => return Err(anyhow!("Column '{}' not found in headers.", column).into()),
+        None => return Err(anyhow!("Column '{}' not found in headers.", column)),
       }
     }
 
@@ -35,6 +42,19 @@ impl Selection {
       .iter()
       .filter_map(|&idx| row.get(idx).map(ByteString::from))
       .collect()
+  }
+
+  pub fn get_composite_key(&self, row: &ByteRecord) -> Vec<u8> {
+    let mut key = Vec::new();
+    for (i, &idx) in self.indices.iter().enumerate() {
+      if i > 0 {
+        key.push(b'\0');
+      }
+      if let Some(field) = row.get(idx) {
+        key.extend_from_slice(field);
+      }
+    }
+    key
   }
 
   pub fn get_indices(&self) -> &Vec<usize> {

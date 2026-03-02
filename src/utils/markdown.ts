@@ -11,7 +11,7 @@ const themeMap = {
 
 const loadedThemes = new Set<string>();
 
-function usePrismTheme(isDark: Ref<Boolean>) {
+function usePrismTheme(isDark: Ref<boolean>) {
   const loadTheme = async (themeType: "dark" | "light") => {
     const themePath = themeMap[themeType];
 
@@ -1103,5 +1103,16 @@ sample file
 │ CNY |  2  │ ts   │ 3 |
 └─────┴─────┴──────┴───┘
 \`\`\`
+`;
+}
+
+export function mdDedup() {
+  return `
+Remove duplicate rows from a CSV file...
+
+### Modes
+- **Keep First**: ...
+- **Keep Last**: ...
+- **Keep Duplicates**: ...
 `;
 }
