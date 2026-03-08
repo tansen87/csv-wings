@@ -8,14 +8,14 @@
   >
     <!-- 透传默认插槽 -->
     <slot />
-    <!-- 透传 header 插槽 -->
-    <template #header>
+    <!-- 仅当父组件提供了 header 插槽时才渲染 -->
+    <template v-if="$slots.header" #header>
       <slot name="header" />
     </template>
-    <!-- 透传 footer 插槽 -->
-    <!-- <template #footer>
+    <!-- 仅当父组件提供了 footer 插槽时才渲染 -->
+    <template v-if="$slots.footer" #footer>
       <slot name="footer" />
-    </template> -->
+    </template>
   </el-select>
 </template>
 
