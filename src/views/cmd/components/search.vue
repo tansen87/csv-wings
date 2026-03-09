@@ -190,7 +190,7 @@ onUnmounted(() => {
 
     <main class="flex-1 flex overflow-hidden">
       <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 min-w-[280px]"
+        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 min-w-[280px] h-full"
       >
         <div class="mb-4">
           <div
@@ -212,9 +212,9 @@ onUnmounted(() => {
 
           <div v-show="!conditionsCollapsed" class="space-y-3">
             <div class="flex flex-col gap-1">
-              <label class="text-xs text-gray-500 dark:text-gray-400"
-                >Column</label
-              >
+              <label class="text-xs text-gray-500 dark:text-gray-400">
+                Column
+              </label>
               <SiliconeSelect
                 v-model="column"
                 filterable
@@ -249,7 +249,7 @@ onUnmounted(() => {
               </label>
               <SiliconeInput
                 v-model="condition"
-                :autosize="{ minRows: 6, maxRows: 6 }"
+                :autosize="{ minRows: 12, maxRows: 12 }"
                 type="textarea"
                 :placeholder="placeholderText"
               />
@@ -257,7 +257,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <el-scrollbar class="mt-auto overflow-y-auto">
+        <el-scrollbar class="mt-auto">
           <div
             class="flex items-center justify-between cursor-pointer mb-3"
             @click="statisticsCollapsed = !statisticsCollapsed"

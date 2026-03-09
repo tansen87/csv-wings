@@ -7,8 +7,8 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { useRoute } from "vue-router";
-import ReplaceDialog from "./replaceDialog.vue";
-import FindDialog from "./findDialog.vue";
+import ReplaceDialog from "@/views/text/replaceDialog.vue";
+import FindDialog from "@/views/text/findDialog.vue";
 import GotoDialog from "@/views/text/gotoDialog.vue";
 import { message } from "@/utils/message";
 import {
@@ -77,6 +77,7 @@ async function loadLines(start: number, count: number) {
       number: start + i + 1,
       content
     }));
+    console.log(visibleLines.value);
   } finally {
     isLoadingLines.value = false;
   }
@@ -400,24 +401,23 @@ onUnmounted(() => {
 });
 
 // 单击行号选中整行
-const lineRefs = ref<Record<number, HTMLElement>>({});
 function selectLineContent(lineNumber: number) {
-  setTimeout(() => {
-    const lineElement = lineRefs.value[lineNumber];
-    if (!lineElement) return;
+  const lineElement = document.querySelector(
+    `[data-line-number="${lineNumber}"]`
+  );
+  if (!lineElement) return;
 
-    const contentSpan = lineElement.querySelector(".line-content");
-    if (!contentSpan) return;
+  const contentSpan = lineElement.querySelector(".line-content");
+  if (!contentSpan) return;
 
-    const selection = window.getSelection();
-    if (!selection) return;
+  const selection = window.getSelection();
+  if (!selection) return;
 
-    const range = document.createRange();
-    range.selectNodeContents(contentSpan);
+  const range = document.createRange();
+  range.selectNodeContents(contentSpan);
 
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }, 0);
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 const lineNumberRef = ref<HTMLElement | null>(null);
@@ -498,7 +498,12 @@ const handleLineNumberScroll = () => {
               </div>
             </div>
           </template>
-          <SiliconeButton :loading="loading" text size="small">
+          <SiliconeButton
+            :loading="loading"
+            text
+            size="small"
+            @click="openFileDialog"
+          >
             <el-icon><More /></el-icon>
           </SiliconeButton>
         </SiliconeTooltip>
@@ -573,7 +578,7 @@ const handleLineNumberScroll = () => {
             :key="line.number"
             class="line-row"
             :class="{ match: isMatchLine(line.number) }"
-            :ref="(el) => { if (el) lineRefs[line.number] = el as HTMLElement }"
+            :data-line-number="line.number"
           >
             <span class="line-content" v-html="highlightMatch(line.content)" />
           </div>

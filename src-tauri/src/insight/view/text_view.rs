@@ -53,13 +53,53 @@ pub async fn get_file_content(
   let indexer = session.indexer.lock().map_err(|e| e.to_string())?;
 
   let actual_end = std::cmp::min(params.end_line, params.start_line + MAX_LINES_PER_REQUEST);
-  let mut lines = Vec::new();
+  let count = actual_end - params.start_line;
 
-  for line_num in params.start_line..actual_end {
-    if let Some((start, end)) = indexer.get_line_with_reader(line_num, reader) {
-      lines.push(reader.get_chunk(start, end));
-    } else {
-      break;
+  // 如果请求数量为 0,直接返回空
+  if count == 0 {
+    return Ok(vec![]);
+  }
+
+  // 获取起始行的字节偏移,并做安全校验
+  let start_offset = match indexer.get_line_with_reader(params.start_line, reader) {
+    Some((start, _)) => {
+      // 如果起始偏移超出文件范围,说明行号已超限
+      if start >= reader.len() {
+        return Ok(vec![String::new(); count]);
+      }
+      start
+    }
+    None => {
+      // 无法定位起始行,返回空行占位
+      return Ok(vec![String::new(); count]);
+    }
+  };
+
+  // 从start_offset开始顺序读取count行
+  let mut lines = Vec::with_capacity(count);
+  let mut current_offset = start_offset;
+  let mut lines_read = 0;
+
+  while lines_read < count && current_offset < reader.len() {
+    let line_start = current_offset;
+
+    // 扫描直到遇到 \n 或到达文件末尾
+    while current_offset < reader.len() {
+      match reader.byte_at(current_offset) {
+        Some(b'\n') => break, // 找到换行符,停在 \n 位置
+        None => break,        // 到达 EOF
+        _ => current_offset += 1,
+      }
+    }
+
+    // 提取 [line_start, current_offset) 的内容(不含\n)
+    let line_content = reader.get_chunk(line_start, current_offset);
+    lines.push(line_content);
+    lines_read += 1;
+
+    // 跳过 \n（如果存在且未越界）
+    if current_offset < reader.len() {
+      current_offset += 1; // 跳过当前的 \n
     }
   }
 
@@ -244,11 +284,11 @@ pub fn cleanup_sessions(state: tauri::State<AppState>) -> Result<usize, String> 
 #[tauri::command]
 pub fn get_pending_file_path(state: tauri::State<AppState>) -> Option<String> {
   // 从 AppState 中获取待打开的文件路径
-   match state.pending_file_path.lock() {
-        Ok(guard) => guard.clone(),
-        Err(_) => {
-            log::error!("Mutex poisoned in get_pending_file_path");
-            None
-        }
+  match state.pending_file_path.lock() {
+    Ok(guard) => guard.clone(),
+    Err(_) => {
+      log::error!("Mutex poisoned in get_pending_file_path");
+      None
     }
+  }
 }

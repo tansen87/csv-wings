@@ -45,6 +45,14 @@ impl FileReader {
         &self.mmap[start..end]
     }
 
+    pub fn byte_at(&self, offset: usize) -> Option<u8> {
+        if offset < self.mmap.len() {
+            Some(self.mmap[offset])
+        } else {
+            None
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.mmap.len()
     }
