@@ -55,7 +55,6 @@ const modeOptions = [
   { label: "EncodingCsv", value: "encoding" },
   { label: "Excel2Csv", value: "excel" },
   { label: "Csv2Xlsx", value: "csv" },
-  { label: "Access2Csv", value: "access" },
   { label: "Dbf2Csv", value: "dbf" },
   { label: "Json2Csv", value: "json" },
   { label: "NdJson2Csv", value: "jsonl" }
@@ -330,11 +329,6 @@ async function convert() {
         quoting: quoting.quoting,
         forceEncoding: manualEncoding.value || null
       });
-    } else if (activeTab.value === "access") {
-      rtime = await invoke("access2csv", {
-        path: path.value,
-        wtrSep: delimiter.delimiter
-      });
     } else if (activeTab.value === "dbf") {
       rtime = await invoke("dbf2csv", {
         path: path.value,
@@ -425,12 +419,6 @@ onUnmounted(() => {
         </div>
 
         <div class="border-t border-gray-200 dark:border-gray-700 my-3" />
-
-        <div
-          class="text-xs font-semibold text-gray-400 tracking-wider mb-3 flex items-center justify-between"
-        >
-          <span>OPTIONS</span>
-        </div>
 
         <el-scrollbar class="flex-1">
           <div class="space-y-4">
@@ -662,9 +650,6 @@ onUnmounted(() => {
             </SiliconeTag>
             <SiliconeTag v-else-if="activeTab === 'csv'" size="small">
               CSV to Xlsx
-            </SiliconeTag>
-            <SiliconeTag v-else-if="activeTab === 'access'" size="small">
-              Access to CSV
             </SiliconeTag>
             <SiliconeTag v-else-if="activeTab === 'dbf'" size="small">
               DBF to CSV

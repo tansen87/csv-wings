@@ -159,8 +159,6 @@ fn main() {
       cat::cat_csv,
       cat::cat_excel,
       convert::excel_to_csv::map_excel_sheets,
-      #[cfg(target_os = "windows")]
-      convert::perform::access2csv,
       convert::perform::csv2csv,
       convert::perform::encoding2utf8,
       convert::perform::detect_file_encoding,
