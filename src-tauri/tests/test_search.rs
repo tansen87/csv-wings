@@ -996,6 +996,7 @@ async fn test_equal_multi() -> anyhow::Result<()> {
     1,
     true,
     true,
+    false,
     insight::utils::MockEmitter::default(),
   )
   .await?
@@ -1069,6 +1070,7 @@ async fn test_contains_multi() -> anyhow::Result<()> {
     1,
     true,
     true,
+    false,
     insight::utils::MockEmitter::default(),
   )
   .await?
@@ -1142,6 +1144,7 @@ async fn test_starts_with_multi() -> anyhow::Result<()> {
     1,
     true,
     true,
+    false,
     insight::utils::MockEmitter::default(),
   )
   .await?
@@ -1215,6 +1218,7 @@ async fn test_ends_with_multi() -> anyhow::Result<()> {
     1,
     true,
     true,
+    false,
     insight::utils::MockEmitter::default(),
   )
   .await?

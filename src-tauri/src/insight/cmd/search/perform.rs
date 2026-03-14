@@ -69,6 +69,7 @@ async fn perform_search<P: AsRef<Path> + Send + Sync + 'static>(
   progress: bool,
   quoting: bool,
   flexible: bool,
+  unique: bool,
   skiprows: usize,
   threads: Option<usize>,
   emitter: AppHandle,
@@ -97,25 +98,25 @@ async fn perform_search<P: AsRef<Path> + Send + Sync + 'static>(
   match search_mode {
     SearchMode::EqualMulti(conditions) => {
       filters_multi::equal_multi(
-        path, column, conditions, skiprows, quoting, progress, emitter,
+        path, column, conditions, skiprows, quoting, progress, unique, emitter,
       )
       .await
     }
     SearchMode::StartsWithMulti(conditions) => {
       filters_multi::starts_with_multi(
-        path, column, conditions, skiprows, quoting, progress, emitter,
+        path, column, conditions, skiprows, quoting, progress, unique, emitter,
       )
       .await
     }
     SearchMode::ContainsMulti(conditions) => {
       filters_multi::contains_multi(
-        path, column, conditions, skiprows, quoting, progress, emitter,
+        path, column, conditions, skiprows, quoting, progress, unique, emitter,
       )
       .await
     }
     SearchMode::EndsWithMulti(conditions) => {
       filters_multi::ends_with_multi(
-        path, column, conditions, skiprows, quoting, progress, emitter,
+        path, column, conditions, skiprows, quoting, progress, unique, emitter,
       )
       .await
     }
@@ -358,6 +359,7 @@ pub async fn search(
   progress: bool,
   quoting: bool,
   flexible: bool,
+  unique: bool,
   skiprows: usize,
   threads: usize,
   app_handle: AppHandle,
@@ -372,6 +374,7 @@ pub async fn search(
     progress,
     quoting,
     flexible,
+    unique,
     skiprows,
     Some(threads),
     app_handle,

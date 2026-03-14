@@ -91,6 +91,7 @@ async function searchData() {
       progress: progress.progress,
       quoting: quoting.quoting,
       flexible: flexible.flexible,
+      unique: unique.value,
       skiprows: skiprows.skiprows,
       threads: threads.threads
     });
@@ -138,6 +139,12 @@ const filterModeOptions: FilterModeOption[] = [
   { label: "lt(<)", value: "lt" },
   { label: "le(≤)", value: "le" },
   { label: "between", value: "between" }
+];
+
+const unique = ref(false);
+const uniqueOpts = [
+  { label: "by column", value: true },
+  { label: "by input", value: false }
 ];
 
 const conditionsCollapsed = ref(false);
@@ -243,7 +250,34 @@ onUnmounted(() => {
               </SiliconeSelect>
             </div>
 
-            <div class="flex flex-col gap-1">
+            <div
+              class="flex flex-col gap-1"
+              v-if="
+                [
+                  'equal_multi',
+                  'contains_multi',
+                  'starts_with_multi',
+                  'ends_with_multi'
+                ].includes(mode)
+              "
+            >
+              <label class="text-xs text-gray-500 dark:text-gray-400">
+                Condition mode
+              </label>
+              <div class="mode-toggle w-full">
+                <span
+                  v-for="item in uniqueOpts"
+                  :key="String(item.value)"
+                  class="mode-item"
+                  :class="{ active: unique === item.value }"
+                  @click="unique = item.value"
+                >
+                  {{ item.label }}
+                </span>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1" v-if="unique === false">
               <label class="text-xs text-gray-500 dark:text-gray-400">
                 Condition
               </label>

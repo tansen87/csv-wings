@@ -248,6 +248,50 @@ where
   Ok(final_match_rows.to_string())
 }
 
+pub(crate) async fn generic_multi_search_unique<E, F, P>(
+  path: P,
+  column: String,
+  skiprows: usize,
+  quoting: bool,
+  progress: bool,
+  match_fn: F,
+  emitter: E,
+) -> Result<String>
+where
+  E: EventEmitter + Send + Sync + 'static,
+  F: Fn(&str, &String) -> bool + Send + Sync + 'static,
+  P: AsRef<Path> + Send + Sync + 'static,
+{
+  let mut opts = CsvOptions::new(&path);
+  opts.set_skiprows(skiprows);
+  let (sep, reader) = opts.skiprows_and_delimiter()?;
+
+  // 读取 column 的所有唯一值
+  let mut rdr = ReaderBuilder::new()
+    .delimiter(sep)
+    .quoting(quoting)
+    .from_reader(reader);
+
+  let sel = Selection::from_headers(rdr.byte_headers()?, &[column.as_str()][..])?;
+
+  let mut condition_set = std::collections::HashSet::new();
+  for result in rdr.records() {
+    let record = result?;
+    if let Some(value) = record.get(sel.first_indices()?) {
+      condition_set.insert(value.to_string());
+    }
+  }
+
+  drop(rdr);
+
+  let conditions: Vec<String> = condition_set.into_iter().collect();
+
+  generic_multi_search(
+    path, column, conditions, skiprows, quoting, progress, match_fn, emitter,
+  )
+  .await
+}
+
 pub(crate) fn generic_parallel_search<F>(
   opts: CsvOptions<String>,
   idx: &mut Indexed<File, File>,
