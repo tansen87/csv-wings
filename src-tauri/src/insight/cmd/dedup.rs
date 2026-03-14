@@ -5,11 +5,12 @@ use csv::{ByteRecord, Reader, Writer};
 
 use crate::io::csv::{config::CsvConfigBuilder, options::CsvOptions, selection::Selection};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DedupMode {
   KeepFirst,
   KeepLast,
   KeepDuplicates,
+  Unique,
 }
 
 pub fn dedup_csv_rows<R: std::io::Read, W: std::io::Write>(
@@ -20,8 +21,9 @@ pub fn dedup_csv_rows<R: std::io::Read, W: std::io::Write>(
   sorted: bool,
 ) -> Result<usize> {
   let headers = rdr.byte_headers()?.clone();
-  wtr.write_byte_record(&headers)?;
-
+  if mode != DedupMode::Unique {
+    wtr.write_byte_record(&headers)?;
+  }
   let mut output_rows = 0;
 
   match (sorted, mode) {
@@ -140,6 +142,30 @@ pub fn dedup_csv_rows<R: std::io::Read, W: std::io::Write>(
         }
       }
     }
+
+    (_, DedupMode::Unique) => {
+      let unique_header: ByteRecord = selection
+        .get_indices()
+        .iter()
+        .map(|&i| headers.get(i).unwrap_or_default())
+        .collect();
+      wtr.write_byte_record(&unique_header)?;
+
+      let mut seen = std::collections::HashSet::new();
+      for result in rdr.byte_records() {
+        let record = result?;
+        let key = selection.get_composite_key(&record);
+        if seen.insert(key) {
+          let unique_record: ByteRecord = selection
+            .get_indices()
+            .iter()
+            .map(|&i| record.get(i).unwrap_or_default())
+            .collect();
+          wtr.write_byte_record(&unique_record)?;
+          output_rows += 1;
+        }
+      }
+    }
   }
 
   wtr.flush()?;
@@ -192,6 +218,7 @@ pub async fn dedup(
     "keep_first" => DedupMode::KeepFirst,
     "keep_last" => DedupMode::KeepLast,
     "keep_duplicates" => DedupMode::KeepDuplicates,
+    "unique" => DedupMode::Unique,
     _ => return Err("Invalid dedup mode".into()),
   };
 

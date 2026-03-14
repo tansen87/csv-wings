@@ -11,9 +11,10 @@ import { useShortcuts } from "@/utils/globalShortcut";
 
 const mode = ref("keep_first");
 const modeOptions = [
-  { label: "First", value: "keep_first" },
-  { label: "Last", value: "keep_last" },
-  { label: "Duplicates", value: "keep_duplicates" }
+  { label: "Keep First", value: "keep_first" },
+  { label: "Keep Last", value: "keep_last" },
+  { label: "Keep Duplicates", value: "keep_duplicates" },
+  { label: "Unique", value: "unique" }
 ];
 const sortedOptions = [
   { label: "True", value: true },
@@ -144,9 +145,9 @@ onUnmounted(() => {
           <label
             class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
-            DEDUP MODE (keep)
+            DEDUP MODE
           </label>
-          <div class="mode-toggle h-[30px] w-full">
+          <div class="mode-toggle-v h-[60px] w-full">
             <span
               v-for="item in modeOptions"
               :key="item.value"
@@ -218,6 +219,7 @@ onUnmounted(() => {
               <span v-else-if="mode === 'keep_duplicates'">
                 Output only the rows that are duplicates.
               </span>
+              <span v-else-if="mode === 'unique'"> Get unique values </span>
             </div>
           </div>
         </div>
@@ -299,7 +301,7 @@ onUnmounted(() => {
                 class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
               >
                 <Icon icon="ri:filter-line" class="w-3.5 h-3.5" />
-                Mode: Keep {{ modeOptions.find(m => m.value === mode)?.label }}
+                Mode: {{ modeOptions.find(m => m.value === mode)?.label }}
               </span>
             </div>
           </div>
