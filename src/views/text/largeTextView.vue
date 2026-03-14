@@ -268,14 +268,6 @@ async function handleReplace(params: {
   if (!fileInfo.value) return;
 
   try {
-    await ElMessageBox.confirm(
-      `Are you sure you want ${
-        params.replaceAll ? "Replace All" : "Replace"
-      }? This operation cannot be undone.`,
-      "Confirm replacement",
-      { type: "warning" }
-    );
-
     loading.value = true;
 
     const count = await replaceText({
