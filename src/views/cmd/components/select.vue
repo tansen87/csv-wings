@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -70,6 +70,7 @@ listen("total-rows", (event: Event<number>) => {
 async function selectFile() {
   originalColumns.value = [];
   totalRows.value = 0;
+  selColumns.value = [];
 
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
@@ -79,11 +80,8 @@ async function selectFile() {
 
   try {
     originalColumns.value = await mapHeaders(path.value, skiprows.skiprows);
-    const { columnView, dataView } = await toJson(
-      path.value,
-      skiprows.skiprows
-    );
-    tableColumn.value = columnView;
+    selColumns.value = originalColumns.value.map(col => col.value);
+    const { dataView } = await toJson(path.value, skiprows.skiprows);
     tableData.value = dataView;
   } catch (err) {
     message(err.toString(), { type: "error" });
@@ -119,6 +117,32 @@ async function selectColumns() {
   }
   isLoading.value = false;
 }
+
+const displayedColumns = computed(() => {
+  if (selMode.value === "include") {
+    // 按selColumns的顺序,从originalColumns中找对应项
+    const colMap = new Map(originalColumns.value.map(col => [col.value, col]));
+    return selColumns.value.map(val => colMap.get(val)).filter(Boolean);
+  } else {
+    // exclude:保留未被选中的列,保持原始顺序
+    const excludedSet = new Set(selColumns.value);
+    return originalColumns.value.filter(col => !excludedSet.has(col.value));
+  }
+});
+
+const displayedTableData = computed(() => {
+  const cols = displayedColumns.value;
+  if (cols.length === 0) return [];
+
+  const props = cols.map(col => col.value);
+  return tableData.value.map(row => {
+    const newRow: Record<string, any> = {};
+    for (const prop of props) {
+      newRow[prop] = row[prop];
+    }
+    return newRow;
+  });
+});
 
 useShortcuts({
   onOpenFile: () => selectFile(),
@@ -310,17 +334,17 @@ onUnmounted(() => {
 
         <div class="flex-1 overflow-auto p-2 min-h-0">
           <SiliconeTable
-            :data="tableData"
-            :height="'100%'"
+            :data="displayedTableData"
+            height="100%"
             empty-text="No data. (Ctrl+D) to Open File."
             show-overflow-tooltip
             class="select-text"
           >
             <el-table-column
-              v-for="column in tableColumn"
-              :prop="column.prop"
+              v-for="column in displayedColumns"
+              :key="column.value"
+              :prop="column.value"
               :label="column.label"
-              :key="column.prop"
             />
           </SiliconeTable>
         </div>
