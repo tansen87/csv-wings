@@ -160,6 +160,15 @@ export default {
       }
     },
     {
+      path: "/cmd/components/enumerByGroup",
+      name: "enumerByGroup",
+      component: () => import("@/views/cmd/components/enumerByGroup.vue"),
+      meta: {
+        title: "enumerByGroup",
+        showLink: false
+      }
+    },
+    {
       path: "/cmd/components/pinyin",
       name: "pinyin",
       component: () => import("@/views/cmd/components/pinyin.vue"),

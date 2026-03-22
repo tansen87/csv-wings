@@ -4,6 +4,7 @@ pub mod convert;
 pub mod count;
 pub mod datefmt;
 pub mod dedup;
+pub mod enumer_by_group;
 pub mod enumerate;
 pub mod extsort;
 pub mod fill;

@@ -19,6 +19,7 @@ use insight::cmd::convert;
 use insight::cmd::count;
 use insight::cmd::datefmt;
 use insight::cmd::dedup;
+use insight::cmd::enumer_by_group;
 use insight::cmd::enumerate;
 use insight::cmd::extsort;
 use insight::cmd::fill;
@@ -170,6 +171,7 @@ fn main() {
       count::count,
       datefmt::datefmt,
       dedup::dedup,
+      enumer_by_group::enumer_by_group,
       enumerate::enumer,
       extsort::extsort,
       fill::fill,

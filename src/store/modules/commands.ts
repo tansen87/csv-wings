@@ -102,6 +102,12 @@ export const useCommandStore = defineStore("command", {
         route: "/cmd/components/enumerate"
       },
       {
+        title: "EnumerByGroup",
+        icon: "ri:group-line",
+        description: "Add a new column enumerating the lines of a CSV file",
+        route: "/cmd/components/enumerByGroup"
+      },
+      {
         title: "Pinyin",
         icon: "ri:translate-2",
         description: "Convert Chinese to Pinyin for specific column in CSV",
