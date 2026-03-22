@@ -154,7 +154,7 @@ onUnmounted(() => {
           <label
             class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
           >
-            TARGET COLUMN
+            COLUMN
           </label>
           <SiliconeSelect
             v-model="column"
