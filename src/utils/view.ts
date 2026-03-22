@@ -129,3 +129,10 @@ export async function mapHeaders(path: string, skiprows: number) {
 
   return headers;
 }
+
+export async function previewtNLines(
+  path: string,
+  n?: number
+): Promise<string[]> {
+  return await invoke("preview_n_lines", { path, n: n ?? 50 });
+}

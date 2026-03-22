@@ -86,7 +86,7 @@ export const useCommandStore = defineStore("command", {
       {
         title: "Skip",
         icon: "ri:skip-up-line",
-        description: "Skip rows from CSV",
+        description: "Skip lines from CSV",
         route: "/cmd/components/skip"
       },
       {

@@ -18,20 +18,12 @@ async fn test_skip() -> anyhow::Result<()> {
   }
 
   let file_stem = file_path.file_stem().unwrap().to_string_lossy().to_string();
-  let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
   let parent_path = file_path.parent().unwrap().to_str().unwrap();
   let output_path = temp_dir
     .path()
     .join(format!("{parent_path}/{file_stem}_skip.csv"));
 
-  insight::cmd::skip::skip_csv(
-    file_path.to_str().unwrap(),
-    file_name,
-    2,
-    true,
-    insight::utils::MockEmitter::default(),
-  )
-  .await?;
+  insight::cmd::skip::skip_csv(file_path.to_str().unwrap(), 2).await?;
 
   let context = std::fs::read_to_string(output_path)?;
   let result = context.trim().split('\n').collect::<Vec<_>>();

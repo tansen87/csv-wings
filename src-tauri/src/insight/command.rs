@@ -1,5 +1,7 @@
 use std::{
   collections::{HashMap, HashSet},
+  fs::File,
+  io::{BufRead, BufReader},
   path::Path,
 };
 
@@ -102,4 +104,20 @@ pub async fn xlsx_to_json(
     Ok(result) => Ok(result),
     Err(err) => Err(format!("{err}")),
   }
+}
+
+#[tauri::command]
+pub async fn preview_n_lines(path: String, n: usize) -> Result<Vec<String>, String> {
+  let file = File::open(&path).map_err(|e| e.to_string())?;
+  let reader = BufReader::new(file);
+  let mut lines = Vec::with_capacity(n);
+
+  for line in reader.lines().take(n) {
+    match line {
+      Ok(content) => lines.push(content),
+      Err(_) => lines.push(String::from("")), // 读取出错时用空行代替
+    }
+  }
+
+  Ok(lines)
 }

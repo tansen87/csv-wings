@@ -148,6 +148,7 @@ fn main() {
       command::dupli_headers,
       command::to_json,
       command::xlsx_to_json,
+      command::preview_n_lines,
       flow::flow,
       text_view::open_file,
       text_view::get_file_content,

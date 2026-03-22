@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ElMessageBox } from "element-plus";
 import { Document, More } from "@element-plus/icons-vue";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -77,7 +76,6 @@ async function loadLines(start: number, count: number) {
       number: start + i + 1,
       content
     }));
-    console.log(visibleLines.value);
   } finally {
     isLoadingLines.value = false;
   }
@@ -667,12 +665,10 @@ const handleLineNumberScroll = () => {
   z-index: 10;
   scrollbar-width: none;
 }
-
 .dark .line-number-wrapper {
   background: #252525;
   border-right: 1px solid #404040;
 }
-
 .line-number-container {
   width: 100%;
 }
@@ -683,7 +679,6 @@ const handleLineNumberScroll = () => {
   line-height: 24px;
   white-space: pre;
 }
-
 .line-number-row.match {
   background: #fff3cd;
 }
