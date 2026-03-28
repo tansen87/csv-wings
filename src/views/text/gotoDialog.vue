@@ -53,6 +53,10 @@ function handleGoTo() {
 function handleClose() {
   emit("update:modelValue", false);
 }
+
+const formatNumber = (num: number): string => {
+  return new Intl.NumberFormat("en-US").format(num);
+};
 </script>
 
 <template>
@@ -78,7 +82,9 @@ function handleClose() {
       </el-form-item>
 
       <div class="flex justify-between">
-        <SiliconeTag type="success"> {{ totalLines }} lines </SiliconeTag>
+        <SiliconeTag type="success">
+          {{ formatNumber(totalLines) }}
+        </SiliconeTag>
         <SiliconeButton type="success" @click="handleGoTo"> Go </SiliconeButton>
       </div>
     </el-form>

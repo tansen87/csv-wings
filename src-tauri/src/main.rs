@@ -11,7 +11,7 @@ use tauri::{
 
 use insight::command;
 use insight::flow;
-use insight::view::{text_view, text_view_utils};
+use insight::view::{table_view, text_view, text_view_utils};
 
 use insight::cmd::apply;
 use insight::cmd::cat;
@@ -150,6 +150,7 @@ fn main() {
       command::xlsx_to_json,
       command::preview_n_lines,
       flow::flow,
+      table_view::table_view,
       text_view::open_file,
       text_view::get_file_content,
       text_view::search_file,

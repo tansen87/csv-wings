@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
-import { open } from "@tauri-apps/plugin-dialog";
-import { Document, More } from "@element-plus/icons-vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import {
+  Edit,
+  FolderOpened,
+  Guide,
+  Position,
+  Search
+} from "@element-plus/icons-vue";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -22,6 +27,8 @@ import {
 } from "@/utils/textOperations";
 import { useEncoding } from "@/store/modules/options";
 import { useShortcuts } from "@/utils/globalShortcut";
+import { viewOpenFile } from "@/utils/view";
+import { useFileView } from "@/store/modules/fileView";
 
 const fileInfo = ref<FileInfo | null>(null);
 const searchQuery = ref("");
@@ -44,21 +51,47 @@ const isLoadingLines = ref(false);
 const encoding = useEncoding();
 const route = useRoute();
 
+const props = defineProps<{
+  path: string | null;
+}>();
+
+watch(
+  () => props.path,
+  async newPath => {
+    if (!newPath) {
+      fileInfo.value = null;
+      return;
+    }
+
+    try {
+      // 加载文件元信息
+      fileInfo.value = await openFile({
+        path: newPath,
+        encoding: encoding.encoding || undefined
+      });
+
+      await loadLines(0, VISIBLE_LINE_COUNT);
+    } catch (e) {
+      message(`Failed to open file: ${e}`, { type: "error" });
+      fileInfo.value = null;
+    }
+  },
+  { immediate: true }
+);
+
 // 打开文件
 async function openFileDialog() {
   try {
-    const path = await open({
-      filters: [{ name: "Text", extensions: ["*"] }]
-    });
-    if (path) {
+    const path_inner = await viewOpenFile(false, "text", ["*"]);
+    if (path_inner) {
       fileInfo.value = await openFile({
-        path: path as string,
+        path: path_inner,
         encoding: encoding.encoding || undefined
       });
       await loadLines(0, VISIBLE_LINE_COUNT);
     }
-  } catch (error: any) {
-    message(`fail to open file: ${error}`, { type: "error" });
+  } catch (e) {
+    message(`failed to open file: ${e}`, { type: "error" });
   }
 }
 
@@ -101,10 +134,10 @@ async function loadFileFromPath(path: string) {
 function doSearch(type: "visible" | "all") {
   searchType.value = type;
   if (type === "visible") {
-    // 前端匹配visibleLines
+    // 匹配visibleLines
     matchVisibleLines();
   } else {
-    // 后端搜索整个文件
+    // 搜索整个文件
     searchAllFile();
   }
 }
@@ -345,7 +378,6 @@ useShortcuts({
 let unlisten: (() => void) | null = null;
 
 onMounted(async () => {
-  // 加载现有文件
   if (fileInfo.value) {
     await loadLines(0, VISIBLE_LINE_COUNT);
   }
@@ -372,10 +404,8 @@ onMounted(async () => {
     await loadFileFromPath(route.query.file as string);
   }
 
-  // 监听Rust发送的文件打开事件
   unlisten = await listen<string>("open-text-file", async event => {
     const path = event.payload;
-    console.log("=== 收到文件打开事件:", path);
     await loadFileFromPath(path);
   });
 
@@ -411,14 +441,13 @@ function selectLineContent(lineNumber: number) {
 }
 
 const lineNumberRef = ref<HTMLElement | null>(null);
-const codeScrollbarRef = ref<any>(null); // Element Plus scrollbar 实例
+const codeScrollbarRef = ref<any>(null);
 let isSyncing = false;
 const handleCodeScroll = (event: any) => {
   if (isSyncing || !lineNumberRef.value) return;
   isSyncing = true;
 
   // 获取代码区域的滚动顶部距离
-  // 注意：el-scrollbar 的 event 可能包含 scrollTop，或者直接访问 ref 的 wrapRef
   const scrollTop =
     event?.scrollTop ?? codeScrollbarRef.value?.wrapRef?.scrollTop ?? 0;
 
@@ -430,14 +459,14 @@ const handleCodeScroll = (event: any) => {
   });
 };
 
-// 当行号区域滚动时（虽然用户很少直接滚行号，但为了完整性），同步代码区域
+// 当行号区域滚动时,同步代码区域
 const handleLineNumberScroll = () => {
   if (isSyncing || !codeScrollbarRef.value) return;
   isSyncing = true;
 
   const scrollTop = lineNumberRef.value?.scrollTop ?? 0;
 
-  // 设置 el-scrollbar 内部容器的滚动
+  // 设置el-scrollbar内部容器的滚动
   if (codeScrollbarRef.value.wrapRef) {
     codeScrollbarRef.value.wrapRef.scrollTop = scrollTop;
   }
@@ -446,98 +475,46 @@ const handleLineNumberScroll = () => {
     isSyncing = false;
   });
 };
+
+function clearFile() {
+  useFileView().closeFile();
+}
 </script>
 
 <template>
   <div class="page-view">
-    <SiliconeCard v-if="fileInfo" shadow="never">
-      <div class="flex items-center gap-2 ml-1 mb-1 mt-1 mr-1">
-        <el-scrollbar>
-          <SiliconeTag type="info">
-            {{ fileInfo.path }}
-          </SiliconeTag>
-        </el-scrollbar>
-        <SiliconeTag v-if="fileInfo" type="warning">
-          {{ fileInfo.encoding }}
-        </SiliconeTag>
-        <SiliconeTag type="primary">
-          {{ formatSize(fileInfo.size) }}
-        </SiliconeTag>
-        <SiliconeTag type="success">
-          {{ fileInfo.line_count }} lines
-        </SiliconeTag>
+    <SiliconeCard shadow="never">
+      <div class="flex items-center ml-1 mb-1 mt-1 mr-1">
+        <SiliconeButton
+          size="small"
+          :icon="FolderOpened"
+          @click="openFileDialog"
+          text
+        />
+        <SiliconeButton
+          size="small"
+          :icon="Search"
+          @click="showFindDialog = true"
+          text
+        />
+        <SiliconeButton
+          size="small"
+          :icon="Edit"
+          @click="showReplaceDialog = true"
+          text
+        />
+        <SiliconeButton
+          size="small"
+          :icon="Position"
+          @click="showGotoDialog = true"
+          text
+        />
         <div class="flex-grow" />
-        <SiliconeTooltip>
-          <template #content>
-            <div class="empty-desc">
-              <div class="desc-row">
-                <SiliconeTag type="info">Open File</SiliconeTag>
-                <SiliconeTag size="small">Ctrl + D</SiliconeTag>
-              </div>
-              <div class="desc-row">
-                <SiliconeTag type="info">Search</SiliconeTag>
-                <SiliconeTag size="small">Ctrl + F</SiliconeTag>
-              </div>
-              <div class="desc-row">
-                <SiliconeTag type="info">Replace</SiliconeTag>
-                <SiliconeTag>Ctrl + H</SiliconeTag>
-              </div>
-              <div class="desc-row">
-                <SiliconeTag type="info">Jump</SiliconeTag>
-                <SiliconeTag>Ctrl + G</SiliconeTag>
-              </div>
-            </div>
-          </template>
-          <SiliconeButton
-            :loading="loading"
-            text
-            size="small"
-            @click="openFileDialog"
-          >
-            <el-icon><More /></el-icon>
-          </SiliconeButton>
-        </SiliconeTooltip>
+        <SiliconeButton size="small" :icon="Guide" text @click="clearFile" />
       </div>
     </SiliconeCard>
 
-    <el-empty v-if="!fileInfo" :image-size="200">
-      <template #image>
-        <el-icon :size="200" color="#909399">
-          <Document />
-        </el-icon>
-      </template>
-      <template #description>
-        <div class="empty-desc">
-          <div class="desc-row">
-            <SiliconeTag type="success" @click="openFileDialog">
-              Open File
-            </SiliconeTag>
-            <SiliconeTag>Ctrl + D</SiliconeTag>
-          </div>
-          <div class="desc-row">
-            <SiliconeTag type="info">Search</SiliconeTag>
-            <SiliconeTag>Ctrl + F</SiliconeTag>
-          </div>
-          <div class="desc-row">
-            <SiliconeTag type="info">Replace</SiliconeTag>
-            <SiliconeTag>Ctrl + H</SiliconeTag>
-          </div>
-          <div class="desc-row">
-            <SiliconeTag type="info">Jump</SiliconeTag>
-            <SiliconeTag>Ctrl + G</SiliconeTag>
-          </div>
-          <div class="mt-6">
-            <SiliconeTag>Large Text View</SiliconeTag>
-          </div>
-        </div>
-      </template>
-    </el-empty>
-
-    <!-- 内容显示区 -->
-    <div
-      v-else
-      class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden"
-    >
+    <div class="content-wrapper flex-1 overflow-hidden">
       <div
         class="line-number-wrapper"
         ref="lineNumberRef"
@@ -576,7 +553,6 @@ const handleLineNumberScroll = () => {
       </el-scrollbar>
     </div>
 
-    <!-- 查找结果面板 -->
     <SiliconeCard v-if="searchResults.length" shadow="never">
       <div class="flex gap-3 ml-1 mt-1 mb-2 mr-1">
         <SiliconeTag :type="searchType === 'visible' ? 'success' : 'primary'">
@@ -613,6 +589,28 @@ const handleLineNumberScroll = () => {
           </template>
         </el-table-column>
       </SiliconeTable>
+    </SiliconeCard>
+
+    <SiliconeCard shadow="never">
+      <div class="flex items-center justify-between">
+        <div class="max-w-[60%]">
+          <el-scrollbar>
+            <SiliconeTag type="info">
+              {{ fileInfo.path }}
+            </SiliconeTag>
+          </el-scrollbar>
+        </div>
+
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <SiliconeTag type="warning">{{ fileInfo.encoding }}</SiliconeTag>
+          <SiliconeTag type="primary">
+            {{ formatSize(fileInfo.size) }}
+          </SiliconeTag>
+          <SiliconeTag type="success">
+            {{ fileInfo.line_count }} lines
+          </SiliconeTag>
+        </div>
+      </div>
     </SiliconeCard>
 
     <FindDialog

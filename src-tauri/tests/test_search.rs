@@ -41,7 +41,7 @@ async fn create_temp_csv() -> anyhow::Result<(
     .to_string_lossy()
     .to_string();
 
-  create_index(&path, true, 1).await?;
+  create_index(&path, true, false, 1).await?;
   let mut opts = insight::io::csv::options::CsvOptions::new(&path);
   opts.set_skiprows(1);
   let (_sep, reader) = opts.skiprows_and_delimiter()?;

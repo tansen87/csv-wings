@@ -16,6 +16,7 @@ use crate::{io::csv::options::CsvOptions, utils::WTR_BUFFER_SIZE};
 pub async fn create_index<P: AsRef<Path> + Send + Sync>(
   path: P,
   quoting: bool,
+  flexible: bool,
   skiprows: usize,
 ) -> Result<()> {
   let mut opts = CsvOptions::new(&path);
@@ -28,6 +29,7 @@ pub async fn create_index<P: AsRef<Path> + Send + Sync>(
   let mut rdr = ReaderBuilder::new()
     .delimiter(sep)
     .quoting(quoting)
+    .flexible(flexible)
     .from_reader(reader);
 
   let mut wtr = BufWriter::with_capacity(WTR_BUFFER_SIZE, File::create(output_path)?);
@@ -49,7 +51,7 @@ async fn single_process(
 
   window.emit("info", filename).map_err(|e| e.to_string())?;
 
-  match create_index(file, quoting, skiprows).await {
+  match create_index(file, quoting, false, skiprows,).await {
     Ok(_) => {
       let end_time = Instant::now();
       let elapsed_time = end_time.duration_since(start_time).as_secs_f64();
@@ -80,7 +82,7 @@ fn parallel_process(
   window.emit("info", filename).map_err(|e| e.to_string())?;
 
   let _ = tauri::async_runtime::block_on(async {
-    match create_index(file, quoting, skiprows).await {
+    match create_index(file, quoting, false, skiprows).await {
       Ok(_) => {
         let elapsed_time = start_time.elapsed().as_secs_f64();
         if let Err(e) = window

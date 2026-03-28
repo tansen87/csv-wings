@@ -83,11 +83,11 @@ pub async fn get_file_content(
   while lines_read < count && current_offset < reader.len() {
     let line_start = current_offset;
 
-    // 扫描直到遇到 \n 或到达文件末尾
+    // 扫描直到遇到\n或到达文件末尾
     while current_offset < reader.len() {
       match reader.byte_at(current_offset) {
-        Some(b'\n') => break, // 找到换行符,停在 \n 位置
-        None => break,        // 到达 EOF
+        Some(b'\n') => break, // 找到换行符,停在\n位置
+        None => break,        // 到达EOF
         _ => current_offset += 1,
       }
     }
@@ -97,9 +97,9 @@ pub async fn get_file_content(
     lines.push(line_content);
     lines_read += 1;
 
-    // 跳过 \n（如果存在且未越界）
+    // 跳过\n (如果存在且未越界)
     if current_offset < reader.len() {
-      current_offset += 1; // 跳过当前的 \n
+      current_offset += 1; // 跳过当前的\n
     }
   }
 
