@@ -20,7 +20,6 @@ import { listen } from "@tauri-apps/api/event";
 const props = defineProps<{
   path: string | null;
 }>();
-
 const [loading, tableLoading] = [ref(false), ref(false)];
 const showGotoDialog = ref(false);
 const showSearchDialog = ref(false);
@@ -31,6 +30,19 @@ const currentDataLine = ref(1);
 const VISIBLE_LINE_COUNT = 200;
 const path_inner = ref("");
 
+const progress = ref({
+  visible: false,
+  current: 0,
+  total: 0
+});
+const progressPercent = computed(() => {
+  if (progress.value.total <= 0) return 0;
+  return Math.min(
+    100,
+    Math.round((progress.value.current / progress.value.total) * 100)
+  );
+});
+
 interface ColumnConfig {
   column: string;
   mode: string;
@@ -40,7 +52,6 @@ const columnConfigs = ref<ColumnConfig[]>([
   { column: "", mode: "equal", condition: "" }
 ]);
 const logics = ref<string[]>([]);
-
 watch(
   columnConfigs,
   newConfigs => {
@@ -49,7 +60,6 @@ watch(
   },
   { deep: true, immediate: true }
 );
-
 function addColumn() {
   columnConfigs.value.push({
     column: "",
@@ -57,27 +67,10 @@ function addColumn() {
     condition: ""
   });
 }
-
 function removeColumn(index: number) {
   if (columnConfigs.value.length <= 1) return;
   columnConfigs.value.splice(index, 1);
 }
-
-const filterProgress = ref({
-  visible: false,
-  current: 0,
-  total: 0
-});
-const progressPercent = computed(() => {
-  if (filterProgress.value.total <= 0) return 0;
-  return Math.min(
-    100,
-    Math.round(
-      (filterProgress.value.current / filterProgress.value.total) * 100
-    )
-  );
-});
-
 async function executeSearch() {
   if (!path_inner.value) {
     message("Please open a CSV file first", { type: "warning" });
@@ -95,19 +88,16 @@ async function executeSearch() {
     return;
   }
 
-  // 显示进度弹窗
-  filterProgress.value = {
+  progress.value = {
     visible: true,
     current: 0,
     total: 0
   };
-
-  // 监听进度事件
   const unlistenUpdate = await listen("update-rows", event => {
-    filterProgress.value.current = event.payload as number;
+    progress.value.current = event.payload as number;
   });
   const unlistenTotal = await listen("total-rows", event => {
-    filterProgress.value.total = event.payload as number;
+    progress.value.total = event.payload as number;
   });
 
   try {
@@ -128,7 +118,7 @@ async function executeSearch() {
     const elapsedSeconds = parseFloat(timeStr) || 0;
 
     showSearchDialog.value = false;
-    filterProgress.value.visible = false;
+    progress.value.visible = false;
 
     message(
       `Filter done: ${matchCount} rows matched, elapsed ${elapsedSeconds.toFixed(
@@ -137,7 +127,7 @@ async function executeSearch() {
       { type: "success" }
     );
   } catch (e) {
-    filterProgress.value.visible = false;
+    progress.value.visible = false;
     message(`filter failed: ${e}`, { type: "error" });
   } finally {
     loading.value = false;
@@ -183,6 +173,20 @@ async function loadRows(targetLine: number) {
   }
 }
 
+watch(
+  () => props.path,
+  async newPath => {
+    if (newPath) {
+      path_inner.value = newPath;
+      await loadRows(1);
+    } else {
+      tableHeader.value = [];
+      tableData.value = [];
+    }
+  },
+  { immediate: true }
+);
+
 async function handleGotoLine(lineNumber: number) {
   const clamped = Math.max(1, lineNumber);
   await loadRows(clamped);
@@ -200,20 +204,6 @@ const formatNumber = (num: number): string => {
 function clearFile() {
   useFileView().closeFile();
 }
-
-watch(
-  () => props.path,
-  async newPath => {
-    if (newPath) {
-      path_inner.value = newPath;
-      await loadRows(1);
-    } else {
-      tableHeader.value = [];
-      tableData.value = [];
-    }
-  },
-  { immediate: true }
-);
 
 useShortcuts({
   onOpenFile: () => openFile(),
@@ -395,13 +385,13 @@ useShortcuts({
 
     <transition name="fade">
       <div
-        v-if="filterProgress.visible"
+        v-if="progress.visible"
         class="fixed bottom-2 right-2 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700 p-1"
         style="min-width: 220px"
       >
         <div class="text-xs text-gray-500">
-          {{ filterProgress.current.toLocaleString() }} /
-          {{ filterProgress.total.toLocaleString() }} rows
+          {{ progress.current.toLocaleString() }} /
+          {{ progress.total.toLocaleString() }} rows
         </div>
         <SiliconeProgress
           :percentage="progressPercent"
