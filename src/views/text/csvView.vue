@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { message } from "@/utils/message";
@@ -7,48 +7,29 @@ import { viewOpenFile } from "@/utils/view";
 import GotoDialog from "@/views/text/gotoDialog.vue";
 import { useShortcuts } from "@/utils/globalShortcut";
 import { useFileView } from "@/store/modules/fileView";
-import {
-  useFlexible,
-  useProgress,
-  useQuoting,
-  useSkiprows,
-  useThreads
-} from "@/store/modules/options";
-import { listen } from "@tauri-apps/api/event";
+import { useRename } from "@/views/text/fn/useRename";
+import { useSearch } from "@/views/text/fn/useSearch";
+import { useTaskProgress } from "@/views/text/fn/useProgress";
 
 const props = defineProps<{
   path: string | null;
 }>();
-const [indexing, filtering, renaming] = [ref(false), ref(false), ref(false)];
+const indexing = ref(false);
 const showGotoDialog = ref(false);
-const showSearchDialog = ref(false);
 const tableHeader = ref<string[]>([]);
 const tableData = ref<Record<string, string>[]>([]);
 const tableRows = ref<number>(0);
 const currentDataLine = ref(1);
 const VISIBLE_LINE_COUNT = 200;
 const path_inner = ref("");
+const { visibleProgress, ensureProgress, finishProgress } = useTaskProgress();
+const rename = useRename(path_inner, ensureProgress, finishProgress);
+const search = useSearch(path_inner, ensureProgress, finishProgress);
 
-interface TaskProgress {
-  current: number;
-  total: number;
-  visible: boolean;
-}
-const progressMap = reactive(new Map<string, TaskProgress>());
-const visibleProgress = computed(() => {
-  const result: Record<string, TaskProgress> = {};
-  for (const [key, state] of progressMap.entries()) {
-    if (state.visible) {
-      result[key] = state;
-    }
-  }
-  return result;
-});
 function getPercent(state: { current: number; total: number }) {
   if (state.total <= 0) return 0;
   return Math.min(100, Math.round((state.current / state.total) * 100));
 }
-
 function getTaskLabel(taskName: string): string {
   const labels: Record<string, string> = {
     search: "Filtering...",
@@ -57,171 +38,14 @@ function getTaskLabel(taskName: string): string {
   };
   return labels[taskName] || taskName;
 }
-function ensureProgress(taskName: string) {
-  if (!progressMap.has(taskName)) {
-    progressMap.set(taskName, { current: 0, total: 0, visible: true });
-  }
-  return progressMap.get(taskName)!;
-}
-function finishProgress(taskName: string) {
-  const state = progressMap.get(taskName);
-  if (state) {
-    state.visible = false;
-    setTimeout(() => {
-      if (progressMap.get(taskName)?.visible === false) {
-        progressMap.delete(taskName);
-      }
-    }, 3000);
-  }
-}
 
-interface ColumnConfig {
-  column: string;
-  mode: string;
-  condition: string;
-}
-const columnConfigs = ref<ColumnConfig[]>([
-  { column: "", mode: "equal", condition: "" }
-]);
-const logics = ref<string[]>([]);
-watch(
-  columnConfigs,
-  newConfigs => {
-    const n = newConfigs.length;
-    logics.value = Array(n > 0 ? n - 1 : 0).fill("and");
-  },
-  { deep: true, immediate: true }
-);
-function addColumn() {
-  columnConfigs.value.push({
-    column: "",
-    mode: "equal",
-    condition: ""
-  });
-}
-function removeColumn(index: number) {
-  if (columnConfigs.value.length <= 1) return;
-  columnConfigs.value.splice(index, 1);
-}
-async function executeSearch() {
-  if (!path_inner.value) {
-    message("Please open a CSV file first", { type: "warning" });
-    return;
-  }
-
-  const validConfigs = columnConfigs.value.filter(
-    cfg => cfg.column.trim() !== "" && cfg.condition.trim() !== ""
-  );
-
-  if (validConfigs.length === 0) {
-    message("Please fill in at least one valid filtering condition", {
-      type: "warning"
-    });
-    return;
-  }
-
-  const TASK_NAME = "search";
-  const progressState = ensureProgress(TASK_NAME);
-  const unlistenUpdate = await listen("update-search-rows", event => {
-    progressState.current = event.payload as number;
-  });
-  const unlistenTotal = await listen("total-search-rows", event => {
-    progressState.total = event.payload as number;
-  });
-
-  try {
-    filtering.value = true;
-    const res: [string, string] = await invoke("search_chain", {
-      path: path_inner.value,
-      configs: validConfigs,
-      logics: logics.value,
-      progress: useProgress().progress,
-      quoting: useQuoting().quoting,
-      flexible: useFlexible().flexible,
-      skiprows: useSkiprows().skiprows,
-      threads: useThreads().threads
-    });
-
-    const [matchCount, timeStr] = res;
-
-    showSearchDialog.value = false;
-
-    message(
-      `Filter done: ${matchCount} rows matched, elapsed ${parseFloat(
-        timeStr
-      ).toFixed(1)} s`,
-      { type: "success" }
-    );
-  } catch (e) {
-    message(`filter failed: ${e}`, { type: "error" });
-  } finally {
-    filtering.value = false;
-    finishProgress(TASK_NAME);
-    unlistenUpdate();
-    unlistenTotal();
-  }
-}
-
-const editableHeaders = ref<string[]>([]);
-const originalHeaders = ref<string[]>([]);
-watch(
-  () => tableHeader.value,
-  () => {
-    editableHeaders.value = [...tableHeader.value];
-  },
-  { immediate: true }
-);
 watch(
   () => tableHeader.value,
   newHeaders => {
-    editableHeaders.value = [...newHeaders];
-    originalHeaders.value = [...newHeaders];
+    rename.syncHeaders(newHeaders);
   },
   { immediate: true }
 );
-async function executeRename() {
-  if (!path_inner.value) {
-    message("No file opened", { type: "warning" });
-    return;
-  }
-
-  const TASK_NAME = "rename";
-  const progressState = ensureProgress(TASK_NAME);
-  const unlistenUpdate = await listen("update-rename-rows", event => {
-    progressState.current = event.payload as number;
-  });
-  const unlistenTotal = await listen("total-rename-rows", event => {
-    progressState.total = event.payload as number;
-  });
-
-  const newHeaders = editableHeaders.value.map(h => h.trim() || "Unnamed");
-  const headersString = newHeaders.join(",");
-
-  try {
-    renaming.value = true;
-    const rtime: string = await invoke("rename", {
-      path: path_inner.value,
-      headers: headersString,
-      progress: true,
-      quoting: useQuoting().quoting,
-      skiprows: useSkiprows().skiprows,
-      flexible: useFlexible().flexible
-    });
-    message(
-      `Columns renamed successfully in ${parseFloat(rtime).toFixed(1)} s`,
-      {
-        type: "success"
-      }
-    );
-  } catch (e) {
-    message(`Rename failed: ${e}`, { type: "error" });
-  } finally {
-    renaming.value = false;
-    finishProgress(TASK_NAME);
-    unlistenUpdate();
-    unlistenTotal();
-  }
-}
 
 async function openFile() {
   try {
@@ -307,16 +131,16 @@ useShortcuts({
         </SiliconeButton>
         <SiliconeButton
           size="small"
-          :loading="filtering"
-          @click="showSearchDialog = true"
+          :loading="search.filtering.value"
+          @click="search.showSearchDialog.value = true"
           text
         >
           <Icon icon="ri:filter-3-line" class="w-4 h-4" />
         </SiliconeButton>
         <SiliconeButton
           size="small"
-          @click="executeRename"
-          :loading="renaming"
+          @click="rename.executeRename"
+          :loading="rename.renaming.value"
           text
         >
           <Icon icon="ri:heading" class="w-4 h-4" />
@@ -348,13 +172,16 @@ useShortcuts({
         <template #header>
           <div class="flex flex-col gap-1">
             <SiliconeInput
-              v-model="editableHeaders[index]"
+              v-model="rename.editableHeaders.value[index]"
               size="small"
               placeholder="New header"
-              @keyup.enter="executeRename"
+              @keyup.enter="rename.executeRename"
             />
             <span
-              v-if="editableHeaders[index] !== originalHeaders[index]"
+              v-if="
+                rename.editableHeaders.value[index] !==
+                rename.originalHeaders.value[index]
+              "
               class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded"
             >
               Changed
@@ -394,7 +221,7 @@ useShortcuts({
     />
 
     <SiliconeDialog
-      v-model="showSearchDialog"
+      v-model="search.showSearchDialog.value"
       title="Advanced Filter"
       width="560px"
       :modal="false"
@@ -403,7 +230,10 @@ useShortcuts({
     >
       <el-scrollbar max-height="200px">
         <div class="space-y-2">
-          <template v-for="(config, index) in columnConfigs" :key="index">
+          <template
+            v-for="(config, index) in search.columnConfigs.value"
+            :key="index"
+          >
             <div class="flex items-center gap-2">
               <SiliconeSelect
                 v-model="config.column"
@@ -452,16 +282,19 @@ useShortcuts({
                 size="small"
                 type="danger"
                 text
-                @click="removeColumn(index)"
-                :disabled="columnConfigs.length === 1"
+                @click="search.removeColumn(index)"
+                :disabled="search.columnConfigs.value.length === 1"
                 circle
               >
                 <Icon icon="ri:close-line" class="w-4 h-4" />
               </SiliconeButton>
             </div>
 
-            <div v-if="index < logics.length" class="flex justify-center">
-              <SiliconeSelect v-model="logics[index]" size="small">
+            <div
+              v-if="index < search.logics.value.length"
+              class="flex justify-center"
+            >
+              <SiliconeSelect v-model="search.logics.value[index]" size="small">
                 <el-option label="AND" value="and" />
                 <el-option label="OR" value="or" />
               </SiliconeSelect>
@@ -472,14 +305,14 @@ useShortcuts({
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <SiliconeButton size="small" @click="addColumn">
+          <SiliconeButton size="small" @click="search.addColumn">
             + Add
           </SiliconeButton>
           <SiliconeButton
             size="small"
             type="primary"
-            @click="executeSearch"
-            :loading="filtering"
+            @click="search.executeSearch"
+            :loading="search.filtering.value"
           >
             Apply
           </SiliconeButton>
