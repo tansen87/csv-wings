@@ -10,6 +10,7 @@ import { useFileView } from "@/store/modules/fileView";
 import { useRename } from "@/views/text/fn/useRename";
 import { useSearch } from "@/views/text/fn/useSearch";
 import { useTaskProgress } from "@/views/text/fn/useProgress";
+import { useContextMenu } from "@/views/text/fn/useContextMenu";
 
 const props = defineProps<{
   path: string | null;
@@ -25,6 +26,12 @@ const path_inner = ref("");
 const { visibleProgress, ensureProgress, finishProgress } = useTaskProgress();
 const rename = useRename(path_inner, ensureProgress, finishProgress);
 const search = useSearch(path_inner, ensureProgress, finishProgress);
+const contextMenu = useContextMenu({
+  path: path_inner,
+  tableHeader,
+  ensureProgress,
+  finishProgress
+});
 
 function getPercent(state: { current: number; total: number }) {
   if (state.total <= 0) return 0;
@@ -34,7 +41,7 @@ function getTaskLabel(taskName: string): string {
   const labels: Record<string, string> = {
     search: "Filtering...",
     rename: "Renaming...",
-    load: "Loading data..."
+    insert: "Inserting..."
   };
   return labels[taskName] || taskName;
 }
@@ -182,13 +189,13 @@ useShortcuts({
                 rename.editableHeaders.value[index] !==
                 rename.originalHeaders.value[index]
               "
-              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded"
+              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded h-[20px]"
             >
               Changed
             </span>
             <span
               v-else
-              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded"
+              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded h-[20px]"
             >
               Unchanged
             </span>
@@ -219,6 +226,34 @@ useShortcuts({
       :total-lines="tableRows"
       @go-to="handleGotoLine"
     />
+
+    <SiliconeDialog
+      class="context-menu-dialog"
+      v-model="contextMenu.showMenu.value"
+      width="200px"
+      :modal="false"
+      :show-close="false"
+      :destroy-on-close="true"
+      draggable
+      :style="{
+        left: contextMenu.menuPosition.x + 'px',
+        top: contextMenu.menuPosition.y + 'px',
+        margin: 0
+      }"
+    >
+      <div
+        class="context-menu-item"
+        @click="() => contextMenu.insertColumn('left')"
+      >
+        Insert Column Left
+      </div>
+      <div
+        class="context-menu-item"
+        @click="() => contextMenu.insertColumn('right')"
+      >
+        Insert Column Right
+      </div>
+    </SiliconeDialog>
 
     <SiliconeDialog
       v-model="search.showSearchDialog.value"
@@ -348,5 +383,21 @@ useShortcuts({
 <style scoped>
 :deep(.el-card__body) {
   padding: 0 !important;
+}
+
+:deep(.context-menu-dialog .el-dialog__header) {
+  display: none !important;
+}
+.context-menu-item {
+  padding: 0.2rem 0.2rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.context-menu-item:hover {
+  background-color: #d1d5db;
+}
+.dark .context-menu-item:hover {
+  background-color: #374151;
 }
 </style>

@@ -147,6 +147,8 @@ pub trait EventEmitter {
   fn emit_update_search_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
   fn emit_total_rename_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
   fn emit_update_rename_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
+  fn emit_total_insert_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
+  fn emit_update_insert_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
 }
 
 impl EventEmitter for AppHandle {
@@ -215,6 +217,18 @@ impl EventEmitter for AppHandle {
       .emit("update-rename-rows", count)
       .map_err(|e| anyhow!("emit update rename rows failed: {e}"))
   }
+
+  async fn emit_total_insert_rows(&self, count: usize) -> Result<()> {
+    self
+      .emit("total-insert-rows", count)
+      .map_err(|e| anyhow!("emit total insert rows failed: {e}"))
+  }
+
+  async fn emit_update_insert_rows(&self, count: usize) -> Result<()> {
+    self
+      .emit("update-insert-rows", count)
+      .map_err(|e| anyhow!("emit update insert rows failed: {e}"))
+  }
 }
 
 #[derive(Default)]
@@ -230,6 +244,8 @@ pub struct MockEmitter {
   pub update_search_rows: Arc<Mutex<Vec<usize>>>,
   pub total_rename_rows: Arc<Mutex<Vec<usize>>>,
   pub update_rename_rows: Arc<Mutex<Vec<usize>>>,
+  pub total_insert_rows: Arc<Mutex<Vec<usize>>>,
+  pub update_insert_rows: Arc<Mutex<Vec<usize>>>,
 }
 
 impl EventEmitter for MockEmitter {
@@ -324,6 +340,24 @@ impl EventEmitter for MockEmitter {
   }
 
   async fn emit_update_rename_rows(&self, count: usize) -> Result<()> {
+    self
+      .update_rows
+      .lock()
+      .map_err(|poison| anyhow!("update rows lock poisoned: {poison}"))?
+      .push(count);
+    Ok(())
+  }
+
+  async fn emit_total_insert_rows(&self, count: usize) -> Result<()> {
+    self
+      .total_rows
+      .lock()
+      .map_err(|poison| anyhow!("total rows lock poisoned: {poison}"))?
+      .push(count);
+    Ok(())
+  }
+
+  async fn emit_update_insert_rows(&self, count: usize) -> Result<()> {
     self
       .update_rows
       .lock()

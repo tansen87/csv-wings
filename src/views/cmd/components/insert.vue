@@ -28,10 +28,10 @@ const quoting = useQuoting();
 const flexible = useFlexible();
 const progress = useProgress();
 
-listen("update-rows", (event: Event<number>) => {
+listen("update-insert-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
 });
-listen("total-rows", (event: Event<number>) => {
+listen("total-insert-rows", (event: Event<number>) => {
   totalRows.value = event.payload;
 });
 
