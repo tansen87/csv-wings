@@ -33,10 +33,10 @@ const progress = useProgress();
 const flexible = useFlexible();
 const threads = useThreads();
 
-listen("update-rows", (event: Event<number>) => {
+listen("update-search-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
 });
-listen("total-rows", (event: Event<number>) => {
+listen("total-search-rows", (event: Event<number>) => {
   totalRows.value = event.payload;
 });
 

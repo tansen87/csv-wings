@@ -67,12 +67,12 @@ where
         tokio::select! {
           _ = interval.tick() => {
             let current_rows = rows_clone.load(Ordering::Relaxed);
-            if let Err(err) = emitter.emit_update_rows(current_rows).await {
+            if let Err(err) = emitter.emit_update_search_rows(current_rows).await {
               let _ = emitter.emit_err(&format!("failed to emit current rows: {err}")).await;
             }
           },
           Ok(final_rows) = (&mut done_rx) => {
-            if let Err(err) = emitter.emit_update_rows(final_rows).await {
+            if let Err(err) = emitter.emit_update_search_rows(final_rows).await {
               let _ = emitter.emit_err(&format!("failed to emit final rows: {err}")).await;
             }
             break;
@@ -143,7 +143,7 @@ where
     true => opts.idx_count_rows().await?,
     false => 0,
   };
-  emitter.emit_total_rows(total_rows).await?;
+  emitter.emit_total_search_rows(total_rows).await?;
 
   // prepare writers for each condition with sanitized output paths
   let parent_path = opts.parent_path()?;
@@ -172,12 +172,12 @@ where
         tokio::select! {
           _ = interval.tick() => {
             let current_rows = rows_clone.load(Ordering::Relaxed);
-            if let Err(err) = emitter.emit_update_rows(current_rows).await {
+            if let Err(err) = emitter.emit_update_search_rows(current_rows).await {
               let _ = emitter.emit_err(&format!("failed to emit current rows: {err}")).await;
             }
           },
           Ok(final_rows) = (&mut done_rx) => {
-            if let Err(err) = emitter.emit_update_rows(final_rows).await {
+            if let Err(err) = emitter.emit_update_search_rows(final_rows).await {
               let _ = emitter.emit_err(&format!("failed to emit final rows: {err}")).await;
             }
             break;
@@ -511,10 +511,10 @@ where
         tokio::select! {
             _ = interval.tick() => {
                 let r = rows_clone.load(Ordering::Relaxed);
-                let _ = emitter.emit_update_rows(r).await;
+                let _ = emitter.emit_update_search_rows(r).await;
             },
             Ok(final_rows) = (&mut done_rx) => {
-                let _ = emitter.emit_update_rows(final_rows).await;
+                let _ = emitter.emit_update_search_rows(final_rows).await;
                 break;
             },
             _ = (&mut stop_rx) => break,

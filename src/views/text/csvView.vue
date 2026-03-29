@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
-import { FolderOpened, Guide, Position, Search } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
 import GotoDialog from "@/views/text/gotoDialog.vue";
@@ -20,7 +19,7 @@ import { listen } from "@tauri-apps/api/event";
 const props = defineProps<{
   path: string | null;
 }>();
-const [loading, tableLoading] = [ref(false), ref(false)];
+const [indexing, filtering, renaming] = [ref(false), ref(false), ref(false)];
 const showGotoDialog = ref(false);
 const showSearchDialog = ref(false);
 const tableHeader = ref<string[]>([]);
@@ -30,18 +29,51 @@ const currentDataLine = ref(1);
 const VISIBLE_LINE_COUNT = 200;
 const path_inner = ref("");
 
-const progress = ref({
-  visible: false,
-  current: 0,
-  total: 0
+interface TaskProgress {
+  current: number;
+  total: number;
+  visible: boolean;
+}
+const progressMap = reactive(new Map<string, TaskProgress>());
+const visibleProgress = computed(() => {
+  const result: Record<string, TaskProgress> = {};
+  for (const [key, state] of progressMap.entries()) {
+    if (state.visible) {
+      result[key] = state;
+    }
+  }
+  return result;
 });
-const progressPercent = computed(() => {
-  if (progress.value.total <= 0) return 0;
-  return Math.min(
-    100,
-    Math.round((progress.value.current / progress.value.total) * 100)
-  );
-});
+function getPercent(state: { current: number; total: number }) {
+  if (state.total <= 0) return 0;
+  return Math.min(100, Math.round((state.current / state.total) * 100));
+}
+
+function getTaskLabel(taskName: string): string {
+  const labels: Record<string, string> = {
+    search: "Filtering...",
+    rename: "Renaming...",
+    load: "Loading data..."
+  };
+  return labels[taskName] || taskName;
+}
+function ensureProgress(taskName: string) {
+  if (!progressMap.has(taskName)) {
+    progressMap.set(taskName, { current: 0, total: 0, visible: true });
+  }
+  return progressMap.get(taskName)!;
+}
+function finishProgress(taskName: string) {
+  const state = progressMap.get(taskName);
+  if (state) {
+    state.visible = false;
+    setTimeout(() => {
+      if (progressMap.get(taskName)?.visible === false) {
+        progressMap.delete(taskName);
+      }
+    }, 3000);
+  }
+}
 
 interface ColumnConfig {
   column: string;
@@ -88,21 +120,17 @@ async function executeSearch() {
     return;
   }
 
-  progress.value = {
-    visible: true,
-    current: 0,
-    total: 0
-  };
-  const unlistenUpdate = await listen("update-rows", event => {
-    progress.value.current = event.payload as number;
+  const TASK_NAME = "search";
+  const progressState = ensureProgress(TASK_NAME);
+  const unlistenUpdate = await listen("update-search-rows", event => {
+    progressState.current = event.payload as number;
   });
-  const unlistenTotal = await listen("total-rows", event => {
-    progress.value.total = event.payload as number;
+  const unlistenTotal = await listen("total-search-rows", event => {
+    progressState.total = event.payload as number;
   });
 
   try {
-    loading.value = true;
-
+    filtering.value = true;
     const res: [string, string] = await invoke("search_chain", {
       path: path_inner.value,
       configs: validConfigs,
@@ -115,22 +143,81 @@ async function executeSearch() {
     });
 
     const [matchCount, timeStr] = res;
-    const elapsedSeconds = parseFloat(timeStr) || 0;
 
     showSearchDialog.value = false;
-    progress.value.visible = false;
 
     message(
-      `Filter done: ${matchCount} rows matched, elapsed ${elapsedSeconds.toFixed(
-        1
-      )} seconds`,
+      `Filter done: ${matchCount} rows matched, elapsed ${parseFloat(
+        timeStr
+      ).toFixed(1)} s`,
       { type: "success" }
     );
   } catch (e) {
-    progress.value.visible = false;
     message(`filter failed: ${e}`, { type: "error" });
   } finally {
-    loading.value = false;
+    filtering.value = false;
+    finishProgress(TASK_NAME);
+    unlistenUpdate();
+    unlistenTotal();
+  }
+}
+
+const editableHeaders = ref<string[]>([]);
+const originalHeaders = ref<string[]>([]);
+watch(
+  () => tableHeader.value,
+  () => {
+    editableHeaders.value = [...tableHeader.value];
+  },
+  { immediate: true }
+);
+watch(
+  () => tableHeader.value,
+  newHeaders => {
+    editableHeaders.value = [...newHeaders];
+    originalHeaders.value = [...newHeaders];
+  },
+  { immediate: true }
+);
+async function executeRename() {
+  if (!path_inner.value) {
+    message("No file opened", { type: "warning" });
+    return;
+  }
+
+  const TASK_NAME = "rename";
+  const progressState = ensureProgress(TASK_NAME);
+  const unlistenUpdate = await listen("update-rename-rows", event => {
+    progressState.current = event.payload as number;
+  });
+  const unlistenTotal = await listen("total-rename-rows", event => {
+    progressState.total = event.payload as number;
+  });
+
+  const newHeaders = editableHeaders.value.map(h => h.trim() || "Unnamed");
+  const headersString = newHeaders.join(",");
+
+  try {
+    renaming.value = true;
+    const rtime: string = await invoke("rename", {
+      path: path_inner.value,
+      headers: headersString,
+      progress: true,
+      quoting: useQuoting().quoting,
+      skiprows: useSkiprows().skiprows,
+      flexible: useFlexible().flexible
+    });
+    message(
+      `Columns renamed successfully in ${parseFloat(rtime).toFixed(1)} s`,
+      {
+        type: "success"
+      }
+    );
+  } catch (e) {
+    message(`Rename failed: ${e}`, { type: "error" });
+  } finally {
+    renaming.value = false;
+    finishProgress(TASK_NAME);
     unlistenUpdate();
     unlistenTotal();
   }
@@ -151,7 +238,6 @@ async function loadRows(targetLine: number) {
   if (!path_inner.value) return;
   const start = Math.max(1, targetLine);
   const end = start + VISIBLE_LINE_COUNT - 1;
-  loading.value = true;
   try {
     const jsonStr: string = await invoke("table_view", {
       path: path_inner.value,
@@ -168,8 +254,6 @@ async function loadRows(targetLine: number) {
     message(`CSV load failed: ${e}`, { type: "error" });
     tableHeader.value = [];
     tableData.value = [];
-  } finally {
-    loading.value = false;
   }
 }
 
@@ -215,35 +299,32 @@ useShortcuts({
   <div class="page-view">
     <SiliconeCard shadow="never" class="h-9">
       <div class="flex p-1">
+        <SiliconeButton size="small" @click="openFile" text>
+          <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+        </SiliconeButton>
+        <SiliconeButton size="small" @click="showGotoDialog = true" text>
+          <Icon icon="ri:navigation-line" class="w-4 h-4" />
+        </SiliconeButton>
         <SiliconeButton
           size="small"
-          :icon="FolderOpened"
-          @click="openFile"
-          :loading="loading"
-          text
-        />
-        <SiliconeButton
-          size="small"
-          :icon="Position"
-          :loading="loading"
-          @click="showGotoDialog = true"
-          text
-        />
-        <SiliconeButton
-          size="small"
-          :icon="Search"
-          :loading="loading"
-          text
+          :loading="filtering"
           @click="showSearchDialog = true"
-        />
-        <div class="flex-grow" />
+          text
+        >
+          <Icon icon="ri:filter-3-line" class="w-4 h-4" />
+        </SiliconeButton>
         <SiliconeButton
           size="small"
-          :icon="Guide"
-          :loading="loading"
+          @click="executeRename"
+          :loading="renaming"
           text
-          @click="clearFile"
-        />
+        >
+          <Icon icon="ri:heading" class="w-4 h-4" />
+        </SiliconeButton>
+        <div class="flex-grow" />
+        <SiliconeButton size="small" text @click="clearFile">
+          <Icon icon="ri:home-3-line" class="w-4 h-4" />
+        </SiliconeButton>
       </div>
     </SiliconeCard>
 
@@ -253,17 +334,40 @@ useShortcuts({
       size="small"
       class="select-text"
       height="100%"
-      v-loading="tableLoading"
+      v-loading="indexing"
       element-loading-text="Creating index for csv"
       empty-text=""
     >
       <el-table-column
-        v-for="header in tableHeader"
+        v-for="(header, index) in tableHeader"
         :key="header"
         :prop="header"
         :label="header"
         show-overflow-tooltip
-      />
+      >
+        <template #header>
+          <div class="flex flex-col gap-1">
+            <SiliconeInput
+              v-model="editableHeaders[index]"
+              size="small"
+              placeholder="New header"
+              @keyup.enter="executeRename"
+            />
+            <span
+              v-if="editableHeaders[index] !== originalHeaders[index]"
+              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded"
+            >
+              Changed
+            </span>
+            <span
+              v-else
+              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded"
+            >
+              Unchanged
+            </span>
+          </div>
+        </template>
+      </el-table-column>
     </SiliconeTable>
 
     <SiliconeCard v-if="path_inner" shadow="never" class="min-h-[25px]">
@@ -375,7 +479,7 @@ useShortcuts({
             size="small"
             type="primary"
             @click="executeSearch"
-            :loading="loading"
+            :loading="filtering"
           >
             Apply
           </SiliconeButton>
@@ -383,23 +487,28 @@ useShortcuts({
       </template>
     </SiliconeDialog>
 
-    <transition name="fade">
-      <div
-        v-if="progress.visible"
-        class="fixed bottom-2 right-2 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700 p-1"
-        style="min-width: 220px"
-      >
-        <div class="text-xs text-gray-500">
-          {{ progress.current.toLocaleString() }} /
-          {{ progress.total.toLocaleString() }} rows
+    <div class="fixed bottom-2 right-2 z-50 space-y-2">
+      <transition-group name="fade">
+        <div
+          v-for="(state, taskName) in visibleProgress"
+          :key="taskName"
+          class="shadow-lg rounded-lg border border-gray-200 dark:border-gray-700 p-1 min-w-[260px]"
+        >
+          <div class="text-xs text-gray-500 mb-1">
+            {{ getTaskLabel(taskName) }}
+            <span class="float-right">
+              {{ state.current.toLocaleString() }} /
+              {{ state.total.toLocaleString() }}
+            </span>
+          </div>
+          <SiliconeProgress
+            :percentage="getPercent(state)"
+            :text-inside="true"
+            :stroke-width="15"
+          />
         </div>
-        <SiliconeProgress
-          :percentage="progressPercent"
-          :text-inside="true"
-          :stroke-width="15"
-        />
-      </div>
-    </transition>
+      </transition-group>
+    </div>
   </div>
 </template>
 

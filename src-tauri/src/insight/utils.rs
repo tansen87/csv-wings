@@ -143,6 +143,10 @@ pub trait EventEmitter {
   fn emit_info(&self, info: &str) -> impl Future<Output = Result<()>> + Send;
   fn emit_err(&self, err: &str) -> impl Future<Output = Result<()>> + Send;
   fn emit_success(&self, success: &str) -> impl Future<Output = Result<()>> + Send;
+  fn emit_total_search_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
+  fn emit_update_search_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
+  fn emit_total_rename_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
+  fn emit_update_rename_rows(&self, count: usize) -> impl Future<Output = Result<()>> + Send;
 }
 
 impl EventEmitter for AppHandle {
@@ -187,6 +191,30 @@ impl EventEmitter for AppHandle {
       .emit("success", success)
       .map_err(|e| anyhow!("emit success failed: {e}"))
   }
+
+  async fn emit_total_search_rows(&self, count: usize) -> Result<()> {
+    self
+      .emit("total-search-rows", count)
+      .map_err(|e| anyhow!("emit total search rows failed: {e}"))
+  }
+
+  async fn emit_update_search_rows(&self, count: usize) -> Result<()> {
+    self
+      .emit("update-search-rows", count)
+      .map_err(|e| anyhow!("emit update search rows failed: {e}"))
+  }
+
+  async fn emit_total_rename_rows(&self, count: usize) -> Result<()> {
+    self
+      .emit("total-rename-rows", count)
+      .map_err(|e| anyhow!("emit total rename rows failed: {e}"))
+  }
+
+  async fn emit_update_rename_rows(&self, count: usize) -> Result<()> {
+    self
+      .emit("update-rename-rows", count)
+      .map_err(|e| anyhow!("emit update rename rows failed: {e}"))
+  }
 }
 
 #[derive(Default)]
@@ -198,6 +226,10 @@ pub struct MockEmitter {
   pub info: Arc<Mutex<String>>,
   pub err: Arc<Mutex<String>>,
   pub success: Arc<Mutex<String>>,
+  pub total_search_rows: Arc<Mutex<Vec<usize>>>,
+  pub update_search_rows: Arc<Mutex<Vec<usize>>>,
+  pub total_rename_rows: Arc<Mutex<Vec<usize>>>,
+  pub update_rename_rows: Arc<Mutex<Vec<usize>>>,
 }
 
 impl EventEmitter for MockEmitter {
@@ -261,6 +293,42 @@ impl EventEmitter for MockEmitter {
       .lock()
       .map_err(|poison| anyhow!("success lock poisoned: {poison}"))?
       .push_str(success);
+    Ok(())
+  }
+
+  async fn emit_total_search_rows(&self, count: usize) -> Result<()> {
+    self
+      .total_rows
+      .lock()
+      .map_err(|poison| anyhow!("total rows lock poisoned: {poison}"))?
+      .push(count);
+    Ok(())
+  }
+
+  async fn emit_update_search_rows(&self, count: usize) -> Result<()> {
+    self
+      .update_rows
+      .lock()
+      .map_err(|poison| anyhow!("update rows lock poisoned: {poison}"))?
+      .push(count);
+    Ok(())
+  }
+
+  async fn emit_total_rename_rows(&self, count: usize) -> Result<()> {
+    self
+      .total_rows
+      .lock()
+      .map_err(|poison| anyhow!("total rows lock poisoned: {poison}"))?
+      .push(count);
+    Ok(())
+  }
+
+  async fn emit_update_rename_rows(&self, count: usize) -> Result<()> {
+    self
+      .update_rows
+      .lock()
+      .map_err(|poison| anyhow!("update rows lock poisoned: {poison}"))?
+      .push(count);
     Ok(())
   }
 }

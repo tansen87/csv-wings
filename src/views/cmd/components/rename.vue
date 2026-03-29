@@ -34,10 +34,10 @@ const filterTableData = computed(() =>
   )
 );
 
-listen("update-rows", (event: Event<number>) => {
+listen("update-rename-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
 });
-listen("total-rows", (event: Event<number>) => {
+listen("total-rename-rows", (event: Event<number>) => {
   totalRows.value = event.payload;
 });
 

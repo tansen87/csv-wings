@@ -39,7 +39,7 @@ where
     true => opts.idx_count_rows().await?,
     false => 0,
   };
-  emitter.emit_total_rows(total_rows).await?;
+  emitter.emit_total_rename_rows(total_rows).await?;
 
   let config = CsvConfigBuilder::new()
     .flexible(flexible)
@@ -68,12 +68,12 @@ where
         tokio::select! {
           _ = interval.tick() => {
             let current_rows = rows_clone.load(Ordering::Relaxed);
-            if let Err(err) = emitter.emit_update_rows(current_rows).await {
+            if let Err(err) = emitter.emit_update_rename_rows(current_rows).await {
               let _ = emitter.emit_err(&format!("failed to emit current rows: {err}")).await;
             }
           },
           Ok(final_rows) = (&mut done_rx) => {
-            if let Err(err) = emitter.emit_update_rows(final_rows).await {
+            if let Err(err) = emitter.emit_update_rename_rows(final_rows).await {
               let _ = emitter.emit_err(&format!("failed to emit final rows: {err}")).await;
             }
             break;

@@ -53,7 +53,7 @@ where
       } else {
         0
       };
-      emitter.emit_total_rows(total_rows).await?;
+      emitter.emit_total_search_rows(total_rows).await?;
     }
     _ => {
       idx = Some(

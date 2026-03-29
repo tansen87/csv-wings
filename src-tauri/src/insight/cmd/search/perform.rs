@@ -138,13 +138,13 @@ async fn perform_search<P: AsRef<Path> + Send + Sync + 'static>(
 
       if let Some(threads) = threads {
         if threads == 1 {
-          // 单线程: emit_total_rows
+          // 单线程: emit_total_search_rows
           let total_rows = if progress {
             opts.idx_count_rows().await?
           } else {
             0
           };
-          emitter.emit_total_rows(total_rows).await?;
+          emitter.emit_total_search_rows(total_rows).await?;
         } else {
           // 多线程: 初始化idx供后续使用
           idx = Some(
