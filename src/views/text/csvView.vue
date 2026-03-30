@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { Icon } from "@iconify/vue";
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
@@ -142,43 +143,68 @@ function clearFile() {
 
 const editCache = ref(new Map<number, Record<string, string>>());
 const editedCells = ref(new Set<string>());
-function onCellEdit(viewRowIndex: number, field: string) {
+function getNewHeaderByOriginal(orig: string): string | null {
+  const index = originalHeader.value.indexOf(orig);
+  if (index === -1 || index >= tableHeader.value.length) return null;
+  return tableHeader.value[index];
+}
+function onCellEdit(viewRowIndex: number, origField: string) {
   const globalLine = currentDataLine.value + viewRowIndex;
-  const currentValue = tableData.value[viewRowIndex]?.[field];
-  const originalValue = originalDataSnapshot.value[globalLine]?.[field];
 
-  // 值变了,才更新缓存和标记
+  // 找到这个原始字段对应的新字段名
+  const newField = getNewHeaderByOriginal(origField);
+  if (!newField) return;
+
+  // 获取当前值
+  const currentValue = tableData.value[viewRowIndex]?.[origField] ?? "";
+
+  // 获取原始值
+  const originalValue =
+    originalDataSnapshot.value[globalLine]?.[origField] ?? "";
+
   if (currentValue !== originalValue) {
-    // 更新editCache(整行)
-    if (!editCache.value.has(globalLine)) {
-      // 从当前tableData拷贝
-      editCache.value.set(globalLine, { ...tableData.value[viewRowIndex] });
-    } else {
-      editCache.value.get(globalLine)![field] = currentValue;
+    // 更新editCache行
+    const cachedRow = editCache.value.get(globalLine) || {};
+
+    // 按新表头重建整行
+    const newRow: Record<string, string> = {};
+    for (let i = 0; i < tableHeader.value.length; i++) {
+      const nh = tableHeader.value[i];
+      const oh = originalHeader.value[i];
+      newRow[nh] =
+        i === originalHeader.value.indexOf(origField)
+          ? currentValue
+          : cachedRow[nh] ?? originalDataSnapshot.value[globalLine]?.[oh] ?? "";
     }
 
-    // 标记这个cell被修改
-    editedCells.value.add(`${globalLine}-${field}`);
+    editCache.value.set(globalLine, newRow);
+    editedCells.value.add(`${globalLine}-${newField}`);
   } else {
-    // 如果值改回原始值,取消标记
-    const cacheKey = `${globalLine}-${field}`;
+    // 值恢复原始,尝试清理
+    const cacheKey = `${globalLine}-${newField}`;
     editedCells.value.delete(cacheKey);
 
-    // 如果整行都恢复原始值,清理editCache
     const cachedRow = editCache.value.get(globalLine);
     if (cachedRow) {
-      const origRow = originalDataSnapshot.value[globalLine];
-      let allMatch = true;
-      if (origRow) {
-        for (const key in origRow) {
-          if (cachedRow[key] !== origRow[key]) {
-            allMatch = false;
-            break;
-          }
+      // 移除该字段
+      const { [newField]: _, ...rest } = cachedRow;
+
+      // 检查是否整行都恢复原始
+      let allOriginal = true;
+      for (let i = 0; i < tableHeader.value.length; i++) {
+        const nh = tableHeader.value[i];
+        const oh = originalHeader.value[i];
+        const origVal = originalDataSnapshot.value[globalLine]?.[oh] ?? "";
+        if (rest[nh] !== undefined && rest[nh] !== origVal) {
+          allOriginal = false;
+          break;
         }
       }
-      if (allMatch) {
+
+      if (allOriginal || Object.keys(rest).length === 0) {
         editCache.value.delete(globalLine);
+      } else {
+        editCache.value.set(globalLine, rest);
       }
     }
   }
@@ -194,10 +220,10 @@ function isLineModified(globalLine: number): boolean {
   }
   return false;
 }
-async function saveEdits() {
+async function saveEdits(outputPath: string | null) {
   const edits = Array.from(editCache.value.entries()).map(([line, data]) => ({
     line,
-    data // key是当前header中的名字
+    data
   }));
   const TASK_NAME = "save";
   ensureProgress(TASK_NAME);
@@ -206,7 +232,8 @@ async function saveEdits() {
     await invoke("table_edit", {
       path: path_inner.value,
       newHeaders: tableHeader.value,
-      edits: edits
+      edits: edits,
+      outputPath: outputPath
     });
     // 保存成功,清空所有编辑状态
     editCache.value.clear();
@@ -217,6 +244,21 @@ async function saveEdits() {
   } finally {
     saving.value = false;
     finishProgress(TASK_NAME);
+  }
+}
+async function saveAsNewFile() {
+  const outputPath = await save({
+    title: "Save Edited CSV",
+    defaultPath: `edited_${new Date().getTime()}`,
+    filters: [
+      {
+        name: "CSV",
+        extensions: ["csv"]
+      }
+    ]
+  });
+  if (outputPath) {
+    await saveEdits(outputPath);
   }
 }
 
@@ -230,23 +272,46 @@ useShortcuts({
   <div class="page-view">
     <SiliconeCard shadow="never" class="h-9">
       <div class="flex p-1">
-        <SiliconeButton size="small" @click="openFile" text>
-          <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-        </SiliconeButton>
-        <SiliconeButton size="small" @click="showGotoDialog = true" text>
-          <Icon icon="ri:navigation-line" class="w-4 h-4" />
-        </SiliconeButton>
-        <SiliconeButton
-          size="small"
-          :loading="search.filtering.value"
-          @click="search.showSearchDialog.value = true"
-          text
-        >
-          <Icon icon="ri:filter-3-line" class="w-4 h-4" />
-        </SiliconeButton>
-        <SiliconeButton size="small" @click="saveEdits" :loading="saving" text>
-          <Icon icon="ri:save-line" class="w-4 h-4" />
-        </SiliconeButton>
+        <SiliconeTooltip content="Open">
+          <SiliconeButton size="small" @click="openFile" text>
+            <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+          </SiliconeButton>
+        </SiliconeTooltip>
+        <SiliconeTooltip content="Jump">
+          <SiliconeButton size="small" @click="showGotoDialog = true" text>
+            <Icon icon="ri:navigation-line" class="w-4 h-4" />
+          </SiliconeButton>
+        </SiliconeTooltip>
+        <SiliconeTooltip content="Filter">
+          <SiliconeButton
+            size="small"
+            :loading="search.filtering.value"
+            @click="search.showSearchDialog.value = true"
+            text
+          >
+            <Icon icon="ri:filter-3-line" class="w-4 h-4" />
+          </SiliconeButton>
+        </SiliconeTooltip>
+        <SiliconeTooltip content="Save">
+          <SiliconeButton
+            size="small"
+            @click="() => saveEdits(null)"
+            :loading="saving"
+            text
+          >
+            <Icon icon="ri:save-line" class="w-4 h-4" />
+          </SiliconeButton>
+        </SiliconeTooltip>
+        <SiliconeTooltip content="Save as">
+          <SiliconeButton
+            size="small"
+            @click="saveAsNewFile"
+            :loading="saving"
+            text
+          >
+            <Icon icon="ri:file-copy-line" class="w-4 h-4" />
+          </SiliconeButton>
+        </SiliconeTooltip>
         <div class="flex-grow" />
         <SiliconeButton size="small" text @click="clearFile">
           <Icon icon="ri:home-3-line" class="w-4 h-4" />
@@ -315,7 +380,7 @@ useShortcuts({
             :class="{
               'rounded-[12px] bg-blue-50 dark:bg-blue-900/30': isCellModified(
                 currentDataLine + $index,
-                column.property
+                getNewHeaderByOriginal(column.property) || column.property
               )
             }"
           />

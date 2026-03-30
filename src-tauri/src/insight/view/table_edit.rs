@@ -13,13 +13,18 @@ pub struct Edit {
   pub data: HashMap<String, String>,
 }
 
-async fn csv_edit(path: String, new_headers: Vec<String>, edits: Vec<Edit>) -> Result<()> {
-  let path = Path::new(&path);
-  if !path.exists() {
+async fn csv_edit(
+  path: String,
+  new_headers: Vec<String>,
+  edits: Vec<Edit>,
+  output_path: Option<String>,
+) -> Result<()> {
+  let input_path = Path::new(&path);
+  if !input_path.exists() {
     return Err(anyhow::anyhow!("File not found"));
   }
 
-  let opts = CsvOptions::new(path);
+  let opts = CsvOptions::new(input_path);
   let sep = opts.get_delimiter()?;
   let mut indexed_file = opts
     .indexed()?
@@ -50,16 +55,18 @@ async fn csv_edit(path: String, new_headers: Vec<String>, edits: Vec<Edit>) -> R
     edit_map.insert(edit.line, &edit.data);
   }
 
-  // 创建临时文件
-  let temp_path = path.with_extension("csv.tmp");
+  // 决定输出路径
+  let final_output_path = match &output_path {
+    Some(p) => std::path::PathBuf::from(p),
+    None => input_path.with_extension("csv.tmp"), // 临时文件用于覆盖
+  };
+
   let mut wtr = csv::WriterBuilder::new()
     .delimiter(sep)
-    .from_writer(File::create(&temp_path)?);
+    .from_writer(File::create(&final_output_path)?);
 
-  // 写入new headers(顺序不变,仅值变)
   wtr.write_record(&new_headers)?;
 
-  // 流式处理每一行
   let mut current_line = 1u32;
   let mut record_iter = indexed_file.byte_records();
 
@@ -111,7 +118,11 @@ async fn csv_edit(path: String, new_headers: Vec<String>, edits: Vec<Edit>) -> R
 
   wtr.flush()?;
   drop(wtr);
-  fs::rename(&temp_path, path)?;
+
+  // 如果没有指定 output_path,则用临时文件覆盖原文件
+  if output_path.is_none() {
+    fs::rename(&final_output_path, input_path)?;
+  }
 
   Ok(())
 }
@@ -121,8 +132,9 @@ pub async fn table_edit(
   path: String,
   new_headers: Vec<String>,
   edits: Vec<Edit>,
+  output_path: Option<String>
 ) -> Result<(), String> {
-  match csv_edit(path, new_headers, edits).await {
+  match csv_edit(path, new_headers, edits, output_path).await {
     Ok(_) => Ok(()),
     Err(err) => Err(format!("{err}")),
   }
