@@ -7,7 +7,6 @@ import { viewOpenFile } from "@/utils/view";
 import GotoDialog from "@/views/text/gotoDialog.vue";
 import { useShortcuts } from "@/utils/globalShortcut";
 import { useFileView } from "@/store/modules/fileView";
-import { useRename } from "@/views/text/fn/useRename";
 import { useSearch } from "@/views/text/fn/useSearch";
 import { useTaskProgress } from "@/views/text/fn/useProgress";
 import { useContextMenu } from "@/views/text/fn/useContextMenu";
@@ -16,15 +15,16 @@ const props = defineProps<{
   path: string | null;
 }>();
 const indexing = ref(false);
+const saving = ref(false);
 const showGotoDialog = ref(false);
+const originalHeader = ref<string[]>([]);
 const tableHeader = ref<string[]>([]);
 const tableData = ref<Record<string, string>[]>([]);
 const tableRows = ref<number>(0);
 const currentDataLine = ref(1);
-const VISIBLE_LINE_COUNT = 200;
+const VISIBLE_LINE_COUNT = 100;
 const path_inner = ref("");
 const { visibleProgress, ensureProgress, finishProgress } = useTaskProgress();
-const rename = useRename(path_inner, ensureProgress, finishProgress);
 const search = useSearch(path_inner, ensureProgress, finishProgress);
 const contextMenu = useContextMenu({
   path: path_inner,
@@ -32,6 +32,7 @@ const contextMenu = useContextMenu({
   ensureProgress,
   finishProgress
 });
+const originalDataSnapshot = ref<Record<number, Record<string, string>>>({});
 
 function getPercent(state: { current: number; total: number }) {
   if (state.total <= 0) return 0;
@@ -40,28 +41,28 @@ function getPercent(state: { current: number; total: number }) {
 function getTaskLabel(taskName: string): string {
   const labels: Record<string, string> = {
     search: "Filtering...",
-    rename: "Renaming...",
-    insert: "Inserting..."
+    insert: "Inserting...",
+    save: "Saving..."
   };
   return labels[taskName] || taskName;
 }
 
-watch(
-  () => tableHeader.value,
-  newHeaders => {
-    rename.syncHeaders(newHeaders);
-  },
-  { immediate: true }
-);
+function initHeaders(headers: string[]) {
+  tableHeader.value = [...headers];
+  originalHeader.value = [...headers];
+}
 
 async function openFile() {
   try {
+    indexing.value = true;
     path_inner.value = await viewOpenFile(false, "csv", ["*"]);
     if (path_inner.value) {
       await loadRows(1);
     }
   } catch (e) {
     message(`failed to open file: ${e}`, { type: "error" });
+  } finally {
+    indexing.value = false;
   }
 }
 
@@ -69,6 +70,7 @@ async function loadRows(targetLine: number) {
   if (!path_inner.value) return;
   const start = Math.max(1, targetLine);
   const end = start + VISIBLE_LINE_COUNT - 1;
+
   try {
     const jsonStr: string = await invoke("table_view", {
       path: path_inner.value,
@@ -76,11 +78,29 @@ async function loadRows(targetLine: number) {
       start,
       end
     });
+
     const jsonData = JSON.parse(jsonStr);
+    const mergedData = jsonData.data.map((row, idx) => {
+      const globalLine = start + idx;
+      return editCache.value.has(globalLine)
+        ? { ...editCache.value.get(globalLine) }
+        : { ...row };
+    });
+
     tableHeader.value = jsonData.headers || [];
-    tableData.value = jsonData.data || [];
+    tableData.value = mergedData;
     tableRows.value = jsonData.rows || 0;
     currentDataLine.value = targetLine;
+    currentDataLine.value = start;
+    initHeaders(tableHeader.value);
+
+    for (let i = 0; i < jsonData.data.length; i++) {
+      const globalLine = start + i;
+      // 如果用户还没编辑过这一行,就记录原始值
+      if (!editCache.value.has(globalLine)) {
+        originalDataSnapshot.value[globalLine] = { ...jsonData.data[i] };
+      }
+    }
   } catch (e) {
     message(`CSV load failed: ${e}`, { type: "error" });
     tableHeader.value = [];
@@ -120,6 +140,86 @@ function clearFile() {
   useFileView().closeFile();
 }
 
+const editCache = ref(new Map<number, Record<string, string>>());
+const editedCells = ref(new Set<string>());
+function onCellEdit(viewRowIndex: number, field: string) {
+  const globalLine = currentDataLine.value + viewRowIndex;
+  const currentValue = tableData.value[viewRowIndex]?.[field];
+  const originalValue = originalDataSnapshot.value[globalLine]?.[field];
+
+  // 值变了,才更新缓存和标记
+  if (currentValue !== originalValue) {
+    // 更新editCache(整行)
+    if (!editCache.value.has(globalLine)) {
+      // 从当前tableData拷贝
+      editCache.value.set(globalLine, { ...tableData.value[viewRowIndex] });
+    } else {
+      editCache.value.get(globalLine)![field] = currentValue;
+    }
+
+    // 标记这个cell被修改
+    editedCells.value.add(`${globalLine}-${field}`);
+  } else {
+    // 如果值改回原始值,取消标记
+    const cacheKey = `${globalLine}-${field}`;
+    editedCells.value.delete(cacheKey);
+
+    // 如果整行都恢复原始值,清理editCache
+    const cachedRow = editCache.value.get(globalLine);
+    if (cachedRow) {
+      const origRow = originalDataSnapshot.value[globalLine];
+      let allMatch = true;
+      if (origRow) {
+        for (const key in origRow) {
+          if (cachedRow[key] !== origRow[key]) {
+            allMatch = false;
+            break;
+          }
+        }
+      }
+      if (allMatch) {
+        editCache.value.delete(globalLine);
+      }
+    }
+  }
+}
+// 判断某个cell是否被修改过
+function isCellModified(globalLine: number, header: string): boolean {
+  return editedCells.value.has(`${globalLine}-${header}`);
+}
+// 判断某行是否有任意修改
+function isLineModified(globalLine: number): boolean {
+  for (const key of editedCells.value) {
+    if (key.startsWith(`${globalLine}-`)) return true;
+  }
+  return false;
+}
+async function saveEdits() {
+  const edits = Array.from(editCache.value.entries()).map(([line, data]) => ({
+    line,
+    data // key是当前header中的名字
+  }));
+  const TASK_NAME = "save";
+  ensureProgress(TASK_NAME);
+  try {
+    saving.value = true;
+    await invoke("table_edit", {
+      path: path_inner.value,
+      newHeaders: tableHeader.value,
+      edits: edits
+    });
+    // 保存成功,清空所有编辑状态
+    editCache.value.clear();
+    editedCells.value.clear();
+    message("Changes saved successfully!", { type: "success" });
+  } catch (e) {
+    message(`Save failed: ${e}`, { type: "error" });
+  } finally {
+    saving.value = false;
+    finishProgress(TASK_NAME);
+  }
+}
+
 useShortcuts({
   onOpenFile: () => openFile(),
   onJump: () => promptGoToLine()
@@ -144,13 +244,8 @@ useShortcuts({
         >
           <Icon icon="ri:filter-3-line" class="w-4 h-4" />
         </SiliconeButton>
-        <SiliconeButton
-          size="small"
-          @click="rename.executeRename"
-          :loading="rename.renaming.value"
-          text
-        >
-          <Icon icon="ri:heading" class="w-4 h-4" />
+        <SiliconeButton size="small" @click="saveEdits" :loading="saving" text>
+          <Icon icon="ri:save-line" class="w-4 h-4" />
         </SiliconeButton>
         <div class="flex-grow" />
         <SiliconeButton size="small" text @click="clearFile">
@@ -169,37 +264,61 @@ useShortcuts({
       element-loading-text="Creating index for csv"
       empty-text=""
     >
+      <el-table-column fixed width="100" align="center" label="#">
+        <template #default="{ $index }">
+          <span
+            :class="{
+              'text-blue-500': isLineModified(currentDataLine + $index)
+            }"
+          >
+            {{ currentDataLine + $index }}
+            <span
+              v-if="isLineModified(currentDataLine + $index)"
+              class="ml-1 text-blue-400"
+            >
+              ●
+            </span>
+          </span>
+        </template>
+      </el-table-column>
+
       <el-table-column
-        v-for="(header, index) in tableHeader"
-        :key="header"
-        :prop="header"
-        :label="header"
-        show-overflow-tooltip
+        v-for="(origHeader, index) in originalHeader"
+        :key="index"
+        :prop="origHeader"
+        :label="tableHeader[index]"
       >
         <template #header>
           <div class="flex flex-col gap-1">
             <SiliconeInput
-              v-model="rename.editableHeaders.value[index]"
+              v-model="tableHeader[index]"
               size="small"
               placeholder="New header"
-              @keyup.enter="rename.executeRename"
             />
             <span
-              v-if="
-                rename.editableHeaders.value[index] !==
-                rename.originalHeaders.value[index]
-              "
-              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded h-[20px]"
+              v-if="tableHeader[index] !== origHeader"
+              class="text-[10px] text-blue-400 dark:text-blue-400 rounded h-[20px]"
             >
               Changed
             </span>
-            <span
-              v-else
-              class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded h-[20px]"
-            >
+            <span v-else class="text-[10px] text-gray-400 rounded h-[20px]">
               Unchanged
             </span>
           </div>
+        </template>
+
+        <template #default="{ row, $index, column }">
+          <SiliconeInput
+            v-model="row[column.property]"
+            size="small"
+            @blur="onCellEdit($index, column.property)"
+            :class="{
+              'rounded-[12px] bg-blue-50 dark:bg-blue-900/30': isCellModified(
+                currentDataLine + $index,
+                column.property
+              )
+            }"
+          />
         </template>
       </el-table-column>
     </SiliconeTable>
@@ -364,15 +483,23 @@ useShortcuts({
         >
           <div class="text-xs text-gray-500 mb-1">
             {{ getTaskLabel(taskName) }}
-            <span class="float-right">
+            <span v-if="state.total > 0" class="float-right">
               {{ state.current.toLocaleString() }} /
               {{ state.total.toLocaleString() }}
             </span>
           </div>
           <SiliconeProgress
+            v-if="state.total > 0"
             :percentage="getPercent(state)"
             :text-inside="true"
             :stroke-width="15"
+          />
+          <SiliconeProgress
+            v-else
+            :percentage="100"
+            :indeterminate="true"
+            :duration="5"
+            :format="() => 'saving'"
           />
         </div>
       </transition-group>
