@@ -29,7 +29,7 @@ export function useEdit(
   const editCache = ref(new Map<number, Record<string, string>>());
   const editedCells = ref(new Set<string>());
 
-  // 辅助：根据原始字段名找新表头字段名
+  // 根据原始字段名找新表头字段名
   function getNewHeaderByOriginal(orig: string): string | null {
     const index = originalHeader.value.indexOf(orig);
     if (index === -1 || index >= tableHeader.value.length) return null;
@@ -126,9 +126,7 @@ export function useEdit(
         edits: edits,
         outputPath: outputPath
       });
-      // 保存成功,清空所有编辑状态
-      editCache.value.clear();
-      editedCells.value.clear();
+      clearEdits();
       message("Changes saved successfully!", { type: "success" });
     } catch (e) {
       message(`Save failed: ${e}`, { type: "error" });

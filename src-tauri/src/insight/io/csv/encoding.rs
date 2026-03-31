@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 
 use anyhow::Result;
-use chardetng::EncodingDetector;
+use chardetng::{EncodingDetector, Iso2022JpDetection, Utf8Detection};
 use encoding_rs::{Encoding, GBK, UTF_8, UTF_16BE, UTF_16LE};
 use serde::Serialize;
 
@@ -85,9 +85,9 @@ pub fn detect_encoding(path: &str, check_bom: bool) -> Result<EncodingResult> {
       GBK
     } else {
       // 使用 chardetng 辅助判断
-      let mut detector = EncodingDetector::new();
+      let mut detector = EncodingDetector::new(Iso2022JpDetection::Allow);
       detector.feed(&sample, true);
-      let detected = detector.guess(None, true);
+      let detected = detector.guess(None, Utf8Detection::Allow);
 
       if detected == GBK || detected == UTF_8 {
         detected
