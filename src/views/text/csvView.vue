@@ -1,22 +1,20 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
 import { Icon } from "@iconify/vue";
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
 import GotoDialog from "@/views/text/gotoDialog.vue";
-import { useShortcuts } from "@/utils/globalShortcut";
 import { useFileView } from "@/store/modules/fileView";
 import { useSearch } from "@/views/text/fn/useSearch";
 import { useTaskProgress } from "@/views/text/fn/useProgress";
 import { useContextMenu } from "@/views/text/fn/useContextMenu";
+import { useEdit } from "@/views/text/fn/useEdit";
 
 const props = defineProps<{
   path: string | null;
 }>();
 const indexing = ref(false);
-const saving = ref(false);
 const showGotoDialog = ref(false);
 const originalHeader = ref<string[]>([]);
 const tableHeader = ref<string[]>([]);
@@ -34,6 +32,18 @@ const contextMenu = useContextMenu({
   finishProgress
 });
 const originalDataSnapshot = ref<Record<number, Record<string, string>>>({});
+const edit = useEdit(
+  {
+    tableHeader,
+    originalHeader,
+    currentDataLine,
+    originalDataSnapshot,
+    tableData
+  },
+  path_inner,
+  ensureProgress,
+  finishProgress
+);
 
 function getPercent(state: { current: number; total: number }) {
   if (state.total <= 0) return 0;
@@ -83,8 +93,8 @@ async function loadRows(targetLine: number) {
     const jsonData = JSON.parse(jsonStr);
     const mergedData = jsonData.data.map((row, idx) => {
       const globalLine = start + idx;
-      return editCache.value.has(globalLine)
-        ? { ...editCache.value.get(globalLine) }
+      return edit.editCache.value.has(globalLine)
+        ? { ...edit.editCache.value.get(globalLine) }
         : { ...row };
     });
 
@@ -98,7 +108,7 @@ async function loadRows(targetLine: number) {
     for (let i = 0; i < jsonData.data.length; i++) {
       const globalLine = start + i;
       // 如果用户还没编辑过这一行,就记录原始值
-      if (!editCache.value.has(globalLine)) {
+      if (!edit.editCache.value.has(globalLine)) {
         originalDataSnapshot.value[globalLine] = { ...jsonData.data[i] };
       }
     }
@@ -129,10 +139,6 @@ async function handleGotoLine(lineNumber: number) {
   message(`Jumped to data line ${clamped}`, { type: "success" });
 }
 
-function promptGoToLine() {
-  showGotoDialog.value = !showGotoDialog.value;
-}
-
 const formatNumber = (num: number): string => {
   return new Intl.NumberFormat("en-US").format(num);
 };
@@ -140,132 +146,6 @@ const formatNumber = (num: number): string => {
 function clearFile() {
   useFileView().closeFile();
 }
-
-const editCache = ref(new Map<number, Record<string, string>>());
-const editedCells = ref(new Set<string>());
-function getNewHeaderByOriginal(orig: string): string | null {
-  const index = originalHeader.value.indexOf(orig);
-  if (index === -1 || index >= tableHeader.value.length) return null;
-  return tableHeader.value[index];
-}
-function onCellEdit(viewRowIndex: number, origField: string) {
-  const globalLine = currentDataLine.value + viewRowIndex;
-
-  // 找到这个原始字段对应的新字段名
-  const newField = getNewHeaderByOriginal(origField);
-  if (!newField) return;
-
-  // 获取当前值
-  const currentValue = tableData.value[viewRowIndex]?.[origField] ?? "";
-
-  // 获取原始值
-  const originalValue =
-    originalDataSnapshot.value[globalLine]?.[origField] ?? "";
-
-  if (currentValue !== originalValue) {
-    // 更新editCache行
-    const cachedRow = editCache.value.get(globalLine) || {};
-
-    // 按新表头重建整行
-    const newRow: Record<string, string> = {};
-    for (let i = 0; i < tableHeader.value.length; i++) {
-      const nh = tableHeader.value[i];
-      const oh = originalHeader.value[i];
-      newRow[nh] =
-        i === originalHeader.value.indexOf(origField)
-          ? currentValue
-          : cachedRow[nh] ?? originalDataSnapshot.value[globalLine]?.[oh] ?? "";
-    }
-
-    editCache.value.set(globalLine, newRow);
-    editedCells.value.add(`${globalLine}-${newField}`);
-  } else {
-    // 值恢复原始,尝试清理
-    const cacheKey = `${globalLine}-${newField}`;
-    editedCells.value.delete(cacheKey);
-
-    const cachedRow = editCache.value.get(globalLine);
-    if (cachedRow) {
-      // 移除该字段
-      const { [newField]: _, ...rest } = cachedRow;
-
-      // 检查是否整行都恢复原始
-      let allOriginal = true;
-      for (let i = 0; i < tableHeader.value.length; i++) {
-        const nh = tableHeader.value[i];
-        const oh = originalHeader.value[i];
-        const origVal = originalDataSnapshot.value[globalLine]?.[oh] ?? "";
-        if (rest[nh] !== undefined && rest[nh] !== origVal) {
-          allOriginal = false;
-          break;
-        }
-      }
-
-      if (allOriginal || Object.keys(rest).length === 0) {
-        editCache.value.delete(globalLine);
-      } else {
-        editCache.value.set(globalLine, rest);
-      }
-    }
-  }
-}
-// 判断某个cell是否被修改过
-function isCellModified(globalLine: number, header: string): boolean {
-  return editedCells.value.has(`${globalLine}-${header}`);
-}
-// 判断某行是否有任意修改
-function isLineModified(globalLine: number): boolean {
-  for (const key of editedCells.value) {
-    if (key.startsWith(`${globalLine}-`)) return true;
-  }
-  return false;
-}
-async function saveEdits(outputPath: string | null) {
-  const edits = Array.from(editCache.value.entries()).map(([line, data]) => ({
-    line,
-    data
-  }));
-  const TASK_NAME = "save";
-  ensureProgress(TASK_NAME);
-  try {
-    saving.value = true;
-    await invoke("table_edit", {
-      path: path_inner.value,
-      newHeaders: tableHeader.value,
-      edits: edits,
-      outputPath: outputPath
-    });
-    // 保存成功,清空所有编辑状态
-    editCache.value.clear();
-    editedCells.value.clear();
-    message("Changes saved successfully!", { type: "success" });
-  } catch (e) {
-    message(`Save failed: ${e}`, { type: "error" });
-  } finally {
-    saving.value = false;
-    finishProgress(TASK_NAME);
-  }
-}
-async function saveAsNewFile() {
-  const outputPath = await save({
-    title: "Save Edited CSV",
-    defaultPath: `edited_${new Date().getTime()}`,
-    filters: [
-      {
-        name: "CSV",
-        extensions: ["csv"]
-      }
-    ]
-  });
-  if (outputPath) {
-    await saveEdits(outputPath);
-  }
-}
-
-useShortcuts({
-  onOpenFile: () => openFile(),
-  onJump: () => promptGoToLine()
-});
 </script>
 
 <template>
@@ -295,8 +175,8 @@ useShortcuts({
         <SiliconeTooltip content="Save">
           <SiliconeButton
             size="small"
-            @click="() => saveEdits(null)"
-            :loading="saving"
+            @click="() => edit.saveEdits(null)"
+            :loading="edit.saving.value"
             text
           >
             <Icon icon="ri:save-line" class="w-4 h-4" />
@@ -305,8 +185,8 @@ useShortcuts({
         <SiliconeTooltip content="Save as">
           <SiliconeButton
             size="small"
-            @click="saveAsNewFile"
-            :loading="saving"
+            @click="edit.saveAsNewFile"
+            :loading="edit.saving.value"
             text
           >
             <Icon icon="ri:file-copy-line" class="w-4 h-4" />
@@ -329,16 +209,16 @@ useShortcuts({
       element-loading-text="Creating index for csv"
       empty-text=""
     >
-      <el-table-column fixed width="100" align="center" label="#">
+      <el-table-column fixed width="100" align="center">
         <template #default="{ $index }">
           <span
             :class="{
-              'text-blue-500': isLineModified(currentDataLine + $index)
+              'text-blue-500': edit.isLineModified(currentDataLine + $index)
             }"
           >
             {{ currentDataLine + $index }}
             <span
-              v-if="isLineModified(currentDataLine + $index)"
+              v-if="edit.isLineModified(currentDataLine + $index)"
               class="ml-1 text-blue-400"
             >
               ●
@@ -376,34 +256,34 @@ useShortcuts({
           <SiliconeInput
             v-model="row[column.property]"
             size="small"
-            @blur="onCellEdit($index, column.property)"
+            @blur="edit.onCellEdit($index, column.property)"
             :class="{
-              'rounded-[12px] bg-blue-50 dark:bg-blue-900/30': isCellModified(
-                currentDataLine + $index,
-                getNewHeaderByOriginal(column.property) || column.property
-              )
+              'rounded-[12px] bg-blue-50 dark:bg-blue-900/30':
+                edit.isCellModified(
+                  currentDataLine + $index,
+                  edit.getNewHeaderByOriginal(column.property) ||
+                    column.property
+                )
             }"
           />
         </template>
       </el-table-column>
     </SiliconeTable>
 
-    <SiliconeCard v-if="path_inner" shadow="never" class="min-h-[25px]">
-      <div class="flex items-center justify-between">
-        <div class="truncate max-w-[80%]">
-          <el-scrollbar>
-            <SiliconeTag type="info">
-              {{ path_inner }}
-            </SiliconeTag>
-          </el-scrollbar>
-        </div>
-        <div class="flex items-center">
-          <SiliconeTag type="success">
-            {{ formatNumber(tableRows) }} rows
+    <div v-if="path_inner" class="flex items-center justify-between">
+      <div class="truncate max-w-[80%]">
+        <el-scrollbar>
+          <SiliconeTag type="info">
+            {{ path_inner }}
           </SiliconeTag>
-        </div>
+        </el-scrollbar>
       </div>
-    </SiliconeCard>
+      <div class="flex items-center">
+        <SiliconeTag type="success">
+          {{ formatNumber(tableRows) }} rows
+        </SiliconeTag>
+      </div>
+    </div>
 
     <GotoDialog
       v-model="showGotoDialog"
