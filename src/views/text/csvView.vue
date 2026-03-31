@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
+import { ElMessageBox } from "element-plus";
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
 import GotoDialog from "@/views/text/gotoDialog.vue";
@@ -10,6 +11,7 @@ import { useSearch } from "@/views/text/fn/useSearch";
 import { useTaskProgress } from "@/views/text/fn/useProgress";
 import { useContextMenu } from "@/views/text/fn/useContextMenu";
 import { useEdit } from "@/views/text/fn/useEdit";
+import { useQuoting } from "@/store/modules/options";
 
 const props = defineProps<{
   path: string | null;
@@ -113,7 +115,36 @@ async function loadRows(targetLine: number) {
       }
     }
   } catch (e) {
-    message(`CSV load failed: ${e}`, { type: "error" });
+    if (e.includes("The CSV file was modified after the index file")) {
+      ElMessageBox.confirm(
+        "The CSV file has been modified externally. Would you like to re-create the index?",
+        "Index Outdated",
+        {
+          confirmButtonText: "Recreate Index",
+          cancelButtonText: "Cancel",
+          type: "warning"
+        }
+      ).then(async () => {
+        try {
+          indexing.value = true;
+          await invoke("csv_idx", {
+            path: path_inner.value,
+            quoting: useQuoting().quoting,
+            skiprows: 0
+          });
+          await loadRows(targetLine);
+          message("Index recreated and data reloaded.", { type: "success" });
+        } catch (reindexError) {
+          message(`Failed to recreate index: ${reindexError}`, {
+            type: "error"
+          });
+        } finally {
+          indexing.value = false;
+        }
+      });
+    } else {
+      message(`CSV load failed: ${e}`, { type: "error" });
+    }
     tableHeader.value = [];
     tableData.value = [];
   }
