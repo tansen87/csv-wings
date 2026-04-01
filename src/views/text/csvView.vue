@@ -9,7 +9,6 @@ import GotoDialog from "@/views/text/gotoDialog.vue";
 import { useFileView } from "@/store/modules/fileView";
 import { useSearch } from "@/views/text/fn/useSearch";
 import { useTaskProgress } from "@/views/text/fn/useProgress";
-import { useContextMenu } from "@/views/text/fn/useContextMenu";
 import { useEdit } from "@/views/text/fn/useEdit";
 import { useQuoting } from "@/store/modules/options";
 
@@ -27,12 +26,6 @@ const VISIBLE_LINE_COUNT = 100;
 const path_inner = ref("");
 const { visibleProgress, ensureProgress, finishProgress } = useTaskProgress();
 const search = useSearch(path_inner, ensureProgress, finishProgress);
-const contextMenu = useContextMenu({
-  path: path_inner,
-  tableHeader,
-  ensureProgress,
-  finishProgress
-});
 const originalDataSnapshot = ref<Record<number, Record<string, string>>>({});
 const edit = useEdit(
   {
@@ -321,34 +314,6 @@ function clearFile() {
       :total-lines="tableRows"
       @go-to="handleGotoLine"
     />
-
-    <SiliconeDialog
-      class="context-menu-dialog"
-      v-model="contextMenu.showMenu.value"
-      width="200px"
-      :modal="false"
-      :show-close="false"
-      :destroy-on-close="true"
-      draggable
-      :style="{
-        left: contextMenu.menuPosition.x + 'px',
-        top: contextMenu.menuPosition.y + 'px',
-        margin: 0
-      }"
-    >
-      <div
-        class="context-menu-item"
-        @click="() => contextMenu.insertColumn('left')"
-      >
-        Insert Column Left
-      </div>
-      <div
-        class="context-menu-item"
-        @click="() => contextMenu.insertColumn('right')"
-      >
-        Insert Column Right
-      </div>
-    </SiliconeDialog>
 
     <SiliconeDialog
       v-model="search.showSearchDialog.value"
