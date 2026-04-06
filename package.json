@@ -5,8 +5,8 @@
   "scripts": {
     "tauri": "tauri",
     "serve": "pnpm dev",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri dev": "tauri dev",
+    "tauri build": "tauri build",
     "icon": "tauri icon public/app-icon.png",
     "dev": "vite dev",
     "build": "vite build",

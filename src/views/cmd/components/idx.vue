@@ -13,33 +13,33 @@ const emit = defineEmits<{
 }>();
 
 const addLog = (message: string, type: string = 'info') => {
-  emit('add-log', message, type);
+  emit('add-log', `[Index] ${message}`, type);
 };
 
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) return;
-  addLog(`[Index] Selected file: ${path.value}`, 'info');
+  addLog(`Selected file: ${path.value}`, 'info');
 }
 
 // invoke csv_idx
 async function createIndex() {
   if (path.value === "") {
-    addLog(`[Index] CSV file not selected`, 'warning');
+    addLog(`CSV file not selected`, 'warning');
     return;
   }
 
   try {
     loading.value = true;
-    addLog(`[Index] Processing file: ${path.value}`, 'info');
+    addLog(`Processing file: ${path.value}`, 'info');
     const rtime: string = await invoke("csv_idx", {
       path: path.value,
       quoting: useQuoting().quoting,
       skiprows: useSkiprows().skiprows
     });
-    addLog(`[Index] Create index done, elapsed time: ${rtime} s`, 'success');
+    addLog(`Create index done, elapsed time: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`[Index] ${e}`, 'error');
+    addLog(`${e}`, 'error');
   }
   loading.value = false;
 }
@@ -70,12 +70,12 @@ onUnmounted(() => {
           <div class="text-xs font-semibold text-gray-400 tracking-wider">
             SELECTED FILE
           </div>
-          <div class="flex items-center gap-2">
-            <SiliconeButton @click="selectFile()">
-              Open File
+          <div class="flex items-center">
+            <SiliconeButton @click="selectFile()" size="small" text>
+              <Icon icon="ri:folder-open-line" class="w-4 h-4" />
             </SiliconeButton>
-            <SiliconeButton @click="createIndex()" :loading="loading">
-              Run
+            <SiliconeButton @click="createIndex()" :loading="loading" size="small" text>
+              <Icon icon="ri:play-large-line" class="w-4 h-4" />
             </SiliconeButton>
           </div>
         </div>
