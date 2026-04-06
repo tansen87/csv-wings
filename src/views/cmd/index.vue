@@ -99,23 +99,23 @@ const clearLog = () => {
 const startResize = (e) => {
   isResizing.value = true;
   e.preventDefault();
-  
+
   const startY = e.clientY;
   const startHeight = logHeight.value;
-  
+
   const handleMouseMove = (e) => {
     if (!isResizing.value) return;
     const deltaY = e.clientY - startY;
     const newHeight = Math.max(100, startHeight - deltaY);
     logHeight.value = newHeight;
   };
-  
+
   const handleMouseUp = () => {
     isResizing.value = false;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
   };
-  
+
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
 };
@@ -126,40 +126,28 @@ const startResize = (e) => {
     <div class="cmd-content">
       <div class="cmd-sidebar">
         <div class="sidebar-header">
-          <SiliconeInput
-            placeholder="Search for command..."
-            v-model="searchText"
-          />
+          <SiliconeInput placeholder="Search for command..." v-model="searchText" />
         </div>
         <el-scrollbar class="commands-list">
           <div class="commands-content">
-            <div
-              v-for="item in filteredCommands"
-              :key="item.route"
-              class="cmd-item"
+            <div v-for="item in filteredCommands" :key="item.route" class="cmd-item"
               :class="{ active: activeTab === item.route.split('/').pop() }"
-              @click="activeTab = item.route.split('/').pop()"
-            >
+              @click="activeTab = item.route.split('/').pop()">
               <Icon :icon="item.icon" width="16" height="16" />
               <span>{{ item.title }}</span>
             </div>
           </div>
         </el-scrollbar>
       </div>
-      
+
       <div class="cmd-main-container">
         <div class="cmd-main">
-          <component
-            v-for="item in commands"
-            :key="item.route"
-            :is="getComponent(item.route)"
-            v-show="activeTab === item.route.split('/').pop()"
-            @add-log="addLog"
-          />
+          <component v-for="item in commands" :key="item.route" :is="getComponent(item.route)"
+            v-show="activeTab === item.route.split('/').pop()" @add-log="addLog" />
         </div>
-        
+
         <div class="resize-handle" @mousedown="startResize"></div>
-        
+
         <div class="log-output" :style="{ height: logHeight + 'px' }">
           <div class="log-header">
             <h3>Logs</h3>
@@ -207,6 +195,11 @@ const startResize = (e) => {
   border-bottom: 1px solid #e4e7ed;
 }
 
+.dark .sidebar-header {
+  border-bottom: 1px solid #888585;
+  background-color: #706c6c;
+}
+
 .commands-list {
   flex: 1;
   background-color: var(--el-fill-color-light);
@@ -232,15 +225,15 @@ const startResize = (e) => {
   cursor: pointer;
   transition: all 0.25s ease;
   user-select: none;
-  
+
   &:hover {
     background-color: #e9e9e9;
     box-shadow:
-      inset 0 1px 2px rgba(0, 0, 0, 0.15),
-      0 2px 5px rgba(0, 0, 0, 0.15);
+      inset 0 1px 2px rgba(0, 0, 0, 0.2),
+      0 2px 5px rgba(0, 0, 0, 0.2);
     transform: translateY(-1px);
   }
-  
+
   &.active {
     background-color: #d8d7d7;
     color: #000000;
@@ -263,12 +256,16 @@ const startResize = (e) => {
   background-color: #f5f7fa;
 }
 
+.dark .cmd-main {
+  background-color: #5c5959;
+}
+
 .resize-handle {
   height: 4px;
   background-color: #e4e7ed;
   cursor: ns-resize;
   transition: background-color 0.3s;
-  
+
   &:hover {
     background-color: #409eff;
   }
@@ -290,7 +287,7 @@ const startResize = (e) => {
   justify-content: space-between;
   align-items: center;
   background-color: white;
-  
+
   h3 {
     margin: 0;
     font-size: 14px;
@@ -309,22 +306,22 @@ const startResize = (e) => {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 13px;
-  
+
   &.info {
     background-color: #ecf5ff;
     color: #409eff;
   }
-  
+
   &.success {
     background-color: #f0f9eb;
     color: #67c23a;
   }
-  
+
   &.error {
     background-color: #fef0f0;
     color: #f56c6c;
   }
-  
+
   &.warning {
     background-color: #fdf6ec;
     color: #e6a23c;
@@ -339,5 +336,45 @@ const startResize = (e) => {
 
 .log-message {
   word-break: break-all;
+}
+
+.dark .log-output {
+  background-color: #1f1f1f;
+  border-top: 1px solid #303030;
+}
+
+.dark .log-header {
+  border-bottom: 1px solid #303030;
+  background-color: #303030;
+
+  h3 {
+    color: #e0e0e0;
+  }
+}
+
+.dark .log-item {
+  &.info {
+    background-color: #1a2b47;
+    color: #66b1ff;
+  }
+
+  &.success {
+    background-color: #223a1f;
+    color: #85ce61;
+  }
+
+  &.error {
+    background-color: #471a1a;
+    color: #f78989;
+  }
+
+  &.warning {
+    background-color: #47331a;
+    color: #ebb563;
+  }
+}
+
+.dark .log-time {
+  color: #707070;
 }
 </style>
