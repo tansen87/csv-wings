@@ -163,7 +163,7 @@ const startResize = (e) => {
         <div class="log-output" :style="{ height: logHeight + 'px' }">
           <div class="log-header">
             <h3>Logs</h3>
-            <SiliconeButton size="small" @click="clearLog">Clear</SiliconeButton>
+            <SiliconeButton size="small" @click="clearLog" type="danger">Clear</SiliconeButton>
           </div>
           <el-scrollbar class="log-content">
             <div v-for="(log, index) in logs" :key="index" class="log-item" :class="log.type">

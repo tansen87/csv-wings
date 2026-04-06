@@ -3,14 +3,20 @@ import { onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
-import { message } from "@/utils/message";
 import { previewtNLines, viewOpenFile } from "@/utils/view";
 import { useMarkdown, mdSkip } from "@/utils/markdown";
-import { useShortcuts } from "@/utils/globalShortcut";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Skip] ${msg}`, type);
+};
 
 const path = ref("");
 const skiprows = ref("1");
-const [dialog, isLoading] = [ref(false), ref(false)];
+const [dialog, loading] = [ref(false), ref(false)];
 const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdSkip);
 
@@ -24,8 +30,10 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
+    addLog('File selection cancelled', 'info');
     return;
   }
+  addLog(`Selected file: ${path.value}`, 'info');
 
   try {
     const rawLines = await previewtNLines(path.value, 50);
@@ -33,30 +41,30 @@ async function selectFile() {
       number: i + 1,
       content
     }));
-    console.log(lines.value);
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`Failed to load file: ${e}`, 'error');
   }
 }
 
 // invoke skip
 async function skipLines() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    addLog("CSV file not selected", 'warning');
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog('Starting skip process...', 'info');
     const rtime: string = await invoke("skip", {
       path: path.value,
       skiprows: skiprows.value
     });
-    message(`Skip done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error", duration: 10000 });
+    addLog(`Skip done, elapsed time: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`Skip failed: ${e}`, 'error');
   }
-  isLoading.value = false;
+  loading.value = false;
 }
 
 const lineNumberRef = ref<HTMLElement | null>(null);
@@ -93,14 +101,6 @@ const handleCodeScroll = (event: any) => {
   });
 };
 
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => skipLines(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
-
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
   [lines].forEach(r => (r.value = []));
@@ -108,132 +108,135 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
+  <div class="flex flex-col h-full overflow-hidden">
+    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
       <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
           <Icon icon="ri:skip-forward-line" />
           Skip
         </h1>
-
         <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
         <div class="text-xs font-semibold text-gray-400">
           Skip lines from CSV
         </div>
       </div>
+    </SiliconeCard>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="skipLines()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SKIP LINES
-          </label>
-          <SiliconeInput v-model="skiprows" placeholder="e.g. 10" clearable />
-          <p class="mt-1 text-[10px] text-gray-400">
-            Skip this many rows from the beginning of each file
-          </p>
-        </div>
-
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <div class="flex items-start gap-2">
-            <Icon
-              icon="ri:information-line"
-              class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"
-            />
-            <div class="text-[12px] text-blue-700 dark:text-blue-300">
-              Useful for skipping header rows or metadata at the start of CSV
-              file
+    <el-scrollbar class="flex-1 px-4 pb-4 min-h-0">
+      <div class="flex flex-col gap-4">
+        <SiliconeCard>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              FILE SELECTION
             </div>
-          </div>
-        </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden"
-        >
-          <div
-            class="line-number-wrapper"
-            ref="lineNumberRef"
-            @scroll="handleLineNumberScroll"
-          >
-            <div class="line-number-container">
-              <div
-                v-for="line in lines"
-                :key="line.number"
-                class="line-number-row"
-              >
-                <span class="line-number">
-                  {{ line.number }}
-                </span>
-              </div>
+            <div class="flex items-center">
+              <SiliconeButton @click="selectFile()" size="small" text>
+                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+              </SiliconeButton>
+              <SiliconeButton @click="skipLines()" :loading="loading" size="small" text>
+                <Icon icon="ri:play-large-line" class="w-4 h-4" />
+              </SiliconeButton>
             </div>
           </div>
 
-          <el-scrollbar
-            ref="codeScrollbarRef"
-            class="code-content-wrapper"
-            @scroll="handleCodeScroll"
-          >
-            <div class="content-area">
-              <div
-                v-for="line in lines"
-                :key="line.number"
-                class="line-row"
-                :data-line-number="line.number"
-              >
-                <span class="line-content">{{ line.content }}</span>
+          <div v-if="path" class="mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+              SELECTED FILE
+            </div>
+            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
+          </div>
+
+          <div class="mb-4">
+            <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
+              SKIP LINES
+            </label>
+            <SiliconeInput v-model="skiprows" placeholder="e.g. 10" clearable class="w-full" />
+            <p class="mt-1 text-[10px] text-gray-400">
+              Skip this many rows from the beginning of each file
+            </p>
+          </div>
+
+          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div class="flex items-start gap-2">
+              <Icon icon="ri:information-line" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div class="text-[12px] text-blue-700 dark:text-blue-300">
+                Useful for skipping header rows or metadata at the start of CSV file
               </div>
             </div>
-          </el-scrollbar>
-        </div>
-      </div>
-    </main>
+          </div>
+        </SiliconeCard>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Skip - Skip lines from CSV"
-      width="70%"
-    >
+        <SiliconeCard>
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              PREVIEW
+            </div>
+            <div class="flex items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
+                <Icon icon="ri:skip-forward-line" class="w-3.5 h-3.5" />
+                Skipping: {{ skiprows }} lines
+              </span>
+            </div>
+          </div>
+          <div class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden h-[400px]">
+            <div class="line-number-wrapper" ref="lineNumberRef" @scroll="handleLineNumberScroll">
+              <div class="line-number-container">
+                <div v-for="line in lines" :key="line.number" class="line-number-row">
+                  <span class="line-number">
+                    {{ line.number }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <el-scrollbar ref="codeScrollbarRef" class="code-content-wrapper" @scroll="handleCodeScroll">
+              <div class="content-area">
+                <div v-for="line in lines" :key="line.number" class="line-row" :data-line-number="line.number">
+                  <span class="line-content">{{ line.content }}</span>
+                </div>
+              </div>
+            </el-scrollbar>
+          </div>
+        </SiliconeCard>
+
+        <SiliconeCard>
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+            USAGE
+          </div>
+          <div class="flex flex-col gap-2">
+            <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
+            </SiliconeText>
+            <SiliconeText type="info">2. Enter the number of lines to skip</SiliconeText>
+            <SiliconeText type="info">3. Review the preview to confirm which lines will be skipped</SiliconeText>
+            <SiliconeText type="info">4. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the skip process
+            </SiliconeText>
+            <SiliconeText type="info">5. Check the output log for details</SiliconeText>
+            <SiliconeText type="info">6. The output file will be created in the same directory as the original file
+            </SiliconeText>
+          </div>
+        </SiliconeCard>
+      </div>
+    </el-scrollbar>
+
+    <SiliconeDialog v-model="dialog" title="Skip - Skip lines from CSV" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
 
-<style lang="css">
+<style scoped>
+:deep(.silicone-card) {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
 .content-area {
   min-width: 100%;
   width: max-content;
@@ -257,10 +260,12 @@ onUnmounted(() => {
   z-index: 10;
   scrollbar-width: none;
 }
-.dark .line-number-wrapper {
+
+:deep(.dark) .line-number-wrapper {
   background: #252525;
   border-right: 1px solid #404040;
 }
+
 .line-number-container {
   width: 100%;
 }
@@ -283,7 +288,8 @@ onUnmounted(() => {
     sans-serif;
   font-size: 14px;
 }
-.dark .line-number {
+
+:deep(.dark) .line-number {
   color: #6b6b6b;
 }
 
@@ -293,7 +299,8 @@ onUnmounted(() => {
   overflow: hidden;
   background: #fff;
 }
-.dark .code-content-wrapper {
+
+:deep(.dark) .code-content-wrapper {
   background: #1e1e1e;
 }
 
@@ -304,10 +311,12 @@ onUnmounted(() => {
   white-space: pre;
   cursor: text;
 }
+
 .line-row:hover {
   background: #f5f7fa;
 }
-.dark .line-row:hover {
+
+:deep(.dark) .line-row:hover {
   background: #3d3d3d;
 }
 
@@ -321,7 +330,8 @@ onUnmounted(() => {
   font-size: 14px;
   color: #303133;
 }
-.dark .line-content {
+
+:deep(.dark) .line-content {
   color: #e0e0e0;
 }
 </style>

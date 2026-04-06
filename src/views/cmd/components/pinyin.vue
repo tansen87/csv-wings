@@ -6,7 +6,6 @@ import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdPinyin, useMarkdown } from "@/utils/markdown";
 import {
   useFlexible,
@@ -14,7 +13,14 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Pinyin] ${msg}`, type);
+};
 
 const pinyinStyle = ref("upper");
 const pyOptions = [
@@ -23,7 +29,7 @@ const pyOptions = [
 ];
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [columns, path] = [ref(""), ref("")];
-const [isLoading, dialog] = [ref(false), ref(false)];
+const [loading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdPinyin);
@@ -43,8 +49,10 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
+    addLog('File selection cancelled', 'info');
     return;
   }
+  addLog(`Selected file: ${path.value}`, 'info');
 
   totalRows.value = 0;
 
@@ -56,25 +64,26 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`Failed to load file: ${e}`, 'error');
   }
 }
 
 // invoke pinyin
 async function chineseToPinyin() {
   if (path.value === "") {
-    message("File not selected", { type: "warning" });
+    addLog("File not selected", 'warning');
     return;
   }
   if (columns.value.length === 0) {
-    message("Column not selected", { type: "warning" });
+    addLog("Column not selected", 'warning');
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
     const cols = Object.values(columns.value).join("|");
+    addLog('Starting pinyin conversion...', 'info');
     const rtime: string = await invoke("pinyin", {
       path: path.value,
       columns: cols,
@@ -84,20 +93,13 @@ async function chineseToPinyin() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    message(`Convert done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`Convert done, elapsed time: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`Pinyin conversion failed: ${e}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => chineseToPinyin(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [columns, path].forEach(r => (r.value = ""));
@@ -106,221 +108,191 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
+  <div class="flex flex-col h-full overflow-hidden">
+    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
       <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
           <Icon icon="ri:translate-2" />
           Pinyin
         </h1>
-
         <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
         <div class="text-xs font-semibold text-gray-400">
           Convert Chinese to Pinyin in CSV
         </div>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="chineseToPinyin()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            PINYIN STYLE
-          </label>
-          <div class="mode-toggle-v h-8">
-            <span
-              v-for="item in pyOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{ active: pinyinStyle === item.value }"
-              @click="pinyinStyle = item.value"
-            >
-              {{ item.label }}
-            </span>
-          </div>
+        <div class="mode-toggle ml-auto">
+          <span v-for="item in pyOptions" :key="item.value" class="mode-item mx-1 w-24"
+            :class="{ active: pinyinStyle === item.value }" @click="pinyinStyle = item.value">
+            {{ item.label }}
+          </span>
         </div>
+      </div>
+    </SiliconeCard>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            COLUMNS ({{ columns.length }})
-          </label>
-          <SiliconeSelect
-            v-model="columns"
-            multiple
-            filterable
-            placeholder="Select column(s)"
-          >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </SiliconeSelect>
-          <p class="mt-1 text-[10px] text-gray-400">
-            Select columns containing Chinese text
-          </p>
-        </div>
-
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            STYLE PREVIEW
-          </label>
-          <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">中文(Upper)</span>
-              <span class="font-mono">ZHONGWEN</span>
+    <el-scrollbar class="flex-1 px-4 pb-4 min-h-0">
+      <div class="flex flex-col gap-4">
+        <SiliconeCard>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              FILE SELECTION
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">拼音(Lower)</span>
-              <span class="font-mono">pinyin</span>
+            <div class="flex items-center">
+              <SiliconeButton @click="selectFile()" size="small" text>
+                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+              </SiliconeButton>
+              <SiliconeButton @click="chineseToPinyin()" :loading="loading" size="small" text>
+                <Icon icon="ri:play-large-line" class="w-4 h-4" />
+              </SiliconeButton>
             </div>
           </div>
-        </div>
 
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
+          <div v-if="path" class="mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+              SELECTED FILE
+            </div>
+            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
           </div>
 
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+          <div class="flex gap-4 mb-4">
+            <div class="flex-1">
+              <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
+                COLUMNS ({{ columns.length }})
+              </label>
+              <SiliconeSelect v-model="columns" multiple filterable placeholder="Select column(s)" class="w-full">
+                <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+              </SiliconeSelect>
+              <p class="mt-1 text-[10px] text-gray-400">
+                Select columns containing Chinese text
+              </p>
+            </div>
+          </div>
+
+          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
+              STYLE PREVIEW
+            </label>
+            <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">中文(Upper)</span>
+                <span class="font-mono">ZHONGWEN</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">拼音(Lower)</span>
+                <span class="font-mono">pinyin</span>
               </div>
             </div>
+          </div>
 
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
+          <div class="mt-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
+              STATISTICS
+            </div>
+            <div class="flex gap-4">
+              <div
+                class="flex-1 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-lg font-bold text-gray-800 dark:text-white">
+                      {{ totalRows }}
+                    </div>
+                    <div class="text-[12px] text-gray-500 dark:text-gray-400">
+                      Total Rows
+                    </div>
                   </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
+                  <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
                 </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
+              </div>
+
+              <div
+                class="flex-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      {{ currentRows }}
+                    </div>
+                    <div class="text-[12px] text-blue-600 dark:text-blue-400">
+                      Scanned Rows
+                    </div>
+                  </div>
+                  <div class="relative w-6 h-6 flex items-center justify-center">
+                    <Icon v-if="totalRows === 0 || !isFinite(currentRows / totalRows)" icon="ri:scan-line"
+                      class="w-6 h-6 text-blue-500" />
+                    <SiliconeProgress v-else :percentage="Math.round((currentRows / totalRows) * 100)" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </aside>
+        </SiliconeCard>
 
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
+        <SiliconeCard>
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              PREVIEW
+            </div>
             <div class="flex items-center gap-2">
               <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
-              >
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded">
                 <Icon icon="ri:translate-2" class="w-3.5 h-3.5" />
                 {{ columns.length }} columns
               </span>
               <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded"
-              >
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded">
                 <Icon icon="ri:font-size" class="w-3.5 h-3.5" />
                 Style: {{ pinyinStyle }}
               </span>
             </div>
           </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'400px'"
+              show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center gap-2">
+                  No data. Click
+                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+                  to select files.
+                </div>
+              </template>
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
-        </div>
-      </div>
-    </main>
+        </SiliconeCard>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Pinyin - Convert Chinese to Pinyin in CSV"
-      width="70%"
-    >
+        <SiliconeCard>
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+            USAGE
+          </div>
+          <div class="flex flex-col gap-2">
+            <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
+            </SiliconeText>
+            <SiliconeText type="info">2. Select the pinyin style (Upper or Lower)</SiliconeText>
+            <SiliconeText type="info">3. Select columns containing Chinese text</SiliconeText>
+            <SiliconeText type="info">4. Review the style preview to confirm the output format</SiliconeText>
+            <SiliconeText type="info">5. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the pinyin conversion
+            </SiliconeText>
+            <SiliconeText type="info">6. Check the output log for details</SiliconeText>
+            <SiliconeText type="info">7. The output file will be created in the same directory as the original file
+            </SiliconeText>
+          </div>
+        </SiliconeCard>
+      </div>
+    </el-scrollbar>
+
+    <SiliconeDialog v-model="dialog" title="Pinyin - Convert Chinese to Pinyin in CSV" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+:deep(.silicone-card) {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+</style>

@@ -2,14 +2,15 @@
 import { ref, watch, reactive, onUnmounted } from "vue";
 import { save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { Loading } from "@element-plus/icons-vue";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mdCat, useMarkdown } from "@/utils/markdown";
-import { message, closeAllMessage } from "@/utils/message";
 import { trimOpenFile } from "@/utils/view";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
 
 const mode = ref("csv");
 const modeOptions = [
@@ -25,8 +26,7 @@ const fileSelect = ref<
     message?: string;
   }>
 >([]);
-const [isLoading, backendCompleted, dialog] = [
-  ref(false),
+const [loading, dialog] = [
   ref(false),
   ref(false)
 ];
@@ -34,6 +34,10 @@ const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdCat);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
+
+const addLog = (message: string, type: string = 'info') => {
+  emit('add-log', `[Cat] ${message}`, type);
+};
 
 const allSheets = ref(true);
 const mapSheets = ref<Record<string, string[]> | null>(null);
@@ -80,11 +84,7 @@ async function loadExcelSheets() {
     );
     if (alreadyLoaded) return;
 
-    message("Fetching Excel sheets...", {
-      type: "info",
-      duration: 0,
-      icon: Loading
-    });
+    addLog('Fetching Excel sheets...', 'info');
 
     const result = await invoke<
       [Record<string, string[]>, Record<string, string>]
@@ -99,12 +99,9 @@ async function loadExcelSheets() {
       }
     });
 
-    backendInfo.value = "Sheet detection completed";
-    backendCompleted.value = true;
+    addLog("Sheet detection completed", 'success');
   } catch (e) {
-    message(`loadExcelSheets failed: ${e}`, { type: "error" });
-  } finally {
-    closeAllMessage();
+    addLog(`loadExcelSheets failed: ${e}`, 'error');
   }
 }
 
@@ -112,8 +109,7 @@ async function openFile() {
   fileSelect.value = [];
   fileSheet.value = [];
   mapSheets.value = null;
-  backendInfo.value = "";
-  backendCompleted.value = false;
+  addLog('Opening file selection dialog...', 'info');
 
   try {
     const trimFile = await trimOpenFile(true, "Files", ["*"], {
@@ -133,13 +129,15 @@ async function openFile() {
       })
     );
 
+    addLog(`Selected ${fileSelect.value.length} files`, 'info');
+
     if (mode.value === "excel") {
       await loadExcelSheets();
     } else {
-      backendCompleted.value = true;
+      addLog('File selection completed', 'info');
     }
   } catch (e) {
-    message(`failed to open file: ${e}`, { type: "error" });
+    addLog(`Failed to open file: ${e}`, 'error');
   }
 }
 
@@ -163,10 +161,11 @@ watch(
 
 async function run() {
   if (path.value === "") {
-    message("No files selected", { type: "warning" });
+    addLog("No files selected", 'warning');
     return;
   }
 
+  addLog('Opening save dialog...', 'info');
   const outputPath = await save({
     title: "Export Csv",
     defaultPath: `cat_${new Date().getTime()}`,
@@ -178,13 +177,18 @@ async function run() {
     ]
   });
 
-  if (!outputPath) return;
+  if (!outputPath) {
+    addLog('Save dialog cancelled', 'info');
+    return;
+  }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`Starting merge process for ${fileSelect.value.length} files...`, 'info');
     let rtime: string;
 
     if (mode.value === "excel") {
+      addLog('Processing Excel files...', 'info');
       rtime = await invoke("cat_excel", {
         path: path.value,
         outputPath,
@@ -194,6 +198,7 @@ async function run() {
         allSheets: allSheets.value
       });
     } else {
+      addLog('Processing CSV files...', 'info');
       rtime = await invoke("cat_csv", {
         path: path.value,
         outputPath,
@@ -202,26 +207,19 @@ async function run() {
       });
     }
 
-    backendInfo.value = `Merge completed in ${rtime}s`;
-    message(backendInfo.value, { type: "success" });
+    addLog(`Merge completed in ${rtime}s`, 'success');
   } catch (e) {
-    message(`cat failed: ${e}`, { type: "error" });
+    addLog(`cat failed: ${e}`, 'error');
   } finally {
-    isLoading.value = false;
+    loading.value = false;
   }
 }
 
 const removeFile = index => {
+  const removedFile = fileSelect.value[index];
   fileSelect.value.splice(index, 1);
+  addLog(`Removed file: ${removedFile.filename}`, 'info');
 };
-
-useShortcuts({
-  onOpenFile: () => openFile(),
-  onRun: () => run(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path, backendInfo].forEach(r => (r.value = ""));
@@ -230,153 +228,128 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800"
-    >
+  <div class="flex flex-col h-full overflow-hidden">
+    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
       <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold dark:text-white flex items-center gap-4"
-          @click="dialog = true"
-        >
+        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
           <Icon icon="ri:merge-cells-vertical" />
           Cat
         </h1>
-
         <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="mode-toggle w-40">
-          <span
-            v-for="item in modeOptions"
-            :key="item.value"
-            class="mode-item"
-            :class="{ active: mode === item.value }"
-            @click="mode = item.value"
-          >
+        <div class="text-xs font-semibold text-gray-400 tracking-wider">
+          Merge CSV or Excel files
+        </div>
+        <div class="mode-toggle ml-auto">
+          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1 w-24" :class="{ active: mode === item.value }"
+            @click="mode = item.value">
             {{ item.label }}
           </span>
         </div>
       </div>
+    </SiliconeCard>
 
-      <div>
-        <SiliconeButton @click="openFile()" :loading="isLoading" text>
-          Open File(s)
-        </SiliconeButton>
-
-        <SiliconeButton @click="run()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 hidden md:flex"
-      >
-        <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-          STATISTICS
-        </div>
-        <div class="space-y-4">
-          <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <div class="text-2xl font-bold text-gray-800 dark:text-white">
-              {{ fileSelect.length }}
+    <el-scrollbar class="flex-1 px-4 pb-4 min-h-0">
+      <div class="flex flex-col">
+        <SiliconeCard>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              SELECTED FILE(S)
             </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              Files Loaded
+            <div class="flex items-center">
+              <SiliconeButton @click="openFile()" size="small" text>
+                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+              </SiliconeButton>
+              <SiliconeButton @click="run()" :loading="loading" size="small" text>
+                <Icon icon="ri:play-large-line" class="w-4 h-4" />
+              </SiliconeButton>
             </div>
           </div>
-        </div>
 
-        <div v-if="mode === 'excel'" class="flex flex-col mt-4">
-          <span
-            class="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2"
-          >
-            SHEETS
-          </span>
-
-          <SiliconeTooltip content="Merge all sheets or select one per file">
-            <div class="mode-toggle">
-              <span
-                v-for="item in sheetsOptions"
-                :key="String(item.value)"
-                @click="allSheets = item.value"
-                class="mode-item"
-                :class="{ active: allSheets === item.value }"
-              >
-                {{ item.label }}
-              </span>
+          <div v-if="mode === 'excel'" class="mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+              SHEETS
             </div>
-          </SiliconeTooltip>
-        </div>
-
-        <div class="mt-auto">
-          <div v-if="backendCompleted" class="text-xs text-gray-400">
-            {{ backendInfo }}
+            <SiliconeTooltip content="Merge all sheets or select one per file" placement="right">
+              <div class="mode-toggle">
+                <span v-for="item in sheetsOptions" :key="String(item.value)" @click="allSheets = item.value"
+                  class="mode-item mx-1 w-24" :class="{ active: allSheets === item.value }">
+                  {{ item.label }}
+                </span>
+              </div>
+            </SiliconeTooltip>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
-      >
-        <div class="flex-1 overflow-auto p-2">
-          <SiliconeTable
-            :data="fileSelect"
-            :height="'100%'"
-            empty-text="No data. (Ctrl+D) to Open File(s)."
-            show-overflow-tooltip
-            :row-style="{ height: '50px' }"
-            :cell-style="{
-              borderBottom: '1px solid #f0f0f0'
-            }"
-          >
-            <el-table-column prop="filename" label="File Name" />
-            <el-table-column label="Options">
-              <template #default="scope">
-                <template
-                  v-if="
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="fileSelect" :height="'300px'" show-overflow-tooltip :row-style="{ height: '40px' }"
+              :cell-style="{
+                borderBottom: '1px solid #f0f0f0'
+              }">
+              <template #empty>
+                <div class="flex items-center gap-2">
+                  No data. Click
+                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+                  to select files.
+                </div>
+              </template>
+              <el-table-column prop="filename" label="File Name" min-width="150" />
+              <el-table-column label="Options" min-width="150">
+                <template #default="scope">
+                  <template v-if="
                     mode === 'excel' &&
                     scope.row.sheets &&
                     scope.row.sheets.length > 0
-                  "
-                >
-                  <SiliconeSelect
-                    v-model="scope.row.selectSheet"
-                    placeholder="Select sheet"
-                    size="small"
-                    class="mb-[1px]"
-                  >
-                    <el-option
-                      v-for="sheet in scope.row.sheets"
-                      :key="sheet"
-                      :label="sheet"
-                      :value="sheet"
-                    />
-                  </SiliconeSelect>
+                  ">
+                    <SiliconeSelect v-model="scope.row.selectSheet" placeholder="Select sheet" size="small"
+                      class="mb-[1px]">
+                      <el-option v-for="sheet in scope.row.sheets" :key="sheet" :label="sheet" :value="sheet" />
+                    </SiliconeSelect>
+                  </template>
                 </template>
-              </template>
-            </el-table-column>
+              </el-table-column>
 
-            <el-table-column width="55">
-              <template #default="scope">
-                <SiliconeTag @click="removeFile(scope.$index)" type="danger">
-                  <Icon icon="ri:delete-bin-line" />
-                </SiliconeTag>
-              </template>
-            </el-table-column>
-          </SiliconeTable>
-        </div>
+              <el-table-column width="60">
+                <template #default="scope">
+                  <SiliconeTag @click="removeFile(scope.$index)" type="danger">
+                    <Icon icon="ri:delete-bin-line" />
+                  </SiliconeTag>
+                </template>
+              </el-table-column>
+            </SiliconeTable>
+          </div>
+        </SiliconeCard>
+
+        <SiliconeCard>
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+            USAGE
+          </div>
+          <div class="flex flex-col gap-2">
+            <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select files
+            </SiliconeText>
+            <SiliconeText type="info">2. Choose mode: Csv or Excel</SiliconeText>
+            <SiliconeText type="info">3. For Excel files, select sheets mode: All Sheets or One Sheet</SiliconeText>
+            <SiliconeText type="info">4. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to merge files
+            </SiliconeText>
+            <SiliconeText type="info">5. Check the output log for details</SiliconeText>
+          </div>
+        </SiliconeCard>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Cat - Merge multiple CSV or Excel files"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" title="Cat - Merge multiple CSV or Excel files" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+:deep(.silicone-card) {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+</style>

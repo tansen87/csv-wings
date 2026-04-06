@@ -4,14 +4,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdReverse, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Reverse] ${msg}`, type);
+};
 
 const path = ref("");
 const [tableColumn, tableData] = [ref([]), ref([])];
-const [isLoading, dialog] = [ref(false), ref(false)];
+const [loading, dialog] = [ref(false), ref(false)];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdReverse);
 const quoting = useQuoting();
@@ -22,8 +28,11 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
+    addLog('File selection canceled', 'info');
     return;
   }
+
+  addLog(`Selected file: ${path.value}`, 'info');
 
   try {
     const { columnView, dataView } = await toJson(
@@ -32,40 +41,35 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error", duration: 10000 });
+  } catch (e) {
+    addLog(`Failed to load file: ${e}`, 'error');
   }
 }
 
 // invoke reverse
 async function reverseData() {
   if (path.value === "") {
-    message("File not selected", { type: "warning" });
+    addLog("File not selected", 'warning');
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog('Starting reverse operation...', 'info');
+
     const rtime: string = await invoke("reverse", {
       path: path.value,
       quoting: quoting.quoting,
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    message(`Reverse done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`Reverse done, elapsed time: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`Reverse operation failed: ${e}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => reverseData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -74,162 +78,169 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
+  <div class="flex flex-col h-full overflow-hidden">
+    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
       <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
           <Icon icon="ri:arrow-up-down-line" />
           Reverse
         </h1>
-
         <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
         <div class="text-xs font-semibold text-gray-400">
           Reverse order of rows in a CSV
         </div>
       </div>
+    </SiliconeCard>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="reverseData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <div class="flex items-start gap-2">
-            <Icon
-              icon="ri:information-line"
-              class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"
-            />
-            <div class="text-[11px] text-blue-700 dark:text-blue-300">
-              Reverses the order of all rows in the CSV file. The first row
-              becomes the last, and the last row becomes the first.
+    <el-scrollbar class="flex-1 px-4 pb-4 min-h-0">
+      <div class="flex flex-col gap-4">
+        <SiliconeCard>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              FILE SELECTION
+            </div>
+            <div class="flex items-center">
+              <SiliconeButton @click="selectFile()" size="small" text>
+                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+              </SiliconeButton>
+              <SiliconeButton @click="reverseData()" :loading="loading" size="small" text>
+                <Icon icon="ri:play-large-line" class="w-4 h-4" />
+              </SiliconeButton>
             </div>
           </div>
-        </div>
 
-        <div
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider block mb-2"
-          >
-            BEFORE → AFTER
-          </label>
-          <div class="flex items-center justify-between text-xs">
-            <div class="text-center">
-              <div
-                class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1"
-              >
-                1
-              </div>
-              <div
-                class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1"
-              >
-                2
-              </div>
-              <div
-                class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded"
-              >
-                3
-              </div>
+          <div v-if="path" class="mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+              SELECTED FILE
             </div>
-            <Icon icon="ri:arrow-right-line" class="w-4 h-4 text-gray-400" />
-            <div class="text-center">
-              <div
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1"
-              >
-                3
-              </div>
-              <div
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1"
-              >
-                2
-              </div>
-              <div
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded"
-              >
-                1
+            <div class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+              <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
+            </div>
+          </div>
+
+          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div class="flex items-start gap-2">
+              <Icon icon="ri:information-line" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div class="text-[11px] text-blue-700 dark:text-blue-300">
+                Reverses the order of all rows in the CSV file. The first row
+                becomes the last, and the last row becomes the first.
               </div>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
+          <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+            <label class="text-xs font-semibold text-gray-400 tracking-wider block mb-2">
+              BEFORE → AFTER
+            </label>
+            <div class="flex items-center justify-between text-xs">
+              <div class="text-center">
+                <div class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1">
+                  1
+                </div>
+                <div class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1">
+                  2
+                </div>
+                <div class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded">
+                  3
+                </div>
+              </div>
+              <Icon icon="ri:arrow-right-line" class="w-4 h-4 text-gray-400" />
+              <div class="text-center">
+                <div
+                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1">
+                  3
+                </div>
+                <div
+                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1">
+                  2
+                </div>
+                <div
+                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded">
+                  1
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
+          <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
+              CONFIG
+            </label>
+            <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">Quoting:</span>
+                <span class="font-mono">{{ quoting.quoting }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">Skip rows:</span>
+                <span class="font-mono">{{ skiprows.skiprows }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">Flexible:</span>
+                <span class="font-mono">{{ flexible.flexible }}</span>
+              </div>
+            </div>
+          </div>
+        </SiliconeCard>
+
+        <SiliconeCard>
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              DATA PREVIEW
+            </div>
             <div class="flex items-center gap-2">
               <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
-              >
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded">
                 <Icon icon="ri:arrow-up-down-line" class="w-3.5 h-3.5" />
                 Reverse Order
               </span>
             </div>
           </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'400px'"
+              empty-text="No data. Click 'Open File' to select a CSV file." show-overflow-tooltip class="select-text">
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
-        </div>
-      </div>
-    </main>
+        </SiliconeCard>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Reverse - Reverse order of rows in a CSV"
-      width="70%"
-    >
+        <SiliconeCard>
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+            USAGE
+          </div>
+          <div class="flex flex-col gap-2">
+            <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
+            </SiliconeText>
+            <SiliconeText type="info">2. Review the configuration details</SiliconeText>
+            <SiliconeText type="info">3. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the reverse operation
+            </SiliconeText>
+            <SiliconeText type="info">4. Check the output log for details</SiliconeText>
+            <SiliconeText type="info">5. The output file will be created in the same directory as the original file
+            </SiliconeText>
+            <SiliconeText type="info">6. The first row will become the last, and the last row will become the first
+            </SiliconeText>
+            <SiliconeText type="info">7. The header row (if present) will remain at the top</SiliconeText>
+          </div>
+        </SiliconeCard>
+      </div>
+    </el-scrollbar>
+
+    <SiliconeDialog v-model="dialog" title="Reverse - Reverse order of rows in a CSV" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+:deep(.silicone-card) {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+</style>

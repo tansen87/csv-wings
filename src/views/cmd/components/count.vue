@@ -135,8 +135,8 @@ onUnmounted(() => {
         <div class="text-xs font-semibold text-gray-400 tracking-wider">
           Count or check CSV files
         </div>
-        <div class="mode-toggle w-40 ml-auto">
-          <span v-for="item in modeOptions" :key="item.value" class="mode-item" :class="{ active: mode === item.value }"
+        <div class="mode-toggle ml-auto">
+          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1 w-24" :class="{ active: mode === item.value }"
             @click="mode = item.value">
             {{ item.label }}
           </span>
@@ -215,11 +215,17 @@ onUnmounted(() => {
           </div>
 
           <div class="overflow-hidden rounded-lg">
-            <SiliconeTable :data="fileSelect" :height="'300px'"
-              empty-text="No data. Click 'Open File(s)' to select CSV files." show-overflow-tooltip
-              :row-style="{ height: '40px' }" :cell-style="{
+            <SiliconeTable :data="fileSelect" :height="'300px'" show-overflow-tooltip :row-style="{ height: '40px' }"
+              :cell-style="{
                 borderBottom: '1px solid #f0f0f0'
               }" class="select-text">
+              <template #empty>
+                <div class="flex items-center gap-2">
+                  No data. Click
+                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+                  to select files.
+                </div>
+              </template>
               <el-table-column prop="filename" label="File" min-width="150" />
               <el-table-column prop="status" width="70">
                 <template #default="scope">

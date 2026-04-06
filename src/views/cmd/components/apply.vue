@@ -4,11 +4,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { CheckboxValueType } from "element-plus";
 import { mdApply, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Apply] ${msg}`, type);
+};
 
 const [loading, checkAll, indeterminate, newColumn, dialog, backendCompleted] =
   [ref(false), ref(false), ref(false), ref(false), ref(false), ref(false)];
@@ -63,13 +69,12 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
+    addLog('File selection cancelled', 'info');
     return;
   }
 
-  backendCompleted.value = false;
-  backendInfo.value = "";
-
   try {
+    addLog(`Selected file: ${path.value}`, 'info');
     tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
@@ -77,15 +82,15 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`Failed to load file: ${e}`, 'error');
   }
 }
 
 // invoke apply
 async function applyData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    addLog("CSV file not selected", 'warning');
     return;
   }
 
@@ -99,12 +104,19 @@ async function applyData() {
   }
 
   if (mode.value === "operations" && finalColumns.length === 0) {
-    message("Column not selected", { type: "warning" });
+    addLog("Column not selected", 'warning');
     return;
   }
 
   try {
     loading.value = true;
+    addLog(`Starting apply operation: ${mode.value} mode`, 'info');
+    if (mode.value === 'operations' && operations.value.length > 0) {
+      addLog(`Applying operations: ${operations.value.join(', ')}`, 'info');
+    } else if (['cat', 'calcconv'].includes(mode.value)) {
+      addLog('Using formula/format for transformation', 'info');
+    }
+
     const result: string = await invoke("apply", {
       path: path.value,
       columns: finalColumns.join("|"),
@@ -118,11 +130,9 @@ async function applyData() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    backendCompleted.value = true;
-    backendInfo.value = `Apply done, elapsed time: ${result} s`;
-    message(backendInfo.value, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`Apply done, elapsed time: ${result} s`, 'success');
+  } catch (e) {
+    addLog(`Apply failed: ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -145,14 +155,6 @@ watch(mode, newMode => {
   }
 });
 
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => applyData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
-
 onUnmounted(() => {
   [path, comparand, replacement, formatstr, backendInfo].forEach(
     r => (r.value = "")
@@ -164,271 +166,193 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
           <Icon icon="ri:function-line" />
           Apply
         </h1>
-
         <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
+        <div class="text-xs font-semibold text-gray-400 tracking-wider">
           Apply transformation functions to CSV column(s)
         </div>
+        <div class="mode-toggle ml-auto">
+          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1 w-24" :class="{ active: mode === item.value }"
+            @click="mode = item.value">
+            {{ item.label }}
+          </span>
+        </div>
       </div>
+    </SiliconeCard>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="loading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="applyData()" :loading="loading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="flex-shrink-0">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            MODE
-          </label>
-          <div class="mode-toggle h-8 w-full">
-            <div
-              v-for="item in modeOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{ active: mode === item.value }"
-              @click="mode = item.value"
-            >
-              {{ item.label }}
+    <el-scrollbar class="flex-1 px-4 pb-4 min-h-0">
+      <div class="flex flex-col gap-2">
+        <SiliconeCard>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              FILE SELECTION
+            </div>
+            <div class="flex items-center">
+              <SiliconeButton @click="selectFile()" size="small" text>
+                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+              </SiliconeButton>
+              <SiliconeButton @click="applyData()" :loading="loading" size="small" text>
+                <Icon icon="ri:play-large-line" class="w-4 h-4" />
+              </SiliconeButton>
             </div>
           </div>
 
-          <SiliconeTag
-            @click="addNewColumn"
-            :disabled="mode === 'cat' || mode === 'calcconv'"
-            text
-            class="mb-3 mt-3 w-full"
-          >
-            {{ columnContent }}
-          </SiliconeTag>
-        </div>
-
-        <el-scrollbar class="flex-1 overflow-y-auto min-h-0 pr-1 -mr-1">
-          <template v-if="mode === 'operations'">
-            <div class="mb-3">
-              <label
-                class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-              >
-                COLUMNS ({{ columns.length }})
-              </label>
-              <SiliconeSelect
-                v-model="columns"
-                filterable
-                multiple
-                placeholder="Select column(s)"
-              >
-                <template #header>
-                  <div class="flex items-center justify-between px-2 py-1">
-                    <el-checkbox
-                      v-model="checkAll"
-                      :indeterminate="indeterminate"
-                      @change="handleCheckAll"
-                    >
-                      All
-                    </el-checkbox>
-                    <span class="text-xs text-gray-400">
-                      {{ columns.length }} selected
-                    </span>
-                  </div>
-                </template>
-                <el-option
-                  v-for="item in tableHeader"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </SiliconeSelect>
+          <div v-if="path" class="mb-2">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+              SELECTED FILE
             </div>
+            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
+          </div>
 
-            <div class="mb-3">
-              <label
-                class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-              >
-                OPERATIONS ({{ operations.length }})
-              </label>
-              <SiliconeSelect
-                v-model="operations"
-                filterable
-                multiple
-                placeholder="Select operations"
-              >
-                <el-option label="Copy" value="copy" />
-                <el-option label="Len" value="len" />
-                <el-option label="Lower" value="lower" />
-                <el-option label="Upper" value="upper" />
-                <el-option label="Trim" value="trim" />
-                <el-option label="Ltrim" value="ltrim" />
-                <el-option label="Rtrim" value="rtrim" />
-                <el-option label="Replace" value="replace" />
-                <el-option label="Round" value="round" />
-                <el-option label="Squeeze" value="squeeze" />
-                <el-option label="Strip" value="strip" />
-                <el-option label="Reverse" value="reverse" />
-                <el-option label="Abs" value="abs" />
-                <el-option label="Neg" value="neg" />
-                <el-option label="Normalize" value="normalize" />
-              </SiliconeSelect>
+          <div class="mb-2">
+            <SiliconeTag @click="addNewColumn" :disabled="mode === 'cat' || mode === 'calcconv'" text
+              class="mb-2 mt-2 w-full">
+              {{ columnContent }}
+            </SiliconeTag>
+          </div>
+
+          <template v-if="mode === 'operations'">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+                  COLUMNS ({{ columns.length }})
+                </div>
+                <SiliconeSelect v-model="columns" filterable multiple placeholder="Select column(s)" class="w-full">
+                  <template #header>
+                    <div class="flex items-center justify-between px-2 py-1">
+                      <el-checkbox v-model="checkAll" :indeterminate="indeterminate" @change="handleCheckAll">
+                        All
+                      </el-checkbox>
+                      <span class="text-xs text-gray-400">
+                        {{ columns.length }} selected
+                      </span>
+                    </div>
+                  </template>
+                  <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+                </SiliconeSelect>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
+                  OPERATIONS ({{ operations.length }})
+                </div>
+                <SiliconeSelect v-model="operations" filterable multiple placeholder="Select operations" class="w-full">
+                  <el-option label="Copy" value="copy" />
+                  <el-option label="Len" value="len" />
+                  <el-option label="Lower" value="lower" />
+                  <el-option label="Upper" value="upper" />
+                  <el-option label="Trim" value="trim" />
+                  <el-option label="Ltrim" value="ltrim" />
+                  <el-option label="Rtrim" value="rtrim" />
+                  <el-option label="Replace" value="replace" />
+                  <el-option label="Round" value="round" />
+                  <el-option label="Squeeze" value="squeeze" />
+                  <el-option label="Strip" value="strip" />
+                  <el-option label="Reverse" value="reverse" />
+                  <el-option label="Abs" value="abs" />
+                  <el-option label="Neg" value="neg" />
+                  <el-option label="Normalize" value="normalize" />
+                </SiliconeSelect>
+              </div>
             </div>
 
             <template v-if="operations.includes('replace')">
               <div
-                class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-              >
-                <label
-                  class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-                >
+                class="mt-4 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
                   REPLACE OPTIONS
                 </label>
                 <div class="space-y-2">
-                  <SiliconeInput
-                    v-model="comparand"
-                    placeholder="Find (old)"
-                    size="small"
-                  />
-                  <SiliconeInput
-                    v-model="replacement"
-                    placeholder="Replace with (new)"
-                    size="small"
-                  />
+                  <SiliconeInput v-model="comparand" placeholder="Find (old)" size="small" />
+                  <SiliconeInput v-model="replacement" placeholder="Replace with (new)" size="small" />
                 </div>
               </div>
             </template>
 
             <template v-if="operations.includes('round')">
               <div
-                class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-              >
-                <label
-                  class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-                >
+                class="mt-4 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
                   ROUND OPTIONS
                 </label>
                 <div class="space-y-2">
-                  <SiliconeInput
-                    v-model="formatstr"
-                    placeholder="round place"
-                    size="small"
-                  />
+                  <SiliconeInput v-model="formatstr" placeholder="round place" size="small" />
                 </div>
               </div>
             </template>
           </template>
 
           <template v-if="['cat', 'calcconv'].includes(mode)">
-            <div class="flex flex-col min-h-0">
-              <label
-                class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-              >
-                FORMULA / FORMAT
-              </label>
-              <SiliconeInput
-                v-model="formatstr"
-                :autosize="{ minRows: 10, maxRows: 10 }"
-                type="textarea"
-                :placeholder="placeholderText"
-              />
-            </div>
+            <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
+              FORMULA / FORMAT
+            </label>
+            <SiliconeInput v-model="formatstr" :autosize="{ minRows: 10, maxRows: 10 }" type="textarea"
+              :placeholder="placeholderText" class="w-full" />
           </template>
+        </SiliconeCard>
 
-          <div
-            v-if="backendCompleted"
-            class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-          >
-            <div class="flex items-center gap-2">
-              <Icon
-                icon="ri:check-circle-line"
-                class="w-4 h-4 text-green-500"
-              />
-              <span class="text-xs text-green-700 dark:text-green-300">
-                {{ backendInfo }}
-              </span>
+        <SiliconeCard>
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs font-semibold text-gray-400 tracking-wider">
+              PREVIEW ({{ tableData?.length || 0 }} rows)
             </div>
-          </div>
-        </el-scrollbar>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-          v-if="path"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
             <div class="flex items-center gap-2">
               <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
-              >
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
                 <Icon icon="ri:function-line" class="w-3.5 h-3.5" />
                 Mode: {{ mode }}
               </span>
             </div>
           </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'400px'"
+              empty-text="No data. Click 'Open File' to select a CSV file." show-overflow-tooltip class="select-text">
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
-        </div>
-      </div>
-    </main>
+        </SiliconeCard>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Apply - Apply a series of transformation functions to given CSV column(s)"
-      width="70%"
-    >
+        <SiliconeCard>
+          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
+            USAGE
+          </div>
+          <div class="flex flex-col gap-2">
+            <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
+            </SiliconeText>
+            <SiliconeText type="info">2. Choose mode: Operations, CalcConv, or DynFmt</SiliconeText>
+            <SiliconeText type="info">3. For Operations mode: select columns and operations</SiliconeText>
+            <SiliconeText type="info">4. For CalcConv or DynFmt mode: enter formula/format</SiliconeText>
+            <SiliconeText type="info">5. Preview the result in the table below</SiliconeText>
+            <SiliconeText type="info">6. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to run the apply operation
+            </SiliconeText>
+            <SiliconeText type="info">7. Check the output log for details</SiliconeText>
+          </div>
+        </SiliconeCard>
+      </div>
+    </el-scrollbar>
+
+    <SiliconeDialog v-model="dialog" title="Apply - Apply a series of transformation functions to given CSV column(s)"
+      width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+:deep(.silicone-card) {
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+</style>
