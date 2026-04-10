@@ -4,6 +4,8 @@ import { storeToRefs } from "pinia";
 import { Icon } from "@iconify/vue";
 import { useCommandStore } from "@/store/modules/commands";
 import { useDark } from "@pureadmin/utils";
+import { emitter } from "@/utils/mitt";
+import setting from "@/layout/components/setting/index.vue";
 
 import Apply from "./components/apply.vue";
 import Cat from "./components/cat.vue";
@@ -131,9 +133,6 @@ const startResize = (e) => {
         <div class="sidebar-header">
           <div class="header-content">
             <SiliconeInput placeholder="Search command" v-model="searchText" />
-            <div class="theme-toggle" @click="toggleDark">
-              <Icon :icon="isDark ? 'icon-park-outline:sun' : 'icon-park-outline:moon'" width="16" height="16" />
-            </div>
           </div>
         </div>
         <el-scrollbar class="commands-list">
@@ -143,6 +142,14 @@ const startResize = (e) => {
               @click="activeTab = item.route.split('/').pop()">
               <Icon :icon="item.icon" width="16" height="16" />
               <span>{{ item.title }}</span>
+            </div>
+          </div>
+          <div class="bottom-controls">
+            <div class="theme-toggle" @click="toggleDark">
+              <Icon :icon="isDark ? 'icon-park-outline:sun' : 'icon-park-outline:moon'" width="20" height="20" />
+            </div>
+            <div class="setting-item" @click="emitter.emit('openPanel', '')">
+              <Icon icon="ri:settings-2-line" width="20" height="20" />
             </div>
           </div>
         </el-scrollbar>
@@ -170,6 +177,8 @@ const startResize = (e) => {
         </div>
       </div>
     </div>
+    <!-- 系统设置 -->
+    <setting />
   </div>
 </template>
 
@@ -243,6 +252,45 @@ const startResize = (e) => {
 
 .commands-content {
   padding: 8px 0;
+  padding-bottom: 60px;
+}
+
+.commands-list {
+  position: relative;
+}
+
+.bottom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #e4e7ed;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  background-color: var(--el-fill-color-light);
+}
+
+.theme-toggle, .setting-item {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle:hover, .setting-item:hover {
+  background-color: #e9e9e9;
+}
+
+.dark .bottom-controls {
+  border-top-color: #888585;
+  background-color: #706c6c;
+}
+
+.dark .theme-toggle:hover, .dark .setting-item:hover {
+  background-color: #666;
 }
 
 .cmd-item {

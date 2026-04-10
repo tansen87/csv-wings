@@ -6,9 +6,7 @@ import { toggleTheme } from "@pureadmin/theme/dist/browser-utils";
 import { useAppStoreHook } from "@/store/modules/app";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import {
-  ENCODING_OPTIONS,
   useDelimiter,
-  useEncoding,
   useFlexible,
   useProgress,
   useQuoting,
@@ -49,7 +47,6 @@ const skiprowsStore = useSkiprows();
 const progressStore = useProgress();
 const threadsStore = useThreads();
 const delimiterStore = useDelimiter();
-const encodingStore = useEncoding();
 
 const mixRef = ref();
 const verticalRef = ref();
@@ -124,26 +121,6 @@ const { isDark } = useDark();
     </div>
     <el-scrollbar max-height="60vh">
       <div v-if="opts === 'general'" class="mt-1">
-        <SiliconeCard class="mb-1">
-          <div class="setting-item">
-            <div class="setting-label">
-              <span class="setting-title">encoding</span>
-              <span class="setting-desc"> Text file encoding </span>
-            </div>
-            <SiliconeSelect
-              style="width: 180px"
-              v-model="encodingStore.encoding"
-              filterable
-            >
-              <el-option
-                v-for="opt in ENCODING_OPTIONS"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </SiliconeSelect>
-          </div>
-        </SiliconeCard>
         <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">

@@ -1,11 +1,11 @@
 [package]
-name = "insight-x"
+name = "csv-wings"
 version = "0.5.5"
-description = "insight-x"
+description = "csv-wings"
 authors = ["tansen"]
 license = "MIT"
 repository = "https://github.com/tansen87/insight-x"
-default-run = "insight-x"
+default-run = "csv-wings"
 edition = "2024"
 rust-version = "1.91.0"
 

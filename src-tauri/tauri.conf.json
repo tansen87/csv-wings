@@ -51,10 +51,10 @@
       }
     }
   },
-  "productName": "insight-x",
-  "mainBinaryName": "insight-x",
+  "productName": "csv-wings",
+  "mainBinaryName": "csv-wings",
   "version": "../package.json",
-  "identifier": "com.insight-x.dev",
+  "identifier": "com.csv-wings.dev",
   "plugins": {},
   "app": {
     "windows": [
@@ -64,10 +64,11 @@
         "width": 840,
         "height": 660,
         "resizable": true,
-        "title": "insight-x",
+        "title": "csv-wings",
         "dragDropEnabled": false,
         "center": true,
-        "decorations": true
+        "decorations": true,
+        "maximized": true
       }
     ],
     "security": {
