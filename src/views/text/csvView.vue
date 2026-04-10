@@ -259,7 +259,7 @@ function clearFile() {
       >
         <template #header>
           <div class="flex flex-col gap-1">
-            <SiliconeInput
+            <el-input
               v-model="tableHeader[index]"
               size="small"
               placeholder="New header"
@@ -277,7 +277,7 @@ function clearFile() {
         </template>
 
         <template #default="{ row, $index, column }">
-          <SiliconeInput
+          <el-input
             v-model="row[column.property]"
             size="small"
             @blur="edit.onCellEdit($index, column.property)"
