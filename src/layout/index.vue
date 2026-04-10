@@ -23,42 +23,7 @@ const { layout } = useLayout();
 const isMobile = deviceDetection();
 const pureSetting = useSettingStoreHook();
 const { $storage } = useGlobal<GlobalPropertiesApi>();
-const appWindow = getCurrentWindow();
-const handleMouseDown = e => {
-  if (
-    e.target.closest(".sub-menu-icon") ||
-    e.target.closest(".set-icon") ||
-    e.target.closest(".project-configuration") ||
-    e.target.closest(".container") ||
-    e.target.closest(".el-form") ||
-    e.target.closest(".el-button") ||
-    e.target.closest(".el-switch") ||
-    e.target.closest(".el-tooltip__trigger") ||
-    e.target.closest(".el-card__body") ||
-    e.target.closest(".draggable-node") ||
-    e.target.closest(".el-icon") ||
-    e.target.closest(".el-dialog") ||
-    e.target.closest(".el-menu-item") ||
-    e.target.closest(".el-backtop") ||
-    e.target.closest(".el-tabs") ||
-    e.target.closest(".el-tag") ||
-    e.target.closest(".el-table") ||
-    e.target.closest(".el-link__inner") ||
-    e.target.closest(".vue-flow__handle") ||
-    e.target.closest(".vue-flow__edge-interaction") ||
-    e.target.closest(".el-input__inner") ||
-    e.target.closest(".scrollbar-wrapper") ||
-    e.target.closest(".validation-panel") ||
-    e.target.closest(".main-content") ||
-    e.target.closest(".line-number") ||
-    e.target.closest(".line-content")
-  ) {
-    return;
-  }
-  if (e.buttons === 1) {
-    appWindow.startDragging();
-  }
-};
+
 const set: setType = reactive({
   sidebar: computed(() => {
     return useAppStoreHook().sidebar;
@@ -167,7 +132,6 @@ const layoutHeader = defineComponent({
   <div
     :class="['app-wrapper', set.classes]"
     v-resize
-    @mousedown="handleMouseDown"
   >
     <div
       v-show="

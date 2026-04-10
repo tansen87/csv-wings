@@ -2433,7 +2433,6 @@ dependencies = [
  "indexmap 2.13.0",
  "itoa",
  "json-objects-to-csv",
- "large-text-core",
  "lazy_static",
  "log",
  "memmap2",
@@ -2657,17 +2656,6 @@ dependencies = [
  "html5ever",
  "indexmap 2.13.0",
  "selectors",
-]
-
-[[package]]
-name = "large-text-core"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "encoding_rs",
- "memmap2",
- "regex",
- "tempfile",
 ]
 
 [[package]]

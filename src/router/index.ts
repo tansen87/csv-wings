@@ -1,6 +1,5 @@
 import { getConfig } from "@/config";
 import NProgress from "@/utils/progress";
-import { sessionKey, type DataInfo } from "@/utils/auth";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 import {
@@ -20,7 +19,7 @@ import {
   formatFlatteningRoutes
 } from "./utils";
 import { buildHierarchyTree } from "@/utils/tree";
-import { isUrl, openLink, storageSession } from "@pureadmin/utils";
+import { isUrl, openLink } from "@pureadmin/utils";
 
 import remainingRouter from "./modules/remaining";
 
@@ -91,8 +90,7 @@ export function resetRouter() {
   usePermissionStoreHook().clearAllCachePage();
 }
 
-/** 路由白名单 */
-const whiteList = ["/login"];
+
 
 router.beforeEach((to: toRouteType, _from, next) => {
   if (to.meta?.keepAlive) {
@@ -102,7 +100,6 @@ router.beforeEach((to: toRouteType, _from, next) => {
       handleAliveRoute(to);
     }
   }
-  const userInfo = storageSession().getItem<DataInfo<number>>(sessionKey);
   NProgress.start();
   const externalLink = isUrl(to?.name as string);
   if (!externalLink) {
@@ -113,54 +110,36 @@ router.beforeEach((to: toRouteType, _from, next) => {
       else document.title = item.meta.title as string;
     });
   }
-  /** 如果已经登录并存在登录信息后不能跳转到路由白名单，而是继续保持在当前页面 */
-  function toCorrectRoute() {
-    whiteList.includes(to.fullPath) ? next(_from.fullPath) : next();
-  }
-  if (userInfo) {
-    if (_from?.name) {
-      // name为超链接
-      if (externalLink) {
-        openLink(to?.name as string);
-        NProgress.done();
-      } else {
-        toCorrectRoute();
-      }
+  if (_from?.name) {
+    // name为超链接
+    if (externalLink) {
+      openLink(to?.name as string);
+      NProgress.done();
     } else {
-      // 刷新
-      if (
-        usePermissionStoreHook().wholeMenus.length === 0 &&
-        to.path !== "/login"
-      ) {
-        initRouter().then((router: Router) => {
-          if (!useMultiTagsStoreHook().getMultiTagsCache) {
-            const { path } = to;
-            const route = findRouteByPath(
-              path,
-              router.options.routes[0].children
-            );
-            getTopMenu(true);
-            // query、params模式路由传参数的标签页不在此处处理
-            if (route && route.meta?.title) {
-              useMultiTagsStoreHook().handleTags("push", {
-                path: route.path,
-                name: route.name,
-                meta: route.meta
-              });
-            }
-          }
-          router.push(to.fullPath);
-        });
-      }
-      toCorrectRoute();
+      next();
     }
   } else {
-    if (to.path !== "/login") {
-      if (whiteList.indexOf(to.path) !== -1) {
-        next();
-      } else {
-        next({ path: "/login" });
-      }
+    // 刷新
+    if (usePermissionStoreHook().wholeMenus.length === 0) {
+      initRouter().then((router: Router) => {
+        if (!useMultiTagsStoreHook().getMultiTagsCache) {
+          const { path } = to;
+          const route = findRouteByPath(
+            path,
+            router.options.routes[0].children
+          );
+          getTopMenu(true);
+          // query、params模式路由传参数的标签页不在此处处理
+          if (route && route.meta?.title) {
+            useMultiTagsStoreHook().handleTags("push", {
+              path: route.path,
+              name: route.name,
+              meta: route.meta
+            });
+          }
+        }
+        router.push(to.fullPath);
+      });
     } else {
       next();
     }

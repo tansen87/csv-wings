@@ -4,14 +4,12 @@
 )]
 
 use tauri::{
-  Emitter, Manager, WindowEvent,
+  Manager, WindowEvent,
   menu::{Menu, MenuItem},
   tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
 };
 
 use insight::command;
-use insight::flow;
-use insight::view::{table_edit, table_view, text_view, text_view_utils};
 
 use insight::cmd::apply;
 use insight::cmd::cat;
@@ -63,7 +61,6 @@ fn main() {
   }
 
   tauri::Builder::default()
-    .manage(text_view_utils::AppState::default())
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -74,20 +71,6 @@ fn main() {
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .setup(|app| {
-      let args: Vec<String> = std::env::args().collect();
-      if args.len() > 1 {
-        let file_path = &args[1];
-        // 将文件路径存储到AppState中,前端可以主动查询
-        let state = app.state::<text_view_utils::AppState>();
-        *state.pending_file_path.lock().unwrap() = Some(file_path.clone());
-
-        if let Some(window) = app.get_webview_window("main") {
-          window.show().unwrap();
-          window.set_focus().unwrap();
-          let _ = window.emit("open-text-file", file_path);
-        }
-      }
-
       // 创建菜单项
       let show_item = MenuItem::with_id(app, "show", "show", true, None::<&str>)?;
       let quit_item = MenuItem::with_id(app, "quit", "quit", true, None::<&str>)?;
@@ -149,16 +132,6 @@ fn main() {
       command::to_json,
       command::xlsx_to_json,
       command::preview_n_lines,
-      flow::flow,
-      table_edit::table_edit,
-      table_view::table_view,
-      text_view::open_file,
-      text_view::get_file_content,
-      text_view::search_file,
-      text_view::replace_text,
-      text_view::close_file,
-      text_view::cleanup_sessions,
-      text_view::get_pending_file_path,
       apply::apply,
       cat::cat_csv,
       cat::cat_excel,

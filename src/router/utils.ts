@@ -43,11 +43,14 @@ function handRank(routeInfo: any) {
 function ascending(arr: any[]) {
   arr.forEach((v, index) => {
     // 当rank不存在时，根据顺序自动创建，首页路由永远在第一位
-    if (handRank(v)) v.meta.rank = index + 2;
+    if (handRank(v)) {
+      if (!v.meta) v.meta = {};
+      v.meta.rank = index + 2;
+    }
   });
   return arr.sort(
     (a: { meta: { rank: number } }, b: { meta: { rank: number } }) => {
-      return a?.meta.rank - b?.meta.rank;
+      return (a?.meta?.rank || 0) - (b?.meta?.rank || 0);
     }
   );
 }
@@ -159,10 +162,6 @@ function handleAsyncRoutes(routeList) {
           // 最终路由进行升序
           ascending(router.options.routes[0].children);
           if (!router.hasRoute(v?.name)) router.addRoute(v);
-          const flattenRouters: any = router
-            .getRoutes()
-            .find(n => n.path === "/");
-          router.addRoute(flattenRouters);
         }
       }
     );
@@ -227,17 +226,46 @@ function formatFlatteningRoutes(routesList: RouteRecordRaw[]) {
 function formatTwoStageRoutes(routesList: RouteRecordRaw[]) {
   if (routesList.length === 0) return routesList;
   const newRoutesList: RouteRecordRaw[] = [];
+  
+  // 检查是否存在path为"/"的路由
+  const hasRootRoute = routesList.some(v => v.path === "/");
+  
+  // 如果不存在，创建一个默认的根路由
+  if (!hasRootRoute) {
+    newRoutesList.push({
+      path: "/",
+      redirect: "/cmd/index",
+      meta: {
+        title: "首页",
+        showLink: false
+      },
+      children: []
+    });
+  }
+  
   routesList.forEach((v: RouteRecordRaw) => {
     if (v.path === "/") {
       newRoutesList.push({
         component: v.component,
         name: v.name,
         path: v.path,
-        redirect: v.redirect,
+        redirect: v.redirect || "/cmd/index",
         meta: v.meta,
         children: []
       });
     } else {
+      if (newRoutesList.length === 0) {
+        // 如果没有根路由，创建一个
+        newRoutesList.push({
+          path: "/",
+          redirect: "/cmd/index",
+          meta: {
+            title: "首页",
+            showLink: false
+          },
+          children: []
+        });
+      }
       newRoutesList[0]?.children.push({ ...v });
     }
   });
@@ -281,10 +309,11 @@ function handleAliveRoute({ name }: toRouteType, mode?: string) {
 
 /** 过滤后端传来的动态路由 重新生成规范路由 */
 function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
-  if (!arrRoutes || !arrRoutes.length) return;
+  if (!arrRoutes || !arrRoutes.length) return [];
   const modulesRoutesKeys = Object.keys(modulesRoutes);
   arrRoutes.forEach((v: RouteRecordRaw) => {
     // 将backstage属性加入meta，标识此路由为后端返回路由
+    if (!v.meta) v.meta = {};
     v.meta.backstage = true;
     // 父级的redirect属性取值：如果子级存在且父级的redirect属性不存在，默认取第一个子级的path；如果子级存在且父级的redirect属性存在，取存在的redirect属性，会覆盖默认值
     if (v?.children && v.children.length && !v.redirect)

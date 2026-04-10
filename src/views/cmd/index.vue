@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { Icon } from "@iconify/vue";
 import { useCommandStore } from "@/store/modules/commands";
+import { useDark } from "@pureadmin/utils";
 
 import Apply from "./components/apply.vue";
 import Cat from "./components/cat.vue";
@@ -38,6 +39,8 @@ const searchText = ref("");
 const activeTab = ref(commands.value[0]?.route.split('/').pop() || 'idx');
 const logHeight = ref(200);
 const isResizing = ref(false);
+
+const { isDark, toggleDark } = useDark();
 
 // Logs state
 const logs = ref([]);
@@ -126,7 +129,12 @@ const startResize = (e) => {
     <div class="cmd-content">
       <div class="cmd-sidebar">
         <div class="sidebar-header">
-          <SiliconeInput placeholder="Search for command..." v-model="searchText" />
+          <div class="header-content">
+            <SiliconeInput placeholder="Search command" v-model="searchText" />
+            <div class="theme-toggle" @click="toggleDark">
+              <Icon :icon="isDark ? 'icon-park-outline:sun' : 'icon-park-outline:moon'" width="16" height="16" />
+            </div>
+          </div>
         </div>
         <el-scrollbar class="commands-list">
           <div class="commands-content">
@@ -168,7 +176,7 @@ const startResize = (e) => {
 <style lang="scss" scoped>
 .cmd-container {
   width: 100%;
-  height: calc(100vh - 36px);
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -193,6 +201,30 @@ const startResize = (e) => {
 .sidebar-header {
   padding: 8px 16px;
   border-bottom: 1px solid #e4e7ed;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle {
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--el-text-color-regular);
+
+  &:hover {
+    background-color: #e9e9e9;
+  }
+}
+
+.dark .theme-toggle {
+  &:hover {
+    background-color: #666;
+  }
 }
 
 .dark .sidebar-header {

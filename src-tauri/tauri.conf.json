@@ -67,7 +67,7 @@
         "title": "insight-x",
         "dragDropEnabled": false,
         "center": true,
-        "decorations": false
+        "decorations": true
       }
     ],
     "security": {
