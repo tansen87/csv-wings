@@ -49,6 +49,8 @@ where
   F: Fn(&str, &[String]) -> bool + Send + Sync + 'static,
 {
   let sel = Selection::from_headers(rdr.byte_headers()?, &[column.as_str()][..])?;
+  // 缓存列索引,避免每次循环都计算
+  let field_index = sel.first_indices()?;
 
   wtr.write_record(rdr.headers()?)?;
 
@@ -88,7 +90,7 @@ where
   let counter_task = tokio::task::spawn_blocking(move || {
     for result in rdr.records() {
       let record = result?;
-      if let Some(value) = record.get(sel.first_indices()?) {
+      if let Some(value) = record.get(field_index) {
         if match_fn(value, &conditions) {
           wtr.write_record(&record)?;
 
@@ -212,22 +214,24 @@ where
     }
 
     let sel = Selection::from_headers(rdr.byte_headers()?, &[column.as_str()][..])?;
+  // 缓存列索引,避免每次循环都计算
+  let field_index = sel.first_indices()?;
 
-    for result in rdr.records() {
-      let record = result?;
-      if let Some(value) = record.get(sel.first_indices()?) {
-        for condition in conditions.iter() {
-          if match_fn(value, condition) {
-            if let Some(wtr) = writers.get_mut(condition) {
-              wtr.write_record(&record)?;
+  for result in rdr.records() {
+    let record = result?;
+    if let Some(value) = record.get(field_index) {
+      for condition in conditions.iter() {
+        if match_fn(value, condition) {
+          if let Some(wtr) = writers.get_mut(condition) {
+            wtr.write_record(&record)?;
 
-              match_rows.fetch_add(1, Ordering::Relaxed);
-            }
+            match_rows.fetch_add(1, Ordering::Relaxed);
           }
         }
       }
-      rows.fetch_add(1, Ordering::Relaxed);
     }
+    rows.fetch_add(1, Ordering::Relaxed);
+  }
     let final_rows = rows.load(Ordering::Relaxed);
     let _ = done_tx.send(final_rows);
 
@@ -350,11 +354,6 @@ where
     .ok_or_else(|| anyhow::anyhow!("Failed to parse header"))??;
 
   let true_header = utils::clean_header(&raw_header);
-  // let header_debug: Vec<_> = true_header
-  //   .iter()
-  //   .map(|b| String::from_utf8_lossy(b).into_owned())
-  //   .collect();
-  // log::debug!("Cleaned header: {:?}", header_debug);
 
   let sel = Selection::from_headers(&true_header, &[column.as_str()])?;
   let field_index = sel.first_indices()?;
@@ -369,12 +368,14 @@ where
 
   let temp_dir = TempDir::new()?;
 
+  const BUFFER_SIZE: usize = 1024 * 1024; // 1MB缓冲区
+
   let pool = ThreadPoolBuilder::new()
     .num_threads(njobs)
     .build()
     .map_err(|e| anyhow::anyhow!("Failed to create thread pool: {}", e))?;
 
-  let results: Result<Vec<(PathBuf, usize)>> = Ok(pool.install(|| {
+  let results: Result<Vec<(PathBuf, usize)>> = pool.install(|| {
     (0..num_chunks)
       .into_par_iter()
       .map(|chunk_id| -> Result<(PathBuf, usize)> {
@@ -427,9 +428,11 @@ where
 
         let out_path = temp_dir.path().join(format!("part_{}.csv", chunk_id));
 
+        let file = File::create(&out_path)?;
+        let buf_writer = BufWriter::with_capacity(BUFFER_SIZE, file);
         let mut local_wtr = WriterBuilder::new()
-          .delimiter(sep) // or Never, but be consistent
-          .from_path(&out_path)?;
+          .delimiter(sep)
+          .from_writer(buf_writer);
 
         let mut count = 0;
         for record_result in reader.into_byte_records() {
@@ -447,7 +450,7 @@ where
         Ok((out_path, count))
       })
       .collect::<Result<Vec<_>, _>>()
-  })?);
+  });
 
   let mut total = 0;
   for (path, count) in results? {
@@ -455,11 +458,12 @@ where
       continue;
     }
 
-    let mut part_file = File::open(&path)?;
+    let file = File::open(&path)?;
+    let buf_reader = BufReader::with_capacity(BUFFER_SIZE, file);
     let part_reader = ReaderBuilder::new()
       .delimiter(sep)
       .has_headers(false) // temp files have no header
-      .from_reader(&mut part_file);
+      .from_reader(buf_reader);
 
     for record_result in part_reader.into_byte_records() {
       let record = record_result?;
@@ -488,13 +492,11 @@ where
     return Err(anyhow::anyhow!("At least one column must be specified"));
   }
 
-  // 获取列索引（基于 header）
   let sel = Selection::from_headers(
     rdr.byte_headers()?,
     &columns.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
   )?;
 
-  // 写入 header 到输出
   wtr.write_record(rdr.headers()?)?;
 
   let rows = Arc::new(AtomicUsize::new(0));
@@ -632,6 +634,7 @@ where
   let num_chunks = (file_size.saturating_sub(header_end) + chunk_size_bytes - 1) / chunk_size_bytes;
 
   let temp_dir = TempDir::new()?;
+
   let pool = ThreadPoolBuilder::new()
     .num_threads(njobs)
     .build()
@@ -713,7 +716,7 @@ where
         local_wtr.flush()?;
         Ok((out_path, count))
       })
-      .collect()
+      .collect::<Result<Vec<_>, _>>()
   });
 
   let mut total_matches = 0;
