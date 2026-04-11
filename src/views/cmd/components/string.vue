@@ -343,7 +343,14 @@ onUnmounted(() => {
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'400px'"
-              empty-text="No data. Click 'Open File' to select a CSV file." show-overflow-tooltip class="select-text">
+              show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2">
+                  No data. Click
+                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+                  to select file.
+                </div>
+              </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
                 :key="column.prop" />
             </SiliconeTable>

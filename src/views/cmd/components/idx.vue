@@ -81,7 +81,7 @@ onUnmounted(() => {
         </div>
         <SiliconeText type="info">
           <span v-if="path">{{ path }}</span>
-          <span v-else>No file selected. Click "Open File" to select a CSV file</span>
+          <span v-else>No file selected. Click <Icon icon="ri:folder-open-line" class="inline align-middle w-4 h-4" /> to select a CSV file</span>
         </SiliconeText>
       </SiliconeCard>
 
@@ -90,8 +90,12 @@ onUnmounted(() => {
           USAGE
         </div>
         <div class="flex flex-col gap-2">
-          <SiliconeText type="info">1. Click "Open File" to select a CSV file</SiliconeText>
-          <SiliconeText type="info">2. Click "Run" to create an index for the selected CSV file</SiliconeText>
+          <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select CSV files
+            </SiliconeText>
+          <SiliconeText type="info">2. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to create an index for the selected CSV file
+            </SiliconeText>
           <SiliconeText type="info">3. Check the output log for details</SiliconeText>
         </div>
       </SiliconeCard>

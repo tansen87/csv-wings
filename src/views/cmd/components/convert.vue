@@ -637,8 +637,14 @@ onUnmounted(() => {
               :height="'400px'"
               show-overflow-tooltip
               :key="activeTab"
-              empty-text="No data. Click 'Open File(s)' to select files."
             >
+              <template #empty>
+                <div class="flex items-center justify-center gap-2">
+                  No data. Click
+                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+                  to select files.
+                </div>
+              </template>
               <el-table-column prop="filename" label="File" min-width="200">
                 <template #default="scope">
                   <span>

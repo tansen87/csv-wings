@@ -220,7 +220,7 @@ onUnmounted(() => {
                 borderBottom: '1px solid #f0f0f0'
               }" class="select-text">
               <template #empty>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center justify-center gap-2">
                   No data. Click
                   <Icon icon="ri:folder-open-line" class="w-4 h-4" />
                   to select files.
@@ -270,9 +270,13 @@ onUnmounted(() => {
             USAGE
           </div>
           <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click "Open File(s)" to select one or more CSV files</SiliconeText>
+            <SiliconeText type="info">1. Click
+              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select one or more CSV files
+            </SiliconeText>
             <SiliconeText type="info">2. Choose mode: Count (count rows) or Check (validate CSV)</SiliconeText>
-            <SiliconeText type="info">3. Click "Run" to process the selected CSV files</SiliconeText>
+            <SiliconeText type="info">3. Click
+              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to process the selected CSV files
+            </SiliconeText>
             <SiliconeText type="info">4. Check the table and output log for details</SiliconeText>
           </div>
         </SiliconeCard>

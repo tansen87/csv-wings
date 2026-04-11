@@ -286,10 +286,10 @@ onUnmounted(() => {
             <SiliconeTable :data="displayedTableData" :height="'400px'"
               show-overflow-tooltip class="select-text">
               <template #empty>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center justify-center gap-2">
                   No data. Click
                   <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-                  to select files.
+                  to select file.
                 </div>
               </template>
               <el-table-column v-for="column in displayedColumns" :key="column.value" :prop="column.value"

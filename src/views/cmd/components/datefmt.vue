@@ -321,8 +321,15 @@ onUnmounted(() => {
               PREVIEW
             </div>
             <div class="overflow-hidden rounded-lg">
-              <SiliconeTable :data="tableData" :height="'300px'" empty-text="No data. Click folder icon to Open File."
+              <SiliconeTable :data="tableData" :height="'300px'"
                 show-overflow-tooltip class="select-text">
+                <template #empty>
+                  <div class="flex items-center justify-center gap-2">
+                    No data. Click
+                    <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+                    to select file.
+                  </div>
+              </template>
                 <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
                   :key="column.prop" />
               </SiliconeTable>

@@ -139,7 +139,7 @@ onUnmounted(() => {
                 borderBottom: '1px solid #f0f0f0'
               }">
               <template #empty>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center justify-center gap-2">
                   No data. Click
                   <Icon icon="ri:folder-open-line" class="w-4 h-4" />
                   to select file.
