@@ -4,7 +4,7 @@
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:8080"
+    "devUrl": "http://localhost:5173"
   },
   "bundle": {
     "active": true,
@@ -51,10 +51,10 @@
       }
     }
   },
-  "productName": "insight-x",
-  "mainBinaryName": "insight-x",
+  "productName": "text-view",
+  "mainBinaryName": "text-view",
   "version": "../package.json",
-  "identifier": "com.insight-x.dev",
+  "identifier": "com.text-view.dev",
   "plugins": {},
   "app": {
     "windows": [
@@ -64,10 +64,10 @@
         "width": 840,
         "height": 660,
         "resizable": true,
-        "title": "insight-x",
+        "title": "text-view",
         "dragDropEnabled": false,
         "center": true,
-        "decorations": false
+        "decorations": true
       }
     ],
     "security": {

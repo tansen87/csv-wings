@@ -1,138 +1,21 @@
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { shortFileName } from "./utils";
-import { message } from "./message";
+import { open } from '@tauri-apps/plugin-dialog';
 
-export async function viewOpenFile(
-  multiple: boolean,
-  name: string,
-  extensions: string[]
-): Promise<string | null> {
-  const selected: string = await open({
-    multiple: multiple,
+export async function viewOpenFile(multiple: boolean, type: string, filters: string[]) {
+  const result = await open({
+    multiple,
     filters: [
       {
-        name: name,
-        extensions: extensions
+        name: type === 'text' ? 'Text Files' : 'All Files',
+        extensions: filters
       }
     ]
   });
-  if (Array.isArray(selected)) {
-    return selected.toString();
-  } else if (selected === null) {
-    return null;
-  } else {
-    return selected;
-  }
-}
-
-export async function trimOpenFile(
-  multiple: boolean,
-  name: string,
-  extensions: string[],
-  options?: { includeStatus?: boolean }
-): Promise<{
-  filePath: string;
-  fileInfo: { filename: string; status?: string }[];
-}> {
-  const selected = await open({
-    multiple: multiple,
-    filters: [
-      {
-        name: name,
-        extensions: extensions
-      }
-    ]
-  });
-  if (Array.isArray(selected)) {
-    const filePath = selected.join("|").toString();
-    const rows = selected.filter((row: any) => row.trim() !== "");
-    const fileInfo = rows.map((file: any) => ({
-      filename: shortFileName(file),
-      ...(options?.includeStatus ? { status: "" } : {})
-    }));
-    return { filePath, fileInfo };
-  } else if (selected === null) {
-    return { filePath: "", fileInfo: [] };
-  } else {
-    return {
-      filePath: selected !== null ? selected : selected,
-      fileInfo: [
-        {
-          filename: shortFileName(selected !== null ? selected : selected),
-          status: ""
-        }
-      ]
-    };
-  }
-}
-
-export async function toJson(path: string, skiprows: number) {
-  const result: string = await invoke("to_json", {
-    path: path,
-    skiprows: skiprows
-  });
-  const jsonData = JSON.parse(result);
-  const arrayData = Array.isArray(jsonData) ? jsonData : [jsonData];
-
-  return {
-    columnView: Object.keys(arrayData[0]).map(key => ({
-      name: key,
-      label: key,
-      prop: key
-    })),
-    dataView: arrayData
-  };
-}
-
-export async function xlsxToJson(
-  path: string,
-  sheetName: string,
-  nrows: number
-) {
-  try {
-    const result: string = await invoke("xlsx_to_json", {
-      path,
-      sheetName: sheetName,
-      nrows
-    });
-
-    const jsonData = JSON.parse(result);
-    const arrayData = Array.isArray(jsonData) ? jsonData : [jsonData];
-
-    if (arrayData.length === 0) {
-      return { columnView: [], dataView: [] };
+  
+  if (result) {
+    if (Array.isArray(result)) {
+      return result[0];
     }
-
-    const keys = Object.keys(arrayData[0]);
-    const columnView = keys.map(key => ({
-      name: key,
-      label: key,
-      prop: key
-    }));
-
-    return {
-      columnView,
-      dataView: arrayData
-    };
-  } catch (err) {
-    message(`Failed to preview XLSX: ${err}`, { type: "error" });
-    throw err;
+    return result;
   }
-}
-
-export async function mapHeaders(path: string, skiprows: number) {
-  const headers: string[] = await invoke("map_headers", {
-    path: path,
-    skiprows: skiprows
-  });
-
-  return headers;
-}
-
-export async function previewtNLines(
-  path: string,
-  n?: number
-): Promise<string[]> {
-  return await invoke("preview_n_lines", { path, n: n ?? 50 });
+  return null;
 }

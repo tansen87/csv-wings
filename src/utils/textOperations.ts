@@ -67,9 +67,7 @@ export async function searchFile(params: SearchParams): Promise<SearchResult> {
 }
 
 export async function replaceText(params: ReplaceParams): Promise<number> {
-  // 关闭缓存
   await invoke("close_file", { path: params.path });
-  // 调用流式替换
   return await invoke("replace_text", {
     params: {
       ...params,
@@ -82,7 +80,6 @@ export async function closeFile(path: string): Promise<void> {
   return await invoke("close_file", { path });
 }
 
-// 清理后端所有Session
 export async function cleanupSessions() {
   return await invoke<number>("cleanup_sessions");
 }

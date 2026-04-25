@@ -9,37 +9,7 @@ use tauri::{
   tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
 };
 
-use insight::command;
-use insight::flow;
-use insight::view::{table_edit, table_view, text_view, text_view_utils};
-
-use insight::cmd::apply;
-use insight::cmd::cat;
-use insight::cmd::convert;
-use insight::cmd::count;
-use insight::cmd::datefmt;
-use insight::cmd::dedup;
-use insight::cmd::enumer_by_group;
-use insight::cmd::enumerate;
-use insight::cmd::extsort;
-use insight::cmd::fill;
-use insight::cmd::idx;
-use insight::cmd::insert;
-use insight::cmd::join;
-use insight::cmd::pinyin;
-use insight::cmd::rename;
-use insight::cmd::replace;
-use insight::cmd::reverse;
-use insight::cmd::search;
-use insight::cmd::select;
-use insight::cmd::separate;
-use insight::cmd::skip;
-use insight::cmd::slice;
-use insight::cmd::sort;
-use insight::cmd::split;
-use insight::cmd::string;
-use insight::cmd::transpose;
-use insight::cmd::traverse;
+use insight::view::{text_view, text_view_utils};
 
 fn main() {
   #[cfg(debug_assertions)]
@@ -96,7 +66,7 @@ fn main() {
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
-        .tooltip("insight-x")
+        .tooltip("text-view")
         .on_tray_icon_event(|tray, event| match event {
           TrayIconEvent::Click {
             button: MouseButton::Left,
@@ -142,16 +112,6 @@ fn main() {
       }
     })
     .invoke_handler(tauri::generate_handler![
-      command::from_headers,
-      command::map_headers,
-      command::inter_headers,
-      command::dupli_headers,
-      command::to_json,
-      command::xlsx_to_json,
-      command::preview_n_lines,
-      flow::flow,
-      table_edit::table_edit,
-      table_view::table_view,
       text_view::open_file,
       text_view::get_file_content,
       text_view::search_file,
@@ -159,45 +119,6 @@ fn main() {
       text_view::close_file,
       text_view::cleanup_sessions,
       text_view::get_pending_file_path,
-      apply::apply,
-      cat::cat_csv,
-      cat::cat_excel,
-      convert::excel_to_csv::map_excel_sheets,
-      convert::perform::csv2csv,
-      convert::perform::encoding2utf8,
-      convert::perform::detect_file_encoding,
-      convert::perform::csv2xlsx,
-      convert::perform::dbf2csv,
-      convert::perform::excel2csv,
-      convert::perform::json2csv,
-      convert::perform::jsonl2csv,
-      count::count,
-      datefmt::datefmt,
-      dedup::dedup,
-      enumer_by_group::enumer_by_group,
-      enumerate::enumer,
-      extsort::extsort,
-      fill::fill,
-      idx::csv_idx,
-      insert::insert,
-      join::join,
-      pinyin::pinyin,
-      rename::rename,
-      replace::replace,
-      reverse::reverse,
-      search::perform::search,
-      search::perform::search_chain,
-      select::select,
-      separate::separate,
-      skip::skip,
-      slice::slice,
-      sort::sort,
-      split::split,
-      string::str_pad,
-      string::str_slice,
-      string::str_split,
-      transpose::transpose,
-      traverse::traverse,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
