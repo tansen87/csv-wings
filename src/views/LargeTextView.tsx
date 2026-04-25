@@ -504,40 +504,31 @@ export default function LargeTextView() {
     };
   }, []);
 
-  return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* 固定的菜单区域 */}
-      <div className="flex items-center gap-1 p-2 border-b bg-white dark:bg-gray-900 z-10">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
-          onClick={openFileDialog}
-          title="Open File"
-        >
-          <FolderOpen className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
-          onClick={() => {
+  // 键盘快捷键处理
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape键关闭所有面板
+      if (e.key === 'Escape') {
+        setShowFloatingSearch(false);
+        setShowLineInput(false);
+        setLocalShowEncodingDialog(false);
+        setShowReplaceFromMenu(false);
+      }
+
+      // 检查是否按下了Ctrl键
+      if (e.ctrlKey) {
+        switch (e.key.toLowerCase()) {
+          case 'f':
+            e.preventDefault();
             if (showFloatingSearch && !showReplaceFromMenu) {
               setShowFloatingSearch(false);
             } else {
               setShowReplaceFromMenu(false);
               setShowFloatingSearch(true);
             }
-          }}
-          title="Search"
-        >
-          <Search className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
-          onClick={() => {
+            break;
+          case 'h':
+            e.preventDefault();
             if (showFloatingSearch && showReplaceFromMenu) {
               setShowFloatingSearch(false);
               setShowReplaceFromMenu(false);
@@ -545,46 +536,164 @@ export default function LargeTextView() {
               setShowReplaceFromMenu(true);
               setShowFloatingSearch(true);
             }
-          }}
-          title="Replace"
-        >
-          <Edit3 className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
-          onClick={() => setShowLineInput(true)}
-          title="Go to Line"
-        >
-          <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
-          onClick={clearFile}
-          title="Close File"
-        >
-          <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </Button>
+            break;
+          case 'o':
+            e.preventDefault();
+            openFileDialog();
+            break;
+          case 't':
+            e.preventDefault();
+            toggleDarkMode();
+            break;
+          case 'g':
+            e.preventDefault();
+            if (showLineInput) {
+              setShowLineInput(false);
+              setLineInputValue('');
+            } else {
+              setShowLineInput(true);
+            }
+            break;
+          case 'w':
+            e.preventDefault();
+            clearFile();
+            break;
+          case 'f4':
+            e.preventDefault();
+            clearFile();
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    // 添加键盘事件监听
+    window.addEventListener('keydown', handleKeyDown);
+
+    // 清理事件监听
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showFloatingSearch, showReplaceFromMenu, showLineInput]);
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* 固定的菜单区域 */}
+      <div className="flex items-center gap-1 p-1 border-b bg-gray-100 dark:bg-gray-800 z-10">
+        <div className="relative group">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+            onClick={openFileDialog}
+          >
+            <FolderOpen className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          </Button>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+              打开
+            </div>
+          </div>
+        </div>
+        <div className="relative group">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+            onClick={() => {
+              if (showFloatingSearch && !showReplaceFromMenu) {
+                setShowFloatingSearch(false);
+              } else {
+                setShowReplaceFromMenu(false);
+                setShowFloatingSearch(true);
+              }
+            }}
+          >
+            <Search className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          </Button>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+              查找
+            </div>
+          </div>
+        </div>
+        <div className="relative group">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+            onClick={() => {
+              if (showFloatingSearch && showReplaceFromMenu) {
+                setShowFloatingSearch(false);
+                setShowReplaceFromMenu(false);
+              } else {
+                setShowReplaceFromMenu(true);
+                setShowFloatingSearch(true);
+              }
+            }}
+          >
+            <Edit3 className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          </Button>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+              替换
+            </div>
+          </div>
+        </div>
+        <div className="relative group">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+            onClick={() => setShowLineInput(true)}
+          >
+            <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          </Button>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+              跳转
+            </div>
+          </div>
+        </div>
+        <div className="relative group">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+            onClick={clearFile}
+          >
+            <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          </Button>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+              关闭
+            </div>
+          </div>
+        </div>
         <div className="flex-grow" />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
-          onClick={toggleDarkMode}
-          title="Toggle Theme"
-        >
-          {isDarkMode ? <Sun className="h-4 w-4 text-gray-600 dark:text-gray-300" /> : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-300" />}
-        </Button>
+        <div className="relative group">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+            onClick={toggleDarkMode}
+          >
+            {isDarkMode ? <Sun className="h-4 w-4 text-gray-600 dark:text-gray-300" /> : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-300" />}
+          </Button>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+              {isDarkMode ? '浅色' : '暗色'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 中间可滚动数据区域 */}
       <div className="flex flex-1 min-h-0 overflow-auto relative">
         <div
           ref={lineNumberRef}
-          className="flex-shrink-0 w-[120px] overflow-y-auto overflow-x-hidden bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 scrollbar-hide"
+          className="flex-shrink-0 w-[120px] overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 scrollbar-hide"
         >
           <div className="w-full">
             {visibleLines.map((line) => (
@@ -654,7 +763,7 @@ export default function LargeTextView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+                className="h-7 w-7 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
                 onClick={() => {
                   setShowLineInput(false);
                   setLineInputValue('');
@@ -701,7 +810,7 @@ export default function LargeTextView() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+                className="h-7 w-7 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
                 onClick={() => {
                   setLocalShowEncodingDialog(false);
                 }}
