@@ -154,6 +154,7 @@ pub(crate) fn create_session_for_path(
   user_encoding: Option<&str>,
 ) -> Result<FileSession, String> {
   let encoding = get_encoding(user_encoding); // None → UTF-8
+
   let reader =
     FileReader::new(PathBuf::from(path), encoding).map_err(|e| format!("无法打开文件: {}", e))?;
 
@@ -167,40 +168,77 @@ pub(crate) fn create_session_for_path(
 }
 
 pub(crate) fn scan_line_from_offset(reader: &Arc<FileReader>, offset: usize) -> (usize, usize) {
-  // 向前找行首
+  let encoding = reader.encoding();
+  let is_utf16 = encoding.name() == "UTF-16LE" || encoding.name() == "UTF-16BE";
+
+  // 对于UTF-16编码,确保起始位置是偶数
   let mut start = offset;
+  if is_utf16 && start % 2 != 0 {
+    start = start.saturating_sub(1);
+  }
+
+  // 向前找行首
   while start > 0 {
-    let c = reader.get_chunk(start - 1, start);
+    // 对于UTF-16编码,每次移动2个字节
+    let step = if is_utf16 { 2 } else { 1 };
+    let new_start = start.saturating_sub(step);
+    if new_start == start {
+      break;
+    }
+
+    let c = reader.get_chunk(new_start, start);
     if c.is_empty() {
       break;
     }
-    if c.as_bytes().get(0) == Some(&b'\n') {
-      // start 已经是 \n 之后的位置，不需要 += 1
+
+    // 检查是否是换行符
+    if c.contains('\n') {
+      // 找到换行符,start就是行首
       break;
     }
-    start -= 1;
+
+    start = new_start;
   }
 
   // 处理 \r\n
   if start > 0 {
-    let prev = reader.get_chunk(start - 1, start);
-    if prev.as_bytes().get(0) == Some(&b'\r') {
-      start -= 1;
+    let step = if is_utf16 { 2 } else { 1 };
+    let new_start = start.saturating_sub(step);
+    if new_start < start {
+      let prev = reader.get_chunk(new_start, start);
+      if prev.contains('\r') {
+        start = new_start;
+      }
     }
   }
 
   // 向后找行尾
   let mut end = offset;
+  // 对于UTF-16编码,确保end是偶数
+  if is_utf16 && end % 2 != 0 {
+    end += 1;
+  }
+
   while end < offset + 10000 {
-    let c = reader.get_chunk(end, end + 1);
+    // 对于UTF-16编码,每次移动2个字节
+    let step = if is_utf16 { 2 } else { 1 };
+    let new_end = end + step;
+    if new_end >= reader.len() {
+      break;
+    }
+
+    let c = reader.get_chunk(end, new_end);
     if c.is_empty() {
       break;
     }
-    if c.as_bytes().get(0) == Some(&b'\n') {
-      end += 1;
+
+    // 检查是否是换行符
+    if c.contains('\n') {
+      end = new_end;
       break;
     }
-    end += 1;
+
+    end = new_end;
   }
 
   (start, end)
@@ -222,6 +260,9 @@ pub(crate) fn count_lines_accurate(
     .get_line_with_reader(estimated, reader)
     .unwrap_or((offset, offset + 1000));
 
+  let encoding = reader.encoding();
+  let is_utf16 = encoding.name() == "UTF-16LE" || encoding.name() == "UTF-16BE";
+
   // 计算参考点和真实位置的差距
   if est_start <= offset {
     // 真实位置在参考点之后,从参考点向后计数换行符
@@ -234,18 +275,30 @@ pub(crate) fn count_lines_accurate(
     let mut line_num = estimated;
     let mut pos = est_start;
 
+    // 对于UTF-16编码,确保pos是偶数
+    if is_utf16 && pos % 2 != 0 {
+      pos = pos.saturating_sub(1);
+    }
+
     while pos > offset && line_num > 0 {
-      pos -= 1;
-      let c = reader.get_chunk(pos, pos + 1);
-      if c.as_bytes().get(0) == Some(&b'\n') {
+      // 对于UTF-16编码,每次移动2个字节
+      let step = if is_utf16 { 2 } else { 1 };
+      let new_pos = pos.saturating_sub(step);
+      if new_pos == pos {
+        break;
+      }
+
+      let c = reader.get_chunk(new_pos, pos);
+      if c.contains('\n') {
         line_num -= 1;
       }
+
+      pos = new_pos;
     }
 
     line_num
   }
 }
-
 pub(crate) fn perform_streaming_replace(
   input_path: &Path,
   output_path: &Path,
@@ -352,3 +405,4 @@ pub(crate) fn replace_in_line(
     }
   }
 }
+

@@ -67,7 +67,7 @@ pub async fn get_file_content(
   } else {
     0
   };
-  
+
   let start_offset = match indexer.get_line_with_reader(line_index, reader) {
     Some((start, _)) => {
       // 如果起始偏移超出文件范围,说明行号已超限
@@ -87,26 +87,51 @@ pub async fn get_file_content(
   let mut current_offset = start_offset;
   let mut lines_read = 0;
 
+  // 对于UTF-16编码,确保起始位置是偶数
+  let encoding = reader.encoding();
+  let is_utf16 = encoding.name() == "UTF-16LE" || encoding.name() == "UTF-16BE";
+  if is_utf16 && current_offset % 2 != 0 {
+    current_offset -= 1;
+  }
+
   while lines_read < count && current_offset < reader.len() {
-    let line_start = current_offset;
+    // 读取足够的内容来找到下一个换行符
+    let chunk_size = 10000; // 每次读取10KB
+    let chunk_end = std::cmp::min(current_offset + chunk_size, reader.len());
 
-    // 扫描直到遇到\n或到达文件末尾
-    while current_offset < reader.len() {
-      match reader.byte_at(current_offset) {
-        Some(b'\n') => break, // 找到换行符,停在\n位置
-        None => break,        // 到达EOF
-        _ => current_offset += 1,
+    // 使用get_bytes直接操作字节数据查找换行符
+    let chunk = reader.get_bytes(current_offset, chunk_end);
+
+    // 找到换行符的位置
+    let newline_pos = chunk.iter().position(|&b| b == b'\n');
+
+    match newline_pos {
+      Some(pos) => {
+        // 计算实际的字节偏移
+        let line_end = current_offset + pos + 1;
+
+        // 提取行内容
+        let line_content = reader.get_chunk(current_offset, line_end);
+        // 去除换行符
+        let line_content = line_content.trim_end_matches('\n').trim_end_matches('\r');
+        lines.push(line_content.to_string());
+        lines_read += 1;
+
+        // 移动到下一行的开始
+        current_offset = line_end;
+
+        // 对于UTF-16编码,确保下一行的起始位置是偶数
+        if is_utf16 && current_offset % 2 != 0 {
+          current_offset += 1;
+        }
       }
-    }
-
-    // 提取 [line_start, current_offset) 的内容(不含\n)
-    let line_content = reader.get_chunk(line_start, current_offset);
-    lines.push(line_content);
-    lines_read += 1;
-
-    // 跳过\n (如果存在且未越界)
-    if current_offset < reader.len() {
-      current_offset += 1; // 跳过当前的\n
+      None => {
+        // 没有找到换行符,读取剩余内容
+        let line_content = reader.get_chunk(current_offset, chunk_end);
+        lines.push(line_content);
+        lines_read += 1;
+        current_offset = chunk_end;
+      }
     }
   }
 
