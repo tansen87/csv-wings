@@ -25,9 +25,8 @@ import {
 } from "@/utils/textOperations";
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
-import FindDialog from "@/components/FindDialog";
-import ReplaceDialog from "@/components/ReplaceDialog";
 import GotoDialog from "@/components/GotoDialog";
+import FloatingSearchPanel from "@/components/FloatingSearchPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -62,6 +61,8 @@ export default function LargeTextView() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [localShowEncodingDialog, setLocalShowEncodingDialog] = useState(false);
   const [localSelectedEncoding, setLocalSelectedEncoding] = useState<string | null>(null);
+  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
+  const [showReplaceFromMenu, setShowReplaceFromMenu] = useState(false);
   const loadedStartLineRef = useRef(0);
   const hasMoreLinesRef = useRef(true);
 
@@ -76,8 +77,6 @@ export default function LargeTextView() {
     caseSensitive,
     useRegex,
     loading,
-    showFindDialog,
-    showReplaceDialog,
     showGotoDialog,
     selectedEncoding,
     setFileInfo,
@@ -89,8 +88,6 @@ export default function LargeTextView() {
     setCaseSensitive,
     setUseRegex,
     setLoading,
-    setShowFindDialog,
-    setShowReplaceDialog,
     setShowGotoDialog,
     setIsLoadingLines,
     clearSearch,
@@ -213,8 +210,8 @@ export default function LargeTextView() {
     return searchResults.some((m) => m.line_number === lineNumber);
   };
 
-  const matchVisibleLines = () => {
-    if (!searchQuery.trim()) {
+  const matchVisibleLines = (query: string, useRegexFlag: boolean, caseSensitiveFlag: boolean) => {
+    if (!query.trim()) {
       clearSearch();
       return;
     }
@@ -223,12 +220,12 @@ export default function LargeTextView() {
     let regex: RegExp | null = null;
 
     try {
-      if (useRegex) {
-        const flags = "g" + (caseSensitive ? "" : "i");
-        regex = new RegExp(searchQuery, flags);
+      if (useRegexFlag) {
+        const flags = "g" + (caseSensitiveFlag ? "" : "i");
+        regex = new RegExp(query, flags);
       } else {
-        const escaped = escapeRegExp(searchQuery);
-        const flags = "g" + (caseSensitive ? "" : "i");
+        const escaped = escapeRegExp(query);
+        const flags = "g" + (caseSensitiveFlag ? "" : "i");
         regex = new RegExp(escaped, flags);
       }
     } catch (e) {
@@ -260,7 +257,7 @@ export default function LargeTextView() {
     }
   };
 
-  const searchAllFile = async () => {
+  const searchAllFile = async (query: string, useRegexFlag: boolean, caseSensitiveFlag: boolean) => {
     if (!fileInfo) return;
 
     try {
@@ -269,9 +266,9 @@ export default function LargeTextView() {
 
       const result = await searchFile({
         path: fileInfo.path,
-        query: searchQuery,
-        case_sensitive: caseSensitive,
-        use_regex: useRegex,
+        query: query,
+        case_sensitive: caseSensitiveFlag,
+        use_regex: useRegexFlag,
         page: 1,
         page_size: VISIBLE_LINE_COUNT,
       });
@@ -289,13 +286,22 @@ export default function LargeTextView() {
     }
   };
 
-  const doSearch = (type: "visible" | "all") => {
+  const doSearch = (type: "visible" | "all", query: string, useRegexFlag: boolean, caseSensitiveFlag: boolean) => {
     setSearchType(type);
     if (type === "visible") {
-      matchVisibleLines();
+      matchVisibleLines(query, useRegexFlag, caseSensitiveFlag);
     } else {
-      searchAllFile();
+      searchAllFile(query, useRegexFlag, caseSensitiveFlag);
     }
+  };
+
+  const handleFloatingReplace = (search: string, replace: string, replaceAll: boolean) => {
+    handleReplace({
+      search,
+      replace,
+      replaceAll,
+      caseSensitive,
+    });
   };
 
   const handleGotoLine = async (lineNumber: number) => {
@@ -310,8 +316,10 @@ export default function LargeTextView() {
     await loadLines(clampedLine - 1, VISIBLE_LINE_COUNT);
 
     if (searchQuery.trim()) {
-      matchVisibleLines();
+      matchVisibleLines(searchQuery, useRegex, caseSensitive);
     }
+
+
 
     message(`Jumped to line ${clampedLine}`, { type: "success" });
   };
@@ -350,7 +358,7 @@ export default function LargeTextView() {
 
       if (searchQuery === params.search) {
         setSearchType("visible");
-        doSearch(searchType);
+        doSearch(searchType, searchQuery, useRegex, caseSensitive);
       }
     } catch (e) {
       message(`replace failed: ${e}`, { type: "error" });
@@ -491,7 +499,14 @@ export default function LargeTextView() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setShowFindDialog(true)}
+          onClick={() => {
+            if (showFloatingSearch && !showReplaceFromMenu) {
+              setShowFloatingSearch(false);
+            } else {
+              setShowReplaceFromMenu(false);
+              setShowFloatingSearch(true);
+            }
+          }}
           title="Search"
         >
           <Search className="h-4 w-4" />
@@ -499,7 +514,15 @@ export default function LargeTextView() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setShowReplaceDialog(true)}
+          onClick={() => {
+            if (showFloatingSearch && showReplaceFromMenu) {
+              setShowFloatingSearch(false);
+              setShowReplaceFromMenu(false);
+            } else {
+              setShowReplaceFromMenu(true);
+              setShowFloatingSearch(true);
+            }
+          }}
           title="Replace"
         >
           <Edit3 className="h-4 w-4" />
@@ -524,7 +547,7 @@ export default function LargeTextView() {
       </div>
 
       {/* 中间可滚动数据区域 */}
-      <div className="flex flex-1 min-h-0 overflow-auto">
+      <div className="flex flex-1 min-h-0 overflow-auto relative">
         <div
           ref={lineNumberRef}
           className="flex-shrink-0 w-[120px] overflow-y-auto overflow-x-hidden bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 scrollbar-hide"
@@ -570,28 +593,52 @@ export default function LargeTextView() {
             ))}
           </div>
         </ScrollArea>
+
+        <FloatingSearchPanel
+          open={showFloatingSearch}
+          onOpenChange={(open) => {
+            setShowFloatingSearch(open);
+            if (!open) {
+              setShowReplaceFromMenu(false);
+            }
+          }}
+          searchQuery={searchQuery}
+          caseSensitive={caseSensitive}
+          useRegex={useRegex}
+          loading={loading}
+          defaultShowReplace={showReplaceFromMenu}
+          onSearchQueryChange={setSearchQuery}
+          onCaseSensitiveChange={setCaseSensitive}
+          onUseRegexChange={setUseRegex}
+          onSearch={doSearch}
+          onReplace={handleFloatingReplace}
+        />
       </div>
 
       {/* 搜索结果区域 - 仅在有结果时显示 */}
       {searchResults.length > 0 && (
-        <div className="border-t p-2 max-h-[200px] overflow-y-auto bg-white dark:bg-gray-900">
-          <div className="flex gap-3 mb-2">
-            <Badge
-              variant={searchType === "visible" ? "success" : "info"}
-            >
-              {totalMatches} matches {searchType === "visible" ? "(Current View)" : "(All File)"}
-            </Badge>
-            <div className="flex-grow" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearSearch}
-            >
-              Clear
-            </Button>
+        <div className="border-t bg-white dark:bg-gray-900">
+          <div className="p-2 border-b dark:border-gray-700">
+            <div className="flex">
+              <Badge
+                variant={searchType === "visible" ? "success" : "info"}
+              >
+                {totalMatches} matches {searchType === "visible" ? "(Current View)" : "(All File)"}
+              </Badge>
+              <div className="flex-grow" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearSearch}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
-
-          <div className="space-y-1">
+          
+          {/* 可滚动的结果列表 */}
+          <div className="max-h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary scrollbar-track-muted">
+            <div className="space-y-1">
             {searchResults.map((result, idx) => (
               <div
                 key={idx}
@@ -605,6 +652,7 @@ export default function LargeTextView() {
                 </span>
               </div>
             ))}
+            </div>
           </div>
         </div>
       )}
@@ -691,27 +739,6 @@ export default function LargeTextView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <FindDialog
-        open={showFindDialog}
-        onOpenChange={setShowFindDialog}
-        searchQuery={searchQuery}
-        caseSensitive={caseSensitive}
-        useRegex={useRegex}
-        loading={loading}
-        onSearchQueryChange={setSearchQuery}
-        onCaseSensitiveChange={setCaseSensitive}
-        onUseRegexChange={setUseRegex}
-        onConfirm={doSearch}
-      />
-
-      <ReplaceDialog
-        open={showReplaceDialog}
-        onOpenChange={setShowReplaceDialog}
-        searchQuery={searchQuery}
-        loading={loading}
-        onReplace={handleReplace}
-      />
 
       <GotoDialog
         open={showGotoDialog}

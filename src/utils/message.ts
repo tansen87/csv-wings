@@ -3,18 +3,18 @@ export function message(message: string, options?: {
   duration?: number;
 }) {
   const { type = 'info', duration = 3000 } = options || {};
-  
+
   const notification = document.createElement('div');
-  notification.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-lg z-50 ${getTypeClass(type)}`;
+  notification.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg z-50 ${getTypeClass(type)}`;
   notification.textContent = message;
-  
+
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
     notification.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     notification.style.opacity = '0';
     notification.style.transform = 'translateX(100%)';
-    
+
     setTimeout(() => {
       if (document.body.contains(notification)) {
         document.body.removeChild(notification);
