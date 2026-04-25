@@ -204,7 +204,7 @@ export default function FloatingSearchPanel({
               onClick={handleReplace}
               disabled={loading || !localSearchQuery.trim()}
             >
-              替换
+              替换所有
             </Button>
           )}
         </div>

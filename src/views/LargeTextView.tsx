@@ -27,7 +27,6 @@ import {
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
 import FloatingSearchPanel from "@/components/FloatingSearchPanel";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
@@ -119,10 +118,10 @@ export default function LargeTextView() {
           content,
         }));
         if (append) {
-                  useLargeTextStore.setState({ visibleLines: [...store.visibleLines, ...lineData] });
-                } else {
-                  useLargeTextStore.getState().setVisibleLines(lineData);
-                }
+          useLargeTextStore.setState({ visibleLines: [...store.visibleLines, ...lineData] });
+        } else {
+          useLargeTextStore.getState().setVisibleLines(lineData);
+        }
         loadedStartLineRef.current = start;
         const nextStart = start + count;
         hasMoreLinesRef.current = nextStart < currentFileInfo.line_count;
@@ -591,11 +590,10 @@ export default function LargeTextView() {
             {visibleLines.map((line) => (
               <div
                 key={line.number}
-                className={`flex h-6 items-center justify-end pr-3 text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 ${
-                  isMatchLine(line.number)
-                    ? "bg-yellow-200 dark:bg-yellow-800"
-                    : ""
-                }`}
+                className={`flex h-6 items-center justify-end pr-3 text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 ${isMatchLine(line.number)
+                  ? "bg-yellow-200 dark:bg-yellow-800"
+                  : ""
+                  }`}
               >
                 <span onClick={() => selectLineContent(line.number)}>
                   {line.number}
@@ -614,11 +612,10 @@ export default function LargeTextView() {
               <div
                 key={line.number}
                 data-line-number={line.number}
-                className={`flex h-6 items-center cursor-text hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                  isMatchLine(line.number)
-                    ? "bg-yellow-200 dark:bg-yellow-800"
-                    : ""
-                }`}
+                className={`flex h-6 items-center cursor-text hover:bg-gray-100 dark:hover:bg-gray-800 ${isMatchLine(line.number)
+                  ? "bg-yellow-200 dark:bg-yellow-800"
+                  : ""
+                  }`}
               >
                 <span
                   className="line-content ml-2 text-sm font-mono text-gray-800 dark:text-gray-200"
@@ -668,6 +665,9 @@ export default function LargeTextView() {
             </div>
             <div className="space-y-3">
               <Input
+                type="number"
+                min="1"
+                max={fileInfo?.line_count || 0}
                 value={lineInputValue}
                 onChange={(e) => setLineInputValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -689,6 +689,61 @@ export default function LargeTextView() {
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
                 {lineInputValue ? `按"Enter"键转到第 ${lineInputValue} 行` : `键入要转到的行号 (从 1 到 ${fileInfo?.line_count || 0})`}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* 编码选择面板 */}
+        {localShowEncodingDialog && (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 w-80">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">通过编码重新打开</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+                onClick={() => {
+                  setLocalShowEncodingDialog(false);
+                }}
+              >
+                <X className="h-4 w-4 text-gray-500 dark:text-gray-300" />
+              </Button>
+            </div>
+            <div className="space-y-3">
+              <Select value={localSelectedEncoding || fileInfo?.encoding || 'UTF-8'} onValueChange={async (newEncoding) => {
+                setLocalSelectedEncoding(newEncoding);
+                if (fileInfo) {
+                  setLocalShowEncodingDialog(false);
+                  try {
+                    const result = await openFile({
+                      path: fileInfo.path,
+                      encoding: newEncoding
+                    });
+                    if (result) {
+                      useLargeTextStore.setState({
+                        fileInfo: result,
+                        selectedEncoding: newEncoding
+                      });
+                      loadedStartLineRef.current = 0;
+                      hasMoreLinesRef.current = true;
+                      await loadLines(0, VISIBLE_LINE_COUNT, false);
+                    }
+                  } catch (error) {
+                    message(`Failed to reload file: ${error}`, { type: "error" });
+                  }
+                }
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-96">
+                  {ENCODING_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
@@ -714,23 +769,23 @@ export default function LargeTextView() {
               </Button>
             </div>
           </div>
-          
+
           {/* 可滚动的结果列表 */}
           <div className="max-h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary scrollbar-track-muted">
             <div className="space-y-1">
-            {searchResults.map((result, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 p-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                onClick={() => handleGotoLine(result.line_number)}
-              >
-                <span className="text-gray-500 w-12">{result.line_number}</span>
-                <span className="text-gray-500 w-12">{result.match_start}</span>
-                <span className="text-gray-800 dark:text-gray-200 truncate">
-                  {result.line_content}
-                </span>
-              </div>
-            ))}
+              {searchResults.map((result, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 p-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  onClick={() => handleGotoLine(result.line_number)}
+                >
+                  <span className="text-gray-500 w-12">{result.line_number}</span>
+                  <span className="text-gray-500 w-12">{result.match_start}</span>
+                  <span className="text-gray-800 dark:text-gray-200 truncate">
+                    {result.line_content}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -749,8 +804,8 @@ export default function LargeTextView() {
         <div className="flex items-center gap-1 flex-shrink-0">
           {fileInfo && (
             <>
-              <Badge 
-                variant="warning" 
+              <Badge
+                variant="warning"
                 className="cursor-pointer hover:opacity-80"
                 onClick={() => {
                   setLocalSelectedEncoding(selectedEncoding || fileInfo.encoding);
@@ -760,64 +815,11 @@ export default function LargeTextView() {
                 {selectedEncoding || fileInfo.encoding}
               </Badge>
               <Badge variant="secondary">{formatSize(fileInfo.size)}</Badge>
-              <Badge variant="success" className="cursor-pointer hover:opacity-80" onClick={() => setShowLineInput(true)}>{visibleLines.length} lines</Badge>
+              <Badge variant="success" className="cursor-pointer hover:opacity-80" onClick={() => setShowLineInput(true)}>{fileInfo?.line_count || 0} lines</Badge>
             </>
           )}
         </div>
       </div>
-
-      {/* 编码选择对话框 */}
-      <Dialog open={localShowEncodingDialog} onOpenChange={setLocalShowEncodingDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>选择文件编码</DialogTitle>
-            <DialogDescription>
-              选择适合文件内容的编码格式,以正确显示文件内容
-            </DialogDescription>
-          </DialogHeader>
-          <Select value={localSelectedEncoding || fileInfo?.encoding || 'UTF-8'} onValueChange={setLocalSelectedEncoding}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="选择编码" />
-            </SelectTrigger>
-            <SelectContent className="max-h-96">
-              {ENCODING_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <DialogFooter className="mt-4">
-            <Button variant="default" className="bg-black text-white border-black hover:bg-gray-800" onClick={async () => {
-              if (fileInfo && localSelectedEncoding) {
-                setLocalShowEncodingDialog(false);
-                try {
-                  const result = await openFile({
-                    path: fileInfo.path,
-                    encoding: localSelectedEncoding
-                  });
-                  if (result) {
-                    useLargeTextStore.setState({
-                      fileInfo: result,
-                      selectedEncoding: localSelectedEncoding
-                    });
-                    loadedStartLineRef.current = 0;
-                    hasMoreLinesRef.current = true;
-                    await loadLines(0, VISIBLE_LINE_COUNT, false);
-                  }
-                } catch (error) {
-                  message(`Failed to reload file: ${error}`, { type: "error" });
-                }
-              }
-            }}>
-              应用
-            </Button>
-            <Button variant="outline" onClick={() => setLocalShowEncodingDialog(false)}>
-              取消
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
