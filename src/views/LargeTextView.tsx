@@ -28,14 +28,40 @@ import { viewOpenFile } from "@/utils/view";
 import FindDialog from "@/components/FindDialog";
 import ReplaceDialog from "@/components/ReplaceDialog";
 import GotoDialog from "@/components/GotoDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const VISIBLE_LINE_COUNT = 500;
+
+const ENCODING_OPTIONS = [
+  { label: "UTF-8", value: "UTF-8" },
+  { label: "UTF-16LE", value: "UTF-16LE" },
+  { label: "UTF-16BE", value: "UTF-16BE" },
+  { label: "简体中文(GBK)", value: "GBK" },
+  { label: "简体中文(GB18030)", value: "GB18030" },
+  { label: "繁体中文(BIG5)", value: "BIG5" },
+  { label: "中欧(Windows-1250)", value: "Windows-1250" },
+  { label: "西里尔(Windows-1251)", value: "Windows-1251" },
+  { label: "西欧(Windows-1252)", value: "Windows-1252" },
+  { label: "希腊(Windows-1253)", value: "Windows-1253" },
+  { label: "土耳其(Windows-1254)", value: "Windows-1254" },
+  { label: "希伯来(Windows-1255)", value: "Windows-1255" },
+  { label: "阿拉伯(Windows-1256)", value: "Windows-1256" },
+  { label: "波罗的海(Windows-1257)", value: "Windows-1257" },
+  { label: "越南(Windows-1258)", value: "Windows-1258" },
+  { label: "泰文(Windows-874)", value: "Windows-874" },
+  { label: "日文(Shift_JIS)", value: "Shift_JIS" },
+  { label: "日文(EUC-JP)", value: "EUC-JP" },
+  { label: "韩文(EUC-KR)", value: "EUC-KR" }
+];
 
 export default function LargeTextView() {
   const lineNumberRef = useRef<HTMLDivElement>(null);
   const codeScrollbarRef = useRef<HTMLDivElement>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [localShowEncodingDialog, setLocalShowEncodingDialog] = useState(false);
+  const [localSelectedEncoding, setLocalSelectedEncoding] = useState<string | null>(null);
   const loadedStartLineRef = useRef(0);
   const hasMoreLinesRef = useRef(true);
 
@@ -53,6 +79,7 @@ export default function LargeTextView() {
     showFindDialog,
     showReplaceDialog,
     showGotoDialog,
+    selectedEncoding,
     setFileInfo,
     setSearchQuery,
     setSearchType,
@@ -83,7 +110,7 @@ export default function LargeTextView() {
           path: currentFileInfo.path,
           start_line: start + 1,
           end_line: start + count + 1,
-          encoding: undefined,
+          encoding: selectedEncoding || currentFileInfo.encoding,
         });
         if (!lines) {
           throw new Error('getFileContent returned null or undefined');
@@ -93,10 +120,10 @@ export default function LargeTextView() {
           content,
         }));
         if (append) {
-          useLargeTextStore.setState({ visibleLines: [...store.visibleLines, ...lineData] });
-        } else {
-          store.setVisibleLines(lineData);
-        }
+                  useLargeTextStore.setState({ visibleLines: [...store.visibleLines, ...lineData] });
+                } else {
+                  useLargeTextStore.getState().setVisibleLines(lineData);
+                }
         loadedStartLineRef.current = start;
         const nextStart = start + count;
         hasMoreLinesRef.current = nextStart < currentFileInfo.line_count;
@@ -107,7 +134,7 @@ export default function LargeTextView() {
         setIsLoadingLines(false);
       }
     },
-    [setIsLoadingLines]
+    [setIsLoadingLines, selectedEncoding]
   );
 
   useEffect(() => {
@@ -122,7 +149,7 @@ export default function LargeTextView() {
       if (path) {
         const fileData = await openFile({
           path,
-          encoding: undefined,
+          encoding: selectedEncoding || undefined,
         });
 
         setFileInfo(fileData);
@@ -141,7 +168,7 @@ export default function LargeTextView() {
 
       const fileData = await openFile({
         path,
-        encoding: undefined,
+        encoding: selectedEncoding || undefined,
       });
 
       setFileInfo(fileData);
@@ -306,7 +333,7 @@ export default function LargeTextView() {
         replace_text: params.replace,
         replace_all: params.replaceAll,
         case_sensitive: params.caseSensitive,
-        encoding: fileInfo.encoding,
+        encoding: selectedEncoding || fileInfo.encoding,
       });
 
       message(`Replacement completed: ${count}`, { type: "success" });
@@ -315,7 +342,7 @@ export default function LargeTextView() {
 
       const newFileInfo = await openFile({
         path: fileInfo.path,
-        encoding: undefined,
+        encoding: selectedEncoding || fileInfo.encoding,
       });
 
       setFileInfo(newFileInfo);
@@ -595,13 +622,75 @@ export default function LargeTextView() {
         <div className="flex items-center gap-1 flex-shrink-0">
           {fileInfo && (
             <>
-              <Badge variant="warning">{fileInfo.encoding}</Badge>
+              <Badge 
+                variant="warning" 
+                className="cursor-pointer hover:opacity-80"
+                onClick={() => {
+                  setLocalSelectedEncoding(selectedEncoding || fileInfo.encoding);
+                  setLocalShowEncodingDialog(true);
+                }}
+              >
+                {selectedEncoding || fileInfo.encoding}
+              </Badge>
               <Badge variant="secondary">{formatSize(fileInfo.size)}</Badge>
-              <Badge variant="success">{fileInfo.line_count} lines</Badge>
+              <Badge variant="secondary">{visibleLines.length} lines</Badge>
             </>
           )}
         </div>
       </div>
+
+      {/* 编码选择对话框 */}
+      <Dialog open={localShowEncodingDialog} onOpenChange={setLocalShowEncodingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>选择文件编码</DialogTitle>
+            <DialogDescription>
+              选择适合文件内容的编码格式,以正确显示文件内容
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={localSelectedEncoding || fileInfo?.encoding || 'UTF-8'} onValueChange={setLocalSelectedEncoding}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="选择编码" />
+            </SelectTrigger>
+            <SelectContent className="max-h-96">
+              {ENCODING_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter className="mt-4">
+            <Button variant="default" className="bg-black text-white border-black hover:bg-gray-800" onClick={async () => {
+              if (fileInfo && localSelectedEncoding) {
+                setLocalShowEncodingDialog(false);
+                try {
+                  const result = await openFile({
+                    path: fileInfo.path,
+                    encoding: localSelectedEncoding
+                  });
+                  if (result) {
+                    useLargeTextStore.setState({
+                      fileInfo: result,
+                      selectedEncoding: localSelectedEncoding
+                    });
+                    loadedStartLineRef.current = 0;
+                    hasMoreLinesRef.current = true;
+                    await loadLines(0, VISIBLE_LINE_COUNT, false);
+                  }
+                } catch (error) {
+                  message(`Failed to reload file: ${error}`, { type: "error" });
+                }
+              }
+            }}>
+              应用
+            </Button>
+            <Button variant="outline" onClick={() => setLocalShowEncodingDialog(false)}>
+              取消
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <FindDialog
         open={showFindDialog}

@@ -35,6 +35,8 @@ interface LargeTextState {
   showReplaceDialog: boolean;
   showGotoDialog: boolean;
   isLoadingLines: boolean;
+  selectedEncoding: string | null;
+  showEncodingDialog: boolean;
 
   setFileInfo: (fileInfo: FileInfo | null) => void;
   setVisibleLines: (lines: LineData[]) => void;
@@ -50,6 +52,8 @@ interface LargeTextState {
   setShowReplaceDialog: (value: boolean) => void;
   setShowGotoDialog: (value: boolean) => void;
   setIsLoadingLines: (value: boolean) => void;
+  setSelectedEncoding: (encoding: string | null) => void;
+  setShowEncodingDialog: (value: boolean) => void;
   clearSearch: () => void;
   cleanup: () => void;
 }
@@ -69,6 +73,8 @@ export const useLargeTextStore = create<LargeTextState>((set) => ({
   showReplaceDialog: false,
   showGotoDialog: false,
   isLoadingLines: false,
+  selectedEncoding: null,
+  showEncodingDialog: false,
 
   setFileInfo: (fileInfo) => set({ fileInfo }),
   setVisibleLines: (lines) => set({ visibleLines: lines }),
@@ -84,6 +90,8 @@ export const useLargeTextStore = create<LargeTextState>((set) => ({
   setShowReplaceDialog: (value) => set({ showReplaceDialog: value }),
   setShowGotoDialog: (value) => set({ showGotoDialog: value }),
   setIsLoadingLines: (value) => set({ isLoadingLines: value }),
+  setSelectedEncoding: (encoding) => set({ selectedEncoding: encoding }),
+  setShowEncodingDialog: (value) => set({ showEncodingDialog: value }),
   clearSearch: () =>
     set({
       searchQuery: "",
@@ -98,5 +106,7 @@ export const useLargeTextStore = create<LargeTextState>((set) => ({
       searchResults: [],
       totalMatches: 0,
       currentLine: 0,
+      selectedEncoding: null,
+      showEncodingDialog: false,
     }),
 }));
