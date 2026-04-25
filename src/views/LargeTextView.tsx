@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -35,6 +35,9 @@ export default function LargeTextView() {
   const lineNumberRef = useRef<HTMLDivElement>(null);
   const codeScrollbarRef = useRef<HTMLDivElement>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadedStartLineRef = useRef(0);
+  const hasMoreLinesRef = useRef(true);
 
   const {
     fileInfo,
@@ -50,9 +53,7 @@ export default function LargeTextView() {
     showFindDialog,
     showReplaceDialog,
     showGotoDialog,
-    // isLoadingLines,
     setFileInfo,
-    setVisibleLines,
     setSearchQuery,
     setSearchType,
     setSearchResults,
@@ -70,36 +71,48 @@ export default function LargeTextView() {
   } = useLargeTextStore();
 
   const loadLines = useCallback(
-    async (start: number, count: number) => {
-      if (!fileInfo) {
+    async (start: number, count: number, append = false) => {
+      const store = useLargeTextStore.getState();
+      const currentFileInfo = store.fileInfo;
+      if (!currentFileInfo) {
         return;
       }
       setIsLoadingLines(true);
       try {
         const lines = await getFileContent({
-          path: fileInfo.path,
+          path: currentFileInfo.path,
           start_line: start + 1,
           end_line: start + count + 1,
           encoding: undefined,
         });
-        setVisibleLines(
-          lines.map((content, i) => ({
-            number: start + i + 1,
-            content,
-          }))
-        );
+        if (!lines) {
+          throw new Error('getFileContent returned null or undefined');
+        }
+        const lineData = lines.map((content, i) => ({
+          number: start + i + 1,
+          content,
+        }));
+        if (append) {
+          useLargeTextStore.setState({ visibleLines: [...store.visibleLines, ...lineData] });
+        } else {
+          store.setVisibleLines(lineData);
+        }
+        loadedStartLineRef.current = start;
+        const nextStart = start + count;
+        hasMoreLinesRef.current = nextStart < currentFileInfo.line_count;
       } catch (e) {
+        console.error('loadLines error:', e);
         message(`Failed to load lines: ${e}`, { type: "error" });
       } finally {
         setIsLoadingLines(false);
       }
     },
-    [fileInfo, setVisibleLines, setIsLoadingLines]
+    [setIsLoadingLines]
   );
 
   useEffect(() => {
     if (fileInfo) {
-      loadLines(0, VISIBLE_LINE_COUNT);
+      loadLines(0, VISIBLE_LINE_COUNT, false);
     }
   }, [fileInfo]);
 
@@ -335,6 +348,29 @@ export default function LargeTextView() {
     const scrollTop = target?.scrollTop ?? 0;
     lineNumberRef.current.scrollTop = scrollTop;
 
+    const scrollHeight = target?.scrollHeight ?? 0;
+    const clientHeight = target?.clientHeight ?? 0;
+    const threshold = clientHeight * 2;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+    const isNearTop = scrollTop <= threshold;
+
+    // 向下滚动加载更多
+    if (isNearBottom && hasMoreLinesRef.current && !isLoadingMore && useLargeTextStore.getState().fileInfo) {
+      setIsLoadingMore(true);
+      const nextStart = loadedStartLineRef.current + visibleLines.length;
+      loadLines(nextStart, VISIBLE_LINE_COUNT, true).finally(() => {
+        setIsLoadingMore(false);
+      });
+    }
+    // 向上滚动加载前面的内容
+    else if (isNearTop && loadedStartLineRef.current > 0 && !isLoadingMore && useLargeTextStore.getState().fileInfo) {
+      setIsLoadingMore(true);
+      const prevStart = Math.max(0, loadedStartLineRef.current - VISIBLE_LINE_COUNT);
+      loadLines(prevStart, VISIBLE_LINE_COUNT, false).finally(() => {
+        setIsLoadingMore(false);
+      });
+    }
+
     requestAnimationFrame(() => {
       setIsSyncing(false);
     });
@@ -464,7 +500,7 @@ export default function LargeTextView() {
       <div className="flex flex-1 min-h-0 overflow-auto">
         <div
           ref={lineNumberRef}
-          className="flex-shrink-0 w-[70px] overflow-y-auto overflow-x-hidden bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 scrollbar-hide"
+          className="flex-shrink-0 w-[120px] overflow-y-auto overflow-x-hidden bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 scrollbar-hide"
         >
           <div className="w-full">
             {visibleLines.map((line) => (

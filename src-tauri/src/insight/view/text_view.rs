@@ -61,7 +61,14 @@ pub async fn get_file_content(
   }
 
   // 获取起始行的字节偏移,并做安全校验
-  let start_offset = match indexer.get_line_with_reader(params.start_line, reader) {
+  // 转换为0-based索引
+  let line_index = if params.start_line > 0 {
+    params.start_line - 1
+  } else {
+    0
+  };
+  
+  let start_offset = match indexer.get_line_with_reader(line_index, reader) {
     Some((start, _)) => {
       // 如果起始偏移超出文件范围,说明行号已超限
       if start >= reader.len() {
