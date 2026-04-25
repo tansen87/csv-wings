@@ -327,17 +327,26 @@ export default function LargeTextView() {
     return `${bytes} B`;
   };
 
-  const handleCodeScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const handleCodeScroll = (e: Event) => {
     if (isSyncing || !lineNumberRef.current) return;
     setIsSyncing(true);
 
-    const scrollTop = e.currentTarget.scrollTop;
+    const target = e.target as HTMLElement;
+    const scrollTop = target?.scrollTop ?? 0;
     lineNumberRef.current.scrollTop = scrollTop;
 
     requestAnimationFrame(() => {
       setIsSyncing(false);
     });
   };
+
+  useEffect(() => {
+    const scrollElement = codeScrollbarRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', handleCodeScroll, { passive: true });
+      return () => scrollElement.removeEventListener('scroll', handleCodeScroll);
+    }
+  }, [handleCodeScroll]);
 
   // const handleLineNumberScroll = () => {
   //   if (isSyncing || !codeScrollbarRef.current) return;
@@ -478,7 +487,6 @@ export default function LargeTextView() {
         <ScrollArea
           ref={codeScrollbarRef}
           className="flex-1 bg-white dark:bg-gray-900"
-          onScroll={handleCodeScroll}
         >
           <div className="min-w-full w-max">
             {visibleLines.map((line) => (
