@@ -93,11 +93,11 @@ export default function FloatingSearchPanel({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-6 w-6 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
           onClick={() => onOpenChange(false)}
           disabled={loading}
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4 text-gray-500 dark:text-gray-300" />
         </Button>
       </div>
 
@@ -106,14 +106,14 @@ export default function FloatingSearchPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
             onClick={toggleReplace}
             disabled={loading}
           >
             {showReplace ? (
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-4 w-4 text-gray-500 dark:text-gray-300" />
             ) : (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-300" />
             )}
           </Button>
           <Input

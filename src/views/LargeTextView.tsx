@@ -7,7 +7,9 @@ import {
   Search,
   Edit3,
   ArrowRight,
-  XCircle,
+  X,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,17 +20,16 @@ import {
   getFileContent,
   searchFile,
   replaceText,
-  // type FileInfo,
   type SearchMatch,
   closeFile,
   cleanupSessions,
 } from "@/utils/textOperations";
 import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
-import GotoDialog from "@/components/GotoDialog";
 import FloatingSearchPanel from "@/components/FloatingSearchPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 const VISIBLE_LINE_COUNT = 500;
 
@@ -63,6 +64,9 @@ export default function LargeTextView() {
   const [localSelectedEncoding, setLocalSelectedEncoding] = useState<string | null>(null);
   const [showFloatingSearch, setShowFloatingSearch] = useState(false);
   const [showReplaceFromMenu, setShowReplaceFromMenu] = useState(false);
+  const [showLineInput, setShowLineInput] = useState(false);
+  const [lineInputValue, setLineInputValue] = useState("");
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const loadedStartLineRef = useRef(0);
   const hasMoreLinesRef = useRef(true);
 
@@ -77,7 +81,6 @@ export default function LargeTextView() {
     caseSensitive,
     useRegex,
     loading,
-    showGotoDialog,
     selectedEncoding,
     setFileInfo,
     setSearchQuery,
@@ -88,7 +91,6 @@ export default function LargeTextView() {
     setCaseSensitive,
     setUseRegex,
     setLoading,
-    setShowGotoDialog,
     setIsLoadingLines,
     clearSearch,
     cleanup,
@@ -125,8 +127,7 @@ export default function LargeTextView() {
         const nextStart = start + count;
         hasMoreLinesRef.current = nextStart < currentFileInfo.line_count;
       } catch (e) {
-        console.error('loadLines error:', e);
-        message(`Failed to load lines: ${e}`, { type: "error" });
+        message(`加载行失败: ${e}`, { type: "error" });
       } finally {
         setIsLoadingLines(false);
       }
@@ -152,7 +153,7 @@ export default function LargeTextView() {
         setFileInfo(fileData);
       }
     } catch (e) {
-      message(`Failed to open file: ${e}`, { type: "error" });
+      message(`打开文件失败: ${e}`, { type: "error" });
     }
   };
 
@@ -170,7 +171,7 @@ export default function LargeTextView() {
 
       setFileInfo(fileData);
     } catch (e) {
-      message(`Failed to open file: ${e}`, { type: "error" });
+      message(`打开文件失败: ${e}`, { type: "error" });
     }
   };
 
@@ -229,7 +230,7 @@ export default function LargeTextView() {
         regex = new RegExp(escaped, flags);
       }
     } catch (e) {
-      message(`matchVisibleLines failed: ${e}`, { type: "error" });
+      message(`查找失败: ${e}`, { type: "error" });
       return;
     }
 
@@ -253,7 +254,7 @@ export default function LargeTextView() {
     setTotalMatches(matches.length);
 
     if (matches.length < 1) {
-      message("No matching content found");
+      message("未找到匹配内容");
     }
   };
 
@@ -277,10 +278,10 @@ export default function LargeTextView() {
       setTotalMatches(result.total_matches);
 
       if (result.total_matches < 1) {
-        message("No matching content found");
+        message("未找到匹配内容");
       }
     } catch (e) {
-      message(`searchAllFile failed: ${e}`, { type: "error" });
+      message(`查找失败: ${e}`, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -319,9 +320,7 @@ export default function LargeTextView() {
       matchVisibleLines(searchQuery, useRegex, caseSensitive);
     }
 
-
-
-    message(`Jumped to line ${clampedLine}`, { type: "success" });
+    message(`跳转到行 ${clampedLine}`, { type: "success" });
   };
 
   const handleReplace = async (params: {
@@ -344,7 +343,7 @@ export default function LargeTextView() {
         encoding: selectedEncoding || fileInfo.encoding,
       });
 
-      message(`Replacement completed: ${count}`, { type: "success" });
+      message(`替换完成: ${count}`, { type: "success" });
 
       await closeFile(fileInfo.path);
 
@@ -361,7 +360,7 @@ export default function LargeTextView() {
         doSearch(searchType, searchQuery, useRegex, caseSensitive);
       }
     } catch (e) {
-      message(`replace failed: ${e}`, { type: "error" });
+      message(`替换失败: ${e}`, { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -419,18 +418,6 @@ export default function LargeTextView() {
     }
   }, [handleCodeScroll]);
 
-  // const handleLineNumberScroll = () => {
-  //   if (isSyncing || !codeScrollbarRef.current) return;
-  //   setIsSyncing(true);
-
-  //   const scrollTop = lineNumberRef.current?.scrollTop ?? 0;
-  //   codeScrollbarRef.current.scrollTop = scrollTop;
-
-  //   requestAnimationFrame(() => {
-  //     setIsSyncing(false);
-  //   });
-  // };
-
   const selectLineContent = (lineNumber: number) => {
     const lineElement = document.querySelector(
       `[data-line-number="${lineNumber}"]`
@@ -454,12 +441,46 @@ export default function LargeTextView() {
     cleanup();
   };
 
+  const toggleDarkMode = () => {
+    // 创建绽放动画元素
+    const bloomElement = document.createElement('div');
+    bloomElement.className = 'bloom-animation';
+
+    // 根据当前主题设置绽放颜色
+    if (isDarkMode) {
+      // 从dark切换到light,使用light的底色
+      bloomElement.style.background = 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%)';
+    } else {
+      // 从light切换到dark,使用dark的底色
+      bloomElement.style.background = 'radial-gradient(circle, rgba(17,24,39,0.8) 0%, rgba(17,24,39,0) 70%)';
+    }
+
+    document.body.appendChild(bloomElement);
+
+    // 添加过渡效果
+    document.documentElement.classList.add('theme-transition');
+    setIsDarkMode(!isDarkMode);
+    document.documentElement.classList.toggle("dark");
+
+    // 移除过渡效果,避免影响其他样式变化
+    setTimeout(() => {
+      document.documentElement.classList.remove('theme-transition');
+    }, 500);
+
+    // 移除绽放元素
+    setTimeout(() => {
+      if (document.body.contains(bloomElement)) {
+        document.body.removeChild(bloomElement);
+      }
+    }, 600);
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
         await cleanupSessions();
       } catch (e) {
-        console.warn('[LargeTextView] cleanupSessions failed:', e);
+        message(`清理会话失败: ${e}`, { type: "error" });
       }
 
       try {
@@ -468,7 +489,7 @@ export default function LargeTextView() {
           await loadFileFromPath(pendingPath);
         }
       } catch (e) {
-        console.warn('[LargeTextView] get_pending_file_path failed:', e);
+        message(`获取待文件路径失败: ${e}`, { type: "error" });
       }
     };
 
@@ -491,14 +512,16 @@ export default function LargeTextView() {
         <Button
           variant="ghost"
           size="icon"
+          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
           onClick={openFileDialog}
           title="Open File"
         >
-          <FolderOpen className="h-4 w-4" />
+          <FolderOpen className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
+          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
           onClick={() => {
             if (showFloatingSearch && !showReplaceFromMenu) {
               setShowFloatingSearch(false);
@@ -509,11 +532,12 @@ export default function LargeTextView() {
           }}
           title="Search"
         >
-          <Search className="h-4 w-4" />
+          <Search className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
+          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
           onClick={() => {
             if (showFloatingSearch && showReplaceFromMenu) {
               setShowFloatingSearch(false);
@@ -525,24 +549,35 @@ export default function LargeTextView() {
           }}
           title="Replace"
         >
-          <Edit3 className="h-4 w-4" />
+          <Edit3 className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setShowGotoDialog(true)}
+          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+          onClick={() => setShowLineInput(true)}
           title="Go to Line"
         >
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+          onClick={clearFile}
+          title="Close File"
+        >
+          <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </Button>
         <div className="flex-grow" />
         <Button
           variant="ghost"
           size="icon"
-          onClick={clearFile}
-          title="Close File"
+          className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+          onClick={toggleDarkMode}
+          title="Toggle Theme"
         >
-          <XCircle className="h-4 w-4" />
+          {isDarkMode ? <Sun className="h-4 w-4 text-gray-600 dark:text-gray-300" /> : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-300" />}
         </Button>
       </div>
 
@@ -613,6 +648,50 @@ export default function LargeTextView() {
           onSearch={doSearch}
           onReplace={handleFloatingReplace}
         />
+
+        {/* 行号输入框 */}
+        {showLineInput && (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 w-80">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">转到行</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800"
+                onClick={() => {
+                  setShowLineInput(false);
+                  setLineInputValue('');
+                }}
+              >
+                <X className="h-4 w-4 text-gray-500 dark:text-gray-300" />
+              </Button>
+            </div>
+            <div className="space-y-3">
+              <Input
+                value={lineInputValue}
+                onChange={(e) => setLineInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && lineInputValue) {
+                    const lineNum = parseInt(lineInputValue);
+                    if (!isNaN(lineNum) && lineNum >= 1 && lineNum <= (fileInfo?.line_count || 0)) {
+                      handleGotoLine(lineNum);
+                      setShowLineInput(false);
+                      setLineInputValue('');
+                    }
+                  } else if (e.key === 'Escape') {
+                    setShowLineInput(false);
+                    setLineInputValue('');
+                  }
+                }}
+                placeholder="输入行号"
+                className="h-8 text-sm w-full"
+              />
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                {lineInputValue ? `按"Enter"键转到第 ${lineInputValue} 行` : `键入要转到的行号 (从 1 到 ${fileInfo?.line_count || 0})`}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 搜索结果区域 - 仅在有结果时显示 */}
@@ -681,7 +760,7 @@ export default function LargeTextView() {
                 {selectedEncoding || fileInfo.encoding}
               </Badge>
               <Badge variant="secondary">{formatSize(fileInfo.size)}</Badge>
-              <Badge variant="secondary">{visibleLines.length} lines</Badge>
+              <Badge variant="success" className="cursor-pointer hover:opacity-80" onClick={() => setShowLineInput(true)}>{visibleLines.length} lines</Badge>
             </>
           )}
         </div>
@@ -739,13 +818,6 @@ export default function LargeTextView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <GotoDialog
-        open={showGotoDialog}
-        onOpenChange={setShowGotoDialog}
-        totalLines={fileInfo?.line_count}
-        onGoTo={handleGotoLine}
-      />
     </div>
   );
 }
