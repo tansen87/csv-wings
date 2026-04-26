@@ -248,6 +248,8 @@ export default function LargeTextView() {
         setFileInfo(firstTab.fileInfo);
       } else {
         // 如果没有Tab了,清理资源
+        setActiveTabId(null);
+        setFileInfo(null);
         cleanup();
       }
     }
