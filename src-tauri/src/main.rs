@@ -123,6 +123,7 @@ fn main() {
       text_view::close_file,
       text_view::cleanup_sessions,
       text_view::get_pending_file_path,
+      text_view::set_window_title,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

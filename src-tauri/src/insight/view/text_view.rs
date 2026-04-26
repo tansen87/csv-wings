@@ -18,7 +18,6 @@ use large_text_core::search_engine::{SearchEngine, SearchMessage, SearchType};
 pub async fn open_file(
   state: tauri::State<'_, AppState>,
   params: OpenFileParams,
-  app: tauri::AppHandle,
 ) -> Result<FileInfo, String> {
   let path = &params.path;
   let encoding = &params.encoding;
@@ -36,18 +35,28 @@ pub async fn open_file(
     sessions.insert(path.clone(), session.clone());
   }
 
-  // 设置窗口标题
-  if let Some(window) = app.get_webview_window("main") {
-    let title = format!("{} - Peek", path);
-    window.set_title(&title).map_err(|e| e.to_string())?;
-  }
-
   Ok(FileInfo {
     path: path.to_string(),
     size: session.reader.len() as u64,
     encoding: session.reader.encoding().name().to_string(),
     line_count: session.indexer.lock().unwrap().total_lines(),
   })
+}
+
+/// 设置窗口标题
+#[tauri::command]
+pub async fn set_window_title(
+  app: tauri::AppHandle,
+  path: Option<String>,
+) -> Result<(), String> {
+  if let Some(window) = app.get_webview_window("main") {
+    let title = match &path {
+      Some(p) => format!("{} - Peek", p),
+      None => "Peek".to_string(),
+    };
+    window.set_title(&title).map_err(|e| e.to_string())?;
+  }
+  Ok(())
 }
 
 /// 获取文件内容(指定行范围)

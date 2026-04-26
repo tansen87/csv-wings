@@ -152,6 +152,21 @@ export default function LargeTextView() {
     }
   }, [fileInfo]);
 
+  // 监听 activeTabId 变化,更新窗口标题
+  useEffect(() => {
+    const updateWindowTitle = async () => {
+      if (activeTabId) {
+        const activeTab = tabs.find(tab => tab.id === activeTabId);
+        if (activeTab) {
+          await invoke('set_window_title', { path: activeTab.path });
+        }
+      } else {
+        await invoke('set_window_title', { path: null });
+      }
+    };
+    updateWindowTitle();
+  }, [activeTabId, tabs]);
+
   const openFileDialog = async () => {
     try {
       const path = await viewOpenFile(false, "text", ["*"]);
