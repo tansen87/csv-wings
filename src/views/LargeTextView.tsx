@@ -581,109 +581,121 @@ export default function LargeTextView() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* 固定的菜单区域 */}
       <div className="flex items-center gap-1 p-1 border-b bg-gray-100 dark:bg-gray-800 z-10">
-        <div className="relative group">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-            onClick={openFileDialog}
-          >
-            <FolderOpen className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          </Button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-              打开
+        <div className="relative">
+          <div className="group relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+              onClick={openFileDialog}
+            >
+              <FolderOpen className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </Button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+                打开
+              </div>
             </div>
           </div>
         </div>
-        <div className="relative group">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-            onClick={() => {
-              if (showFloatingSearch && !showReplaceFromMenu) {
-                setShowFloatingSearch(false);
-              } else {
-                setShowReplaceFromMenu(false);
-                setShowFloatingSearch(true);
-              }
-            }}
-          >
-            <Search className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          </Button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-              查找
+        <div className="relative">
+          <div className="group relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+              onClick={() => {
+                if (showFloatingSearch && !showReplaceFromMenu) {
+                  setShowFloatingSearch(false);
+                } else {
+                  setShowReplaceFromMenu(false);
+                  setShowFloatingSearch(true);
+                }
+              }}
+            >
+              <Search className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </Button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+                查找
+              </div>
             </div>
           </div>
         </div>
-        <div className="relative group">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-            onClick={() => {
-              if (showFloatingSearch && showReplaceFromMenu) {
-                setShowFloatingSearch(false);
-                setShowReplaceFromMenu(false);
-              } else {
-                setShowReplaceFromMenu(true);
-                setShowFloatingSearch(true);
-              }
-            }}
-          >
-            <Edit3 className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          </Button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-              替换
+        <div className="relative">
+          <div className="group relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+              onClick={() => {
+                if (showFloatingSearch && showReplaceFromMenu) {
+                  setShowFloatingSearch(false);
+                  setShowReplaceFromMenu(false);
+                } else {
+                  setShowReplaceFromMenu(true);
+                  setShowFloatingSearch(true);
+                }
+              }}
+            >
+              <Edit3 className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </Button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+                替换
+              </div>
             </div>
           </div>
         </div>
-        <div className="relative group">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-            onClick={() => setShowLineInput(true)}
-          >
-            <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          </Button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-              跳转
+        <div className="relative">
+          <div className="group relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+              onClick={() => setShowLineInput(true)}
+            >
+              <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </Button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+                跳转
+              </div>
             </div>
           </div>
         </div>
-        <div className="relative group">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-            onClick={clearFile}
-          >
-            <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          </Button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-              关闭
+        <div className="relative">
+          <div className="group relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+              onClick={clearFile}
+            >
+              <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </Button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+                关闭
+              </div>
             </div>
           </div>
         </div>
         <div className="flex-grow" />
-        <div className="relative group">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-            onClick={toggleDarkMode}
-          >
-            {isDarkMode ? <Sun className="h-4 w-4 text-gray-600 dark:text-gray-300" /> : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-300" />}
-          </Button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-              {isDarkMode ? '浅色' : '暗色'}
+        <div className="relative">
+          <div className="group relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
+              onClick={toggleDarkMode}
+            >
+              {isDarkMode ? <Sun className="h-4 w-4 text-gray-600 dark:text-gray-300" /> : <Moon className="h-4 w-4 text-gray-600 dark:text-gray-300" />}
+            </Button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+                {isDarkMode ? '浅色' : '暗色'}
+              </div>
             </div>
           </div>
         </div>
@@ -693,7 +705,7 @@ export default function LargeTextView() {
       <div className="flex flex-1 min-h-0 overflow-auto relative">
         <div
           ref={lineNumberRef}
-          className="flex-shrink-0 w-[120px] overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 scrollbar-hide"
+          className="flex-shrink-0 w-[120px] overflow-hidden bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 scrollbar-hide select-none"
         >
           <div className="w-full">
             {visibleLines.map((line) => (
