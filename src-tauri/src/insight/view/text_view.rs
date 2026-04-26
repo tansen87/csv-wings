@@ -4,19 +4,21 @@ use std::{
   sync::{Arc, atomic::AtomicBool, mpsc::sync_channel},
 };
 
-use large_text_core::encoding_utils::is_utf16_newline;
-use large_text_core::search_engine::{SearchEngine, SearchMessage, SearchType};
+use tauri::Manager;
 
 use crate::view::text_view_utils::{
   self, AppState, FileInfo, GetLinesParams, MAX_LINES_PER_REQUEST, OpenFileParams, ReplaceParams,
   SearchMatch, SearchParams, SearchResult,
 };
+use large_text_core::encoding_utils::is_utf16_newline;
+use large_text_core::search_engine::{SearchEngine, SearchMessage, SearchType};
 
 /// 打开文件
 #[tauri::command]
 pub async fn open_file(
   state: tauri::State<'_, AppState>,
   params: OpenFileParams,
+  app: tauri::AppHandle,
 ) -> Result<FileInfo, String> {
   let path = &params.path;
   let encoding = &params.encoding;
@@ -32,6 +34,12 @@ pub async fn open_file(
   {
     let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
     sessions.insert(path.clone(), session.clone());
+  }
+
+  // 设置窗口标题
+  if let Some(window) = app.get_webview_window("main") {
+    let title = format!("{} - Peek", path);
+    window.set_title(&title).map_err(|e| e.to_string())?;
   }
 
   Ok(FileInfo {

@@ -52,9 +52,13 @@ fn main() {
         *state.pending_file_path.lock().unwrap() = Some(file_path.clone());
 
         if let Some(window) = app.get_webview_window("main") {
-          window.show().unwrap();
-          window.set_focus().unwrap();
-          let _ = window.emit("open-text-file", file_path);
+          // 设置窗口标题
+          let title = format!("{} - Peek", file_path);
+          window.set_title(&title).map_err(|e| e.to_string())?;
+
+          window.show().map_err(|e| e.to_string())?;
+          window.set_focus().map_err(|e| e.to_string())?;
+          window.emit("open-text-file", file_path).map_err(|e| e.to_string())?;
         }
       }
 
@@ -66,7 +70,7 @@ fn main() {
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
-        .tooltip("text-view")
+        .tooltip("Peek")
         .on_tray_icon_event(|tray, event| match event {
           TrayIconEvent::Click {
             button: MouseButton::Left,
@@ -75,10 +79,10 @@ fn main() {
           } => {
             let app = tray.app_handle();
             if let Some(window) = app.get_webview_window("main") {
-              window.show().unwrap();
-              window.set_focus().unwrap();
-              window.set_always_on_top(true).unwrap();
-              window.set_always_on_top(false).unwrap();
+              window.show().ok();
+              window.set_focus().ok();
+              window.set_always_on_top(true).ok();
+              window.set_always_on_top(false).ok();
             }
           }
           TrayIconEvent::Click {
@@ -90,10 +94,10 @@ fn main() {
         .on_menu_event(|app, event| match event.id.as_ref() {
           "show" => {
             if let Some(window) = app.get_webview_window("main") {
-              window.show().unwrap();
-              window.set_focus().unwrap();
-              window.set_always_on_top(true).unwrap();
-              window.set_always_on_top(false).unwrap();
+              window.show().ok();
+              window.set_focus().ok();
+              window.set_always_on_top(true).ok();
+              window.set_always_on_top(false).ok();
             }
           }
           "quit" => {
@@ -108,7 +112,7 @@ fn main() {
     .on_window_event(|window, event| {
       if let WindowEvent::CloseRequested { api, .. } = event {
         api.prevent_close();
-        window.hide().unwrap();
+        window.hide().ok();
       }
     })
     .invoke_handler(tauri::generate_handler![

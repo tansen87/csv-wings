@@ -24,7 +24,7 @@
     "fileAssociations": [
       {
         "ext": ["*"],
-        "description": "text-view"
+        "description": "Peek"
       }
     ],
     "copyright": "",
@@ -51,10 +51,10 @@
       }
     }
   },
-  "productName": "text-view",
-  "mainBinaryName": "text-view",
+  "productName": "Peek",
+  "mainBinaryName": "peek",
   "version": "../package.json",
-  "identifier": "com.text-view.dev",
+  "identifier": "com.peek.dev",
   "plugins": {},
   "app": {
     "windows": [
@@ -64,7 +64,7 @@
         "width": 840,
         "height": 660,
         "resizable": true,
-        "title": "text-view",
+        "title": "Peek",
         "dragDropEnabled": false,
         "center": true,
         "decorations": true
