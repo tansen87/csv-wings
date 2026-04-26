@@ -32,6 +32,14 @@ import { Input } from "@/components/ui/input";
 
 const VISIBLE_LINE_COUNT = 500;
 
+// Tab 类型定义
+interface Tab {
+  id: string;
+  path: string;
+  filename: string;
+  fileInfo: any;
+}
+
 const ENCODING_OPTIONS = [
   { label: "UTF-8", value: "UTF-8" },
   { label: "UTF-16LE", value: "UTF-16LE" },
@@ -68,6 +76,10 @@ export default function LargeTextView() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const loadedStartLineRef = useRef(0);
   const hasMoreLinesRef = useRef(true);
+
+  // Tab 相关状态
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
   const {
     fileInfo,
@@ -144,12 +156,7 @@ export default function LargeTextView() {
     try {
       const path = await viewOpenFile(false, "text", ["*"]);
       if (path) {
-        const fileData = await openFile({
-          path,
-          encoding: selectedEncoding || undefined,
-        });
-
-        setFileInfo(fileData);
+        await addTab(path);
       }
     } catch (e) {
       message(`打开文件失败: ${e}`, { type: "error" });
@@ -157,20 +164,77 @@ export default function LargeTextView() {
   };
 
   const loadFileFromPath = async (path: string) => {
-
     try {
       const win = getCurrentWindow();
       await win.show();
       await win.setFocus();
+
+      await addTab(path);
+    } catch (e) {
+      message(`打开文件失败: ${e}`, { type: "error" });
+    }
+  };
+
+  // 添加新 Tab
+  const addTab = async (path: string) => {
+    try {
+      // 检查是否已经存在相同路径的 Tab
+      const existingTab = tabs.find(tab => tab.path === path);
+      if (existingTab) {
+        // 如果已存在,切换到该 Tab
+        setActiveTabId(existingTab.id);
+        setFileInfo(existingTab.fileInfo);
+        return;
+      }
 
       const fileData = await openFile({
         path,
         encoding: selectedEncoding || undefined,
       });
 
+      // 提取文件名
+      const filename = path.split(/[\\/]/).pop() || path;
+
+      const newTab: Tab = {
+        id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        path,
+        filename,
+        fileInfo: fileData
+      };
+
+      const newTabs = [...tabs, newTab];
+      setTabs(newTabs);
+      setActiveTabId(newTab.id);
       setFileInfo(fileData);
     } catch (e) {
-      message(`打开文件失败: ${e}`, { type: "error" });
+      message(`添加 Tab 失败: ${e}`, { type: "error" });
+    }
+  };
+
+  // 切换Tab
+  const switchTab = (tabId: string) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) {
+      setActiveTabId(tabId);
+      setFileInfo(tab.fileInfo);
+    }
+  };
+
+  // 关闭Tab
+  const closeTab = (tabId: string) => {
+    const newTabs = tabs.filter(tab => tab.id !== tabId);
+    setTabs(newTabs);
+
+    if (activeTabId === tabId) {
+      // 如果关闭的是当前Tab,切换到第一个Tab
+      const firstTab = newTabs[0];
+      if (firstTab) {
+        setActiveTabId(firstTab.id);
+        setFileInfo(firstTab.fileInfo);
+      } else {
+        // 如果没有Tab了,清理资源
+        cleanup();
+      }
     }
   };
 
@@ -437,7 +501,11 @@ export default function LargeTextView() {
   };
 
   const clearFile = () => {
-    cleanup();
+    if (activeTabId) {
+      closeTab(activeTabId);
+    } else {
+      cleanup();
+    }
   };
 
   const toggleDarkMode = () => {
@@ -664,23 +732,6 @@ export default function LargeTextView() {
             </div>
           </div>
         </div>
-        <div className="relative">
-          <div className="group relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="bg-transparent hover:bg-gray-200 dark:bg-transparent dark:hover:bg-gray-800 h-7 w-7"
-              onClick={clearFile}
-            >
-              <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-            </Button>
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
-              <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded-md shadow-lg">
-                关闭
-              </div>
-            </div>
-          </div>
-        </div>
         <div className="flex-grow" />
         <div className="relative">
           <div className="group relative">
@@ -700,6 +751,31 @@ export default function LargeTextView() {
           </div>
         </div>
       </div>
+
+      {/* Tab 栏 */}
+      {tabs.length > 0 && (
+        <div className="flex items-center gap-1 p-1 border-b bg-gray-200 dark:bg-gray-700 z-10 overflow-x-auto">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`flex items-center gap-1 px-1 py-0.5 rounded-md cursor-pointer ${activeTabId === tab.id ? 'bg-white dark:bg-gray-600' : 'hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+              onClick={() => switchTab(tab.id)}
+            >
+              <span className="text-sm truncate max-w-[200px]">{tab.filename}</span>
+              <Badge
+                variant="secondary"
+                className="ml-1 h-5 w-5 flex items-center justify-center cursor-pointer p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(tab.id);
+                }}
+              >
+                <X className="h-4 w-4 text-gray-500 dark:text-gray-300" />
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 中间可滚动数据区域 */}
       <div className="flex flex-1 min-h-0 overflow-auto relative">
