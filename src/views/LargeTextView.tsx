@@ -821,7 +821,7 @@ export default function LargeTextView() {
           ref={codeScrollbarRef}
           className="flex-1 bg-white dark:bg-gray-900"
         >
-          <div className="min-w-full w-max">
+          <div className="min-w-full">
             {visibleLines.map((line) => (
               <div
                 key={line.number}
@@ -832,7 +832,7 @@ export default function LargeTextView() {
                   }`}
               >
                 <span
-                  className="line-content ml-2 text-sm font-mono text-gray-800 dark:text-gray-200"
+                  className="line-content ml-2 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-nowrap"
                   dangerouslySetInnerHTML={{ __html: highlightMatch(line.content) }}
                 />
               </div>
