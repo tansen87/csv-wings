@@ -1,4 +1,6 @@
 use crate::file_reader::FileReader;
+use crate::encoding_utils::is_utf16_newline;
+use encoding_rs::{UTF_16LE, UTF_16BE};
 
 pub struct LineIndexer {
     line_offsets: Vec<usize>,
@@ -37,14 +39,17 @@ impl LineIndexer {
         // For large files, use sparse sampling only
         const FULL_INDEX_THRESHOLD: usize = 10_000_000; // 10 MB
 
+        let encoding = reader.encoding();
+        let is_utf16 = encoding.name() == UTF_16LE.name() || encoding.name() == UTF_16BE.name();
+
         if self.file_size <= FULL_INDEX_THRESHOLD {
             // Full indexing for smaller files
             let data = reader.all_data();
-            self.full_index(data);
+            self.full_index(data, is_utf16, encoding.name() == UTF_16LE.name());
             self.sample_interval = 0;
         } else {
             // Sparse sampling for large files - only sample at intervals
-            self.sparse_sample_index(reader);
+            self.sparse_sample_index(reader, is_utf16, encoding.name() == UTF_16LE.name());
         }
 
         self.total_lines = if self.sample_interval > 0 {
@@ -57,40 +62,64 @@ impl LineIndexer {
         self.indexed = true;
     }
 
-    fn full_index(&mut self, data: &[u8]) {
-        for (i, &byte) in data.iter().enumerate() {
-            if byte == b'\n' {
-                self.line_offsets.push(i + 1);
+    fn full_index(&mut self, data: &[u8], is_utf16: bool, is_utf16le: bool) {
+        if is_utf16 {
+            let mut i = 0;
+            while i + 1 < data.len() {
+                let byte1 = data[i];
+                let byte2 = data[i + 1];
+                
+                if is_utf16_newline(byte1, byte2, is_utf16le) {
+                    self.line_offsets.push(i + 2);
+                }
+                i += 2;
+            }
+        } else {
+            for (i, &byte) in data.iter().enumerate() {
+                if byte == b'\n' {
+                    self.line_offsets.push(i + 1);
+                }
             }
         }
     }
 
-    fn sparse_sample_index(&mut self, reader: &FileReader) {
-        // Only sample every 10MB for large files - creates sparse checkpoint index
-        const SPARSE_SAMPLE_SIZE: usize = 10_000_000; // 10MB
+    fn sparse_sample_index(&mut self, reader: &FileReader, is_utf16: bool, is_utf16le: bool) {
+        const SPARSE_SAMPLE_SIZE: usize = 10_000_000;
         self.sample_interval = SPARSE_SAMPLE_SIZE;
 
         let mut pos = 0;
-        let sample_count_limit = 100; // Limit to 100 samples max
+        let sample_count_limit = 100;
         let mut sample_count = 0;
 
         let mut total_bytes_sampled = 0;
         let mut total_newlines_found = 0;
 
-        // Sample a few chunks to estimate average line length
         while pos < self.file_size && sample_count < sample_count_limit {
             let chunk_end = (pos + SPARSE_SAMPLE_SIZE).min(self.file_size);
             let chunk = reader.get_bytes(pos, chunk_end);
 
-            // Count newlines to estimate average line length
-            // We limit the sampling to the first few chunks to avoid reading too much
             if sample_count < 5 {
-                let newline_count = chunk.iter().filter(|&&b| b == b'\n').count();
+                let newline_count = if is_utf16 {
+                    let mut count = 0;
+                    let mut i = 0;
+                    while i + 1 < chunk.len() {
+                        let byte1 = chunk[i];
+                        let byte2 = chunk[i + 1];
+                        
+                        if is_utf16_newline(byte1, byte2, is_utf16le) {
+                            count += 1;
+                        }
+                        i += 2;
+                    }
+                    count
+                } else {
+                    chunk.iter().filter(|&&b| b == b'\n').count()
+                };
+                
                 total_bytes_sampled += chunk.len();
                 total_newlines_found += newline_count;
             }
 
-            // Store checkpoint at this position
             self.line_offsets.push(pos);
 
             pos = chunk_end;
@@ -144,16 +173,25 @@ impl LineIndexer {
             return self.get_line_range(line_num);
         }
 
+        let encoding = reader.encoding();
+        let is_utf16 = encoding.name() == UTF_16LE.name() || encoding.name() == UTF_16BE.name();
+        let is_utf16le = encoding.name() == UTF_16LE.name();
+
         // For sparse index, estimate and scan
         let estimated_byte_pos = (line_num as f64 * self.avg_line_length) as usize;
 
         // Scan backwards to find start of line (in case we landed mid-line)
         // Increase scan radius to handle variance in line lengths and very long lines
         let scan_radius = (self.avg_line_length * 2.0).max(65536.0) as usize;
-        let scan_start = estimated_byte_pos
+        let mut scan_start = estimated_byte_pos
             .saturating_sub(scan_radius)
             .min(self.file_size);
         let scan_end = (estimated_byte_pos + scan_radius).min(self.file_size);
+        
+        // 对于UTF-16确保起始位置是偶数
+        if is_utf16 && scan_start % 2 != 0 {
+            scan_start = scan_start.saturating_sub(1);
+        }
 
         if scan_start >= scan_end {
             return None;
@@ -166,11 +204,33 @@ impl LineIndexer {
         let mut line_start = scan_start;
         let mut found_start = false;
 
-        for i in (0..relative_est.min(chunk.len())).rev() {
-            if chunk[i] == b'\n' {
-                line_start = scan_start + i + 1;
-                found_start = true;
-                break;
+        if is_utf16 {
+            let mut i = if relative_est % 2 != 0 {
+                relative_est - 1
+            } else {
+                relative_est
+            };
+            
+            while i >= 2 {
+                i -= 2;
+                if i + 1 < chunk.len() {
+                    let byte1 = chunk[i];
+                    let byte2 = chunk[i + 1];
+                    
+                    if is_utf16_newline(byte1, byte2, is_utf16le) {
+                        line_start = scan_start + i + 2;
+                        found_start = true;
+                        break;
+                    }
+                }
+            }
+        } else {
+            for i in (0..relative_est.min(chunk.len())).rev() {
+                if chunk[i] == b'\n' {
+                    line_start = scan_start + i + 1;
+                    found_start = true;
+                    break;
+                }
             }
         }
 
@@ -183,12 +243,31 @@ impl LineIndexer {
 
         // Find newline after our position for line end
         let mut line_end = scan_end;
-        let search_from = relative_est.min(chunk.len());
-
-        for (i, &byte) in chunk.iter().enumerate().skip(search_from) {
-            if byte == b'\n' {
-                line_end = scan_start + i;
-                break;
+        
+        if is_utf16 {
+            let mut i = if relative_est % 2 != 0 {
+                relative_est + 1
+            } else {
+                relative_est
+            };
+            
+            while i + 1 < chunk.len() {
+                let byte1 = chunk[i];
+                let byte2 = chunk[i + 1];
+                
+                if is_utf16_newline(byte1, byte2, is_utf16le) {
+                    line_end = scan_start + i;
+                    break;
+                }
+                i += 2;
+            }
+        } else {
+            let search_from = relative_est.min(chunk.len());
+            for (i, &byte) in chunk.iter().enumerate().skip(search_from) {
+                if byte == b'\n' {
+                    line_end = scan_start + i;
+                    break;
+                }
             }
         }
 

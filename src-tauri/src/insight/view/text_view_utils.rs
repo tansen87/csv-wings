@@ -8,6 +8,7 @@ use encoding_rs::Encoding;
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use serde::{Deserialize, Serialize};
 
+use large_text_core::encoding_utils::is_utf16_newline;
 use large_text_core::file_reader::FileReader;
 use large_text_core::line_indexer::LineIndexer;
 
@@ -170,6 +171,7 @@ pub(crate) fn create_session_for_path(
 pub(crate) fn scan_line_from_offset(reader: &Arc<FileReader>, offset: usize) -> (usize, usize) {
   let encoding = reader.encoding();
   let is_utf16 = encoding.name() == "UTF-16LE" || encoding.name() == "UTF-16BE";
+  let is_utf16le = encoding.name() == "UTF-16LE";
 
   // 对于UTF-16编码,确保起始位置是偶数
   let mut start = offset;
@@ -178,67 +180,109 @@ pub(crate) fn scan_line_from_offset(reader: &Arc<FileReader>, offset: usize) -> 
   }
 
   // 向前找行首
-  while start > 0 {
-    // 对于UTF-16编码,每次移动2个字节
-    let step = if is_utf16 { 2 } else { 1 };
-    let new_start = start.saturating_sub(step);
-    if new_start == start {
-      break;
+  if is_utf16 {
+    let mut found_newline = false;
+    let mut pos = start;
+    while pos >= 2 && !found_newline {
+      pos -= 2;
+      let chunk = reader.get_bytes(pos, pos + 2);
+      if chunk.len() >= 2 {
+        let byte1 = chunk[0];
+        let byte2 = chunk[1];
+
+        if is_utf16_newline(byte1, byte2, is_utf16le) {
+          start = pos + 2;
+          found_newline = true;
+          break;
+        }
+      }
     }
 
-    let c = reader.get_chunk(new_start, start);
-    if c.is_empty() {
-      break;
+    if !found_newline {
+      start = 0;
+    }
+  } else {
+    // 原来的非UTF-16处理
+    while start > 0 {
+      let step = 1;
+      let new_start = start.saturating_sub(step);
+      if new_start == start {
+        break;
+      }
+
+      let c = reader.get_chunk(new_start, start);
+      if c.is_empty() {
+        break;
+      }
+
+      // 检查是否是换行符
+      if c.contains('\n') {
+        // 找到换行符,start就是行首
+        break;
+      }
+
+      start = new_start;
     }
 
-    // 检查是否是换行符
-    if c.contains('\n') {
-      // 找到换行符,start就是行首
-      break;
-    }
-
-    start = new_start;
-  }
-
-  // 处理 \r\n
-  if start > 0 {
-    let step = if is_utf16 { 2 } else { 1 };
-    let new_start = start.saturating_sub(step);
-    if new_start < start {
-      let prev = reader.get_chunk(new_start, start);
-      if prev.contains('\r') {
-        start = new_start;
+    // 处理 \r\n
+    if start > 0 {
+      let new_start = start.saturating_sub(1);
+      if new_start < start {
+        let prev = reader.get_chunk(new_start, start);
+        if prev.contains('\r') {
+          start = new_start;
+        }
       }
     }
   }
 
   // 向后找行尾
   let mut end = offset;
-  // 对于UTF-16编码,确保end是偶数
   if is_utf16 && end % 2 != 0 {
     end += 1;
   }
 
-  while end < offset + 10000 {
-    // 对于UTF-16编码,每次移动2个字节
-    let step = if is_utf16 { 2 } else { 1 };
-    let new_end = end + step;
-    if new_end >= reader.len() {
-      break;
+  if is_utf16 {
+    let mut pos = end;
+    let scan_end = std::cmp::min(offset + 10000, reader.len());
+
+    while pos + 2 <= scan_end {
+      let chunk = reader.get_bytes(pos, pos + 2);
+      if chunk.len() >= 2 {
+        let byte1 = chunk[0];
+        let byte2 = chunk[1];
+
+        if is_utf16_newline(byte1, byte2, is_utf16le) {
+          end = pos + 2;
+          break;
+        }
+      }
+      pos += 2;
     }
 
-    let c = reader.get_chunk(end, new_end);
-    if c.is_empty() {
-      break;
+    if end == offset {
+      end = scan_end;
     }
+  } else {
+    // 原来的非UTF-16处理
+    while end < offset + 10000 {
+      let new_end = end + 1;
+      if new_end >= reader.len() {
+        break;
+      }
 
-    // 检查是否是换行符
-    if c.contains('\n') {
+      let c = reader.get_chunk(end, new_end);
+      if c.is_empty() {
+        break;
+      }
+
+      if c.contains('\n') {
+        end = new_end;
+        break;
+      }
+
       end = new_end;
-      break;
     }
-
-    end = new_end;
   }
 
   (start, end)
@@ -405,4 +449,3 @@ pub(crate) fn replace_in_line(
     }
   }
 }
-

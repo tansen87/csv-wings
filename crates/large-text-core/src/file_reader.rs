@@ -8,6 +8,8 @@ pub struct FileReader {
     mmap: Mmap,
     path: PathBuf,
     encoding: &'static Encoding,
+    // BOM 跳过的字节数
+    bom_offset: usize,
 }
 
 impl FileReader {
@@ -19,42 +21,70 @@ impl FileReader {
         }
         let mmap = unsafe { Mmap::map(&file)? };
 
+        // 检测并计算 BOM 偏移
+        let bom_offset = Self::calculate_bom_offset(&mmap, encoding);
+
         Ok(Self {
             mmap,
             path,
             encoding,
+            bom_offset,
         })
     }
 
+    fn calculate_bom_offset(data: &[u8], encoding: &'static Encoding) -> usize {
+        let is_utf16 = encoding.name() == "UTF-16LE" || encoding.name() == "UTF-16BE";
+        if is_utf16 && data.len() >= 2 {
+            if (data[0] == 0xFF && data[1] == 0xFE) || (data[0] == 0xFE && data[1] == 0xFF) {
+                return 2;
+            }
+        }
+        0
+    }
+
     pub fn get_chunk(&self, start: usize, end: usize) -> String {
-        let end = end.min(self.mmap.len());
-        if start >= end {
+        // 调整起始和结束位置,跳过 BOM
+        let adjusted_start = start + self.bom_offset;
+        let adjusted_end = end + self.bom_offset;
+        let adjusted_end = adjusted_end.min(self.mmap.len());
+        if adjusted_start >= adjusted_end {
             return String::new();
         }
 
-        let bytes = &self.mmap[start..end];
+        let bytes = &self.mmap[adjusted_start..adjusted_end];
         let (cow, _encoding, _had_errors) = self.encoding.decode(bytes);
         cow.into_owned()
     }
 
     pub fn get_bytes(&self, start: usize, end: usize) -> &[u8] {
-        let end = end.min(self.mmap.len());
-        if start >= end {
+        let adjusted_start = start + self.bom_offset;
+        let adjusted_end = end + self.bom_offset;
+        let adjusted_end = adjusted_end.min(self.mmap.len());
+        if adjusted_start >= adjusted_end {
             return &[];
         }
-        &self.mmap[start..end]
+        &self.mmap[adjusted_start..adjusted_end]
     }
 
     pub fn byte_at(&self, offset: usize) -> Option<u8> {
-        if offset < self.mmap.len() {
-            Some(self.mmap[offset])
+        let adjusted_offset = offset + self.bom_offset;
+        if adjusted_offset < self.mmap.len() {
+            Some(self.mmap[adjusted_offset])
         } else {
             None
         }
     }
 
     pub fn len(&self) -> usize {
-        self.mmap.len()
+        self.mmap.len().saturating_sub(self.bom_offset)
+    }
+
+    pub fn all_data(&self) -> &[u8] {
+        &self.mmap[self.bom_offset..]
+    }
+
+    pub fn raw_all_data(&self) -> &[u8] {
+        &self.mmap[..]
     }
 
     pub fn is_empty(&self) -> bool {
@@ -67,10 +97,6 @@ impl FileReader {
 
     pub fn encoding(&self) -> &'static Encoding {
         self.encoding
-    }
-
-    pub fn all_data(&self) -> &[u8] {
-        &self.mmap[..]
     }
 }
 

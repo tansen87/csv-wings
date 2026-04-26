@@ -4,6 +4,7 @@ use std::{
   sync::{Arc, atomic::AtomicBool, mpsc::sync_channel},
 };
 
+use large_text_core::encoding_utils::is_utf16_newline;
 use large_text_core::search_engine::{SearchEngine, SearchMessage, SearchType};
 
 use crate::view::text_view_utils::{
@@ -99,38 +100,72 @@ pub async fn get_file_content(
     let chunk_size = 10000; // 每次读取10KB
     let chunk_end = std::cmp::min(current_offset + chunk_size, reader.len());
 
-    // 使用get_bytes直接操作字节数据查找换行符
-    let chunk = reader.get_bytes(current_offset, chunk_end);
+    if is_utf16 {
+      // UTF-16 编码的换行符处理
+      let mut found_newline = false;
+      let is_utf16le = encoding.name() == "UTF-16LE";
+      let mut i = if current_offset % 2 != 0 { 1 } else { 0 };
+      let chunk = reader.get_bytes(current_offset, chunk_end);
 
-    // 找到换行符的位置
-    let newline_pos = chunk.iter().position(|&b| b == b'\n');
+      while i + 1 < chunk.len() {
+        let byte1 = chunk[i];
+        let byte2 = chunk[i + 1];
 
-    match newline_pos {
-      Some(pos) => {
-        // 计算实际的字节偏移
-        let line_end = current_offset + pos + 1;
+        if is_utf16_newline(byte1, byte2, is_utf16le) {
+          // 计算实际的字节偏移
+          let line_end = current_offset + i + 2; // 整个换行符占用2字节
 
-        // 提取行内容
-        let line_content = reader.get_chunk(current_offset, line_end);
-        // 去除换行符
-        let line_content = line_content.trim_end_matches('\n').trim_end_matches('\r');
-        lines.push(line_content.to_string());
-        lines_read += 1;
+          // 提取行内容
+          let line_content = reader.get_chunk(current_offset, line_end);
+          // 去除换行符
+          let line_content = line_content.trim_end_matches('\n').trim_end_matches('\r');
+          lines.push(line_content.to_string());
+          lines_read += 1;
 
-        // 移动到下一行的开始
-        current_offset = line_end;
-
-        // 对于UTF-16编码,确保下一行的起始位置是偶数
-        if is_utf16 && current_offset % 2 != 0 {
-          current_offset += 1;
+          // 移动到下一行的开始
+          current_offset = line_end;
+          found_newline = true;
+          break;
         }
+        i += 2;
       }
-      None => {
+
+      if !found_newline {
         // 没有找到换行符,读取剩余内容
         let line_content = reader.get_chunk(current_offset, chunk_end);
         lines.push(line_content);
         lines_read += 1;
         current_offset = chunk_end;
+      }
+    } else {
+      // 使用get_bytes直接操作字节数据查找换行符
+      let chunk = reader.get_bytes(current_offset, chunk_end);
+
+      // 找到换行符的位置
+      let newline_pos = chunk.iter().position(|&b| b == b'\n');
+
+      match newline_pos {
+        Some(pos) => {
+          // 计算实际的字节偏移
+          let line_end = current_offset + pos + 1;
+
+          // 提取行内容
+          let line_content = reader.get_chunk(current_offset, line_end);
+          // 去除换行符
+          let line_content = line_content.trim_end_matches('\n').trim_end_matches('\r');
+          lines.push(line_content.to_string());
+          lines_read += 1;
+
+          // 移动到下一行的开始
+          current_offset = line_end;
+        }
+        None => {
+          // 没有找到换行符,读取剩余内容
+          let line_content = reader.get_chunk(current_offset, chunk_end);
+          lines.push(line_content);
+          lines_read += 1;
+          current_offset = chunk_end;
+        }
       }
     }
   }
