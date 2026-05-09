@@ -31,7 +31,7 @@ export const useCommandStore = defineStore("command", {
       },
       {
         title: "Dedup",
-        icon: "ri:numbers-line",
+        icon: "ri:table-alt-fill",
         description: "Deduplicate the rows of a CSV file",
         route: "/cmd/components/dedup"
       },
@@ -55,7 +55,7 @@ export const useCommandStore = defineStore("command", {
       },
       {
         title: "Separate",
-        icon: "ri:menu-search-line",
+        icon: "ri:list-check-3",
         description: "Separate CSV into good and bad rows",
         route: "/cmd/components/separate"
       },
