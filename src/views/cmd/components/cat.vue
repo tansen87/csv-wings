@@ -248,7 +248,7 @@ onUnmounted(() => {
       </div>
     </SiliconeCard>
 
-    <el-scrollbar class="flex-1 px-4 pb-4 min-h-0">
+    <el-scrollbar class="flex-1 min-h-0">
       <div class="flex flex-col">
         <SiliconeCard>
           <div class="flex justify-between items-center mb-4">

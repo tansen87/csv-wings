@@ -64,7 +64,7 @@ onUnmounted(() => {
       </div>
     </SiliconeCard>
 
-    <div class="flex-1 flex flex-col overflow-y-hidden px-4 pb-4 gap-4 min-h-0">
+    <div class="flex-1 flex flex-col overflow-y-hidden gap-4 min-h-0">
       <SiliconeCard class="file-section">
         <div class="flex justify-between items-center mb-4">
           <div class="text-xs font-semibold text-gray-400 tracking-wider">

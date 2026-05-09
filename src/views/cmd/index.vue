@@ -104,12 +104,14 @@ const clearLog = () => {
 const startResize = (e) => {
   isResizing.value = true;
   e.preventDefault();
+  e.stopPropagation();
 
   const startY = e.clientY;
   const startHeight = logHeight.value;
 
   const handleMouseMove = (e) => {
     if (!isResizing.value) return;
+
     const deltaY = e.clientY - startY;
     const newHeight = Math.max(100, startHeight - deltaY);
     logHeight.value = newHeight;
@@ -161,7 +163,7 @@ const startResize = (e) => {
             v-show="activeTab === item.route.split('/').pop()" @add-log="addLog" />
         </div>
 
-        <div class="resize-handle" @mousedown="startResize"></div>
+        <div class="resize-handle" @mousedown="startResize" />
 
         <div class="log-output" :style="{ height: logHeight + 'px' }">
           <div class="log-header">
@@ -377,7 +379,7 @@ const startResize = (e) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  gap: 12px;
+  gap: 0;
 }
 
 .cmd-main {
@@ -387,7 +389,6 @@ const startResize = (e) => {
   border-radius: 16px;
   box-shadow: var(--card-shadow);
   border: 1px solid var(--card-border);
-  padding: 16px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
@@ -402,24 +403,89 @@ const startResize = (e) => {
 }
 
 .resize-handle {
-  height: 6px;
-  background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+  height: 8px;
   cursor: ns-resize;
-  transition: all 0.3s ease;
-  border-radius: 3px;
+  position: relative;
 
-  &:hover {
-    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 4px;
+    background: linear-gradient(90deg, transparent 0%, #cbd5e1 30%, #cbd5e1 70%, transparent 100%);
+    border-radius: 2px;
+    transition: all 0.2s ease;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 4px;
+    background: repeating-linear-gradient(
+      90deg,
+      #64748b 0px,
+      #64748b 2px,
+      transparent 2px,
+      transparent 6px
+    );
+    border-radius: 2px;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+  }
+
+  &:hover::before {
     height: 8px;
+    background: linear-gradient(90deg, transparent 0%, var(--primary-color) 30%, var(--primary-color) 70%, transparent 100%);
+  }
+
+  &:hover::after {
+    background: repeating-linear-gradient(
+      90deg,
+      #334155 0px,
+      #334155 2px,
+      transparent 2px,
+      transparent 6px
+    );
+    opacity: 1;
+    width: 70px;
   }
 }
 
-.dark .resize-handle {
-  background: linear-gradient(90deg, transparent, #475569, transparent);
+.dark .resize-handle::before {
+  background: linear-gradient(90deg, transparent 0%, #475569 30%, #475569 70%, transparent 100%);
+}
 
-  &:hover {
-    background: linear-gradient(90deg, transparent, #818cf8, transparent);
-  }
+.dark .resize-handle::after {
+  background: repeating-linear-gradient(
+    90deg,
+    #94a3b8 0px,
+    #94a3b8 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  opacity: 0.8;
+}
+
+.dark .resize-handle:hover::before {
+  background: linear-gradient(90deg, transparent 0%, var(--primary-color) 30%, var(--primary-color) 70%, transparent 100%);
+}
+
+.dark .resize-handle:hover::after {
+  background: repeating-linear-gradient(
+    90deg,
+    #ffffff 0px,
+    #ffffff 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  opacity: 1;
 }
 
 .log-output {
@@ -430,8 +496,6 @@ const startResize = (e) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 120px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     box-shadow: var(--card-shadow-hover);
@@ -445,7 +509,7 @@ const startResize = (e) => {
 }
 
 .log-header {
-  padding: 14px 20px;
+  padding: 6px 10px;
   background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   display: flex;
   justify-content: space-between;
@@ -454,7 +518,7 @@ const startResize = (e) => {
 
   h3 {
     margin: 0;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #1e293b;
     display: flex;
@@ -473,7 +537,7 @@ const startResize = (e) => {
 
 .log-content {
   flex: 1;
-  padding: 16px;
+  padding: 4px;
   overflow-y: auto;
 }
 
@@ -491,27 +555,27 @@ const startResize = (e) => {
   }
 
   &.info {
-    background: var(--info-light);
-    color: var(--info-color);
-    border-left-color: var(--info-color);
+    background: #dbeafe;
+    color: #3b82f6;
+    border-left-color: #3b82f6;
   }
 
   &.success {
-    background: var(--success-light);
-    color: var(--success-color);
-    border-left-color: var(--success-color);
+    background: #d1fae5;
+    color: #10b981;
+    border-left-color: #10b981;
   }
 
   &.error {
-    background: var(--error-light);
-    color: var(--error-color);
-    border-left-color: var(--error-color);
+    background: #fee2e2;
+    color: #ef4444;
+    border-left-color: #ef4444;
   }
 
   &.warning {
-    background: var(--warning-light);
-    color: var(--warning-color);
-    border-left-color: var(--warning-color);
+    background: #fef3c7;
+    color: #f59e0b;
+    border-left-color: #f59e0b;
   }
 }
 
