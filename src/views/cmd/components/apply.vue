@@ -167,62 +167,59 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
-      <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
-          <Icon icon="ri:function-line" />
-          Apply
-        </h1>
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-        <div class="text-xs font-semibold text-gray-400 tracking-wider">
-          Apply transformation functions to CSV column(s)
+    <div class="p-3">
+      <div class="header-content">
+        <div class="header-icon" @click="dialog = true">
+          <Icon icon="ri:stack-line" />
         </div>
-        <div class="mode-toggle ml-auto">
-          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1 w-24" :class="{ active: mode === item.value }"
-            @click="mode = item.value">
-            {{ item.label }}
-          </span>
+        <div class="header-text">
+          <h1>Apply</h1>
+          <p>Apply transformation functions to CSV column(s)</p>
         </div>
       </div>
-    </SiliconeCard>
+    </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="flex flex-col gap-2">
-        <SiliconeCard>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              FILE SELECTION
+      <div class="apply-main">
+        <div class="p-3">
+          <!-- File selection -->
+          <div class="file-selection-bar" @click="selectFile">
+            <div class="file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="flex items-center">
-              <SiliconeButton @click="selectFile()" size="small" text>
-                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+            <div class="file-selection-text">
+              <template v-if="path">
+                <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="file-prompt">Click to select a CSV file</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeTag @click.stop="addNewColumn" :disabled="mode === 'cat' || mode === 'calcconv'" text
+                class="cursor-pointer">
+                {{ columnContent }}
+              </SiliconeTag>
+              <SiliconeButton @click.stop="applyData()" :loading="loading" size="small">
+                Apply
               </SiliconeButton>
-              <SiliconeButton @click="applyData()" :loading="loading" size="small" text>
-                <Icon icon="ri:play-large-line" class="w-4 h-4" />
-              </SiliconeButton>
             </div>
           </div>
 
-          <div v-if="path" class="mb-2">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-              SELECTED FILE
-            </div>
-            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
+          <!-- Mode toggle -->
+          <div class="mode-toggle mt-4 py-1">
+            <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5"
+              :class="{ active: mode === item.value }" @click="mode = item.value">
+              {{ item.label }}
+            </span>
           </div>
 
-          <div class="mb-2">
-            <SiliconeTag @click="addNewColumn" :disabled="mode === 'cat' || mode === 'calcconv'" text
-              class="mb-2 mt-2 w-full">
-              {{ columnContent }}
-            </SiliconeTag>
-          </div>
-
-          <template v-if="mode === 'operations'">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-                  COLUMNS ({{ columns.length }})
-                </div>
+          <!-- Options -->
+          <div class="options-grid mt-4">
+            <template v-if="mode === 'operations'">
+              <div class="option-section">
+                <div class="option-label">COLUMNS ({{ columns.length }})</div>
                 <SiliconeSelect v-model="columns" filterable multiple placeholder="Select column(s)" class="w-full">
                   <template #header>
                     <div class="flex items-center justify-between px-2 py-1">
@@ -237,10 +234,8 @@ onUnmounted(() => {
                   <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
                 </SiliconeSelect>
               </div>
-              <div>
-                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-                  OPERATIONS ({{ operations.length }})
-                </div>
+              <div class="option-section">
+                <div class="option-label">OPERATIONS ({{ operations.length }})</div>
                 <SiliconeSelect v-model="operations" filterable multiple placeholder="Select operations" class="w-full">
                   <el-option label="Copy" value="copy" />
                   <el-option label="Len" value="len" />
@@ -259,90 +254,55 @@ onUnmounted(() => {
                   <el-option label="Normalize" value="normalize" />
                 </SiliconeSelect>
               </div>
-            </div>
 
-            <template v-if="operations.includes('replace')">
-              <div
-                class="mt-4 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
-                  REPLACE OPTIONS
-                </label>
-                <div class="space-y-2">
-                  <SiliconeInput v-model="comparand" placeholder="Find (old)" size="small" />
-                  <SiliconeInput v-model="replacement" placeholder="Replace with (new)" size="small" />
+              <template v-if="operations.includes('replace')">
+                <div class="option-panel">
+                  <div class="option-panel-title">REPLACE OPTIONS</div>
+                  <div class="option-panel-content">
+                    <SiliconeInput v-model="comparand" placeholder="Find (old)" size="small" />
+                    <SiliconeInput v-model="replacement" placeholder="Replace with (new)" size="small" />
+                  </div>
                 </div>
-              </div>
+              </template>
+
+              <template v-if="operations.includes('round')">
+                <div class="option-panel">
+                  <div class="option-panel-title">ROUND OPTIONS</div>
+                  <div class="option-panel-content">
+                    <SiliconeInput v-model="formatstr" placeholder="round place" size="small" />
+                  </div>
+                </div>
+              </template>
             </template>
 
-            <template v-if="operations.includes('round')">
-              <div
-                class="mt-4 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
-                  ROUND OPTIONS
-                </label>
-                <div class="space-y-2">
-                  <SiliconeInput v-model="formatstr" placeholder="round place" size="small" />
-                </div>
+            <template v-if="['cat', 'calcconv'].includes(mode)">
+              <div class="option-section full-width">
+                <div class="option-label">FORMULA / FORMAT</div>
+                <SiliconeInput v-model="formatstr" :autosize="{ minRows: 4, maxRows: 6 }" type="textarea"
+                  :placeholder="placeholderText" class="w-full" />
               </div>
             </template>
-          </template>
+          </div>
+        </div>
 
-          <template v-if="['cat', 'calcconv'].includes(mode)">
-            <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
-              FORMULA / FORMAT
-            </label>
-            <SiliconeInput v-model="formatstr" :autosize="{ minRows: 10, maxRows: 10 }" type="textarea"
-              :placeholder="placeholderText" class="w-full" />
-          </template>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              PREVIEW ({{ tableData?.length || 0 }} rows)
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
-                <Icon icon="ri:function-line" class="w-3.5 h-3.5" />
-                Mode: {{ mode }}
-              </span>
-            </div>
+        <!-- Table -->
+        <div class="p-3 mt-[-8px]">
+          <div class="preview-header">
+            <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <span class="preview-mode">Mode: {{ mode }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
-            <SiliconeTable :data="tableData" :height="'400px'"
-              show-overflow-tooltip class="select-text">
+            <SiliconeTable :data="tableData" :height="'400px'" show-overflow-tooltip class="select-text">
               <template #empty>
-                <div class="flex items-center justify-center gap-2">
-                  No data. Click
-                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-                  to select file.
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  No data. Click above to select file.
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
                 :key="column.prop" />
             </SiliconeTable>
           </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-            USAGE
-          </div>
-          <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click
-              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
-            </SiliconeText>
-            <SiliconeText type="info">2. Choose mode: Operations, CalcConv, or DynFmt</SiliconeText>
-            <SiliconeText type="info">3. For Operations mode: select columns and operations</SiliconeText>
-            <SiliconeText type="info">4. For CalcConv or DynFmt mode: enter formula/format</SiliconeText>
-            <SiliconeText type="info">5. Preview the result in the table below</SiliconeText>
-            <SiliconeText type="info">6. Click
-              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to run the apply operation
-            </SiliconeText>
-            <SiliconeText type="info">7. Check the output log for details</SiliconeText>
-          </div>
-        </SiliconeCard>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -356,6 +316,241 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  border-radius: 12px;
+  font-size: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  cursor: pointer;
+}
+
+.header-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.dark .header-text h1 {
+  color: #e8e8e8;
+}
+
+.header-text p {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dark .header-text p {
+  color: #999;
+}
+
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  margin: 12px auto;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 12px;
+  max-width: 280px;
+}
+
+.mode-item {
+  max-width: 120px;
+  text-align: center;
+}
+
+.apply-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.file-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+}
+
+.dark .file-selection-bar {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #444;
+}
+
+.dark .file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.file-selection-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
+  border-radius: 10px;
+  font-size: 20px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.dark .file-selection-icon {
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  color: #777;
+}
+
+.file-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .file-name {
+  color: #e0e0e0;
+}
+
+.file-path {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-prompt {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark .file-prompt {
+  color: #aaa;
+}
+
+.options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-section.full-width {
+  width: 100%;
+}
+
+.option-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dark .option-label {
+  color: #999;
+}
+
+.option-panel {
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.dark .option-panel {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #3a3a3a;
+}
+
+.option-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #409eff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.dark .option-panel-title {
+  color: #66b1ff;
+}
+
+.option-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dark .preview-title {
+  color: #999;
+}
+
+.preview-mode {
+  font-size: 12px;
+  font-weight: 500;
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.dark .preview-mode {
+  color: #66b1ff;
+  background: rgba(64, 158, 255, 0.15);
+}
+
 :deep(.silicone-card) {
   flex-shrink: 0;
   min-height: 0;
