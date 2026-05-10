@@ -51,7 +51,6 @@ async function selectFile() {
   }
 }
 
-// invoke transpose
 async function transposeData() {
   if (path.value === "") {
     addLog("File not selected", 'warning');
@@ -90,151 +89,100 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
+    <div class="p-3">
+      <div class="header-content">
+        <div class="header-icon" @click="dialog = true">
           <Icon icon="ri:loop-left-line" />
-          Transpose
-        </h1>
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-        <div class="text-xs font-semibold text-gray-400">
-          Transpose rows/columns of a CSV
         </div>
-        <div class="mode-toggle ml-auto">
-          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1 w-24"
+        <div class="header-text">
+          <h1>Transpose</h1>
+          <p>Transpose rows and columns of a CSV</p>
+        </div>
+      </div>
+    </div>
+
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="p-3">
+        <div class="file-selection-bar mb-4" @click="selectFile()">
+          <div class="file-selection-icon">
+            <Icon icon="ri:folder-open-line" />
+          </div>
+          <div class="file-selection-text">
+            <template v-if="path">
+              <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="file-path">{{ path }}</span>
+            </template>
+            <template v-else>
+              <span class="file-prompt">Click to select a CSV file</span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <SiliconeButton @click.stop="transposeData()" :loading="isLoading" size="small">
+              Run
+            </SiliconeButton>
+          </div>
+        </div>
+
+        <div class="mode-toggle py-1">
+          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5"
             :class="{ active: mode === item.value }" @click="mode = item.value">
             {{ item.label }}
           </span>
         </div>
-      </div>
-    </SiliconeCard>
 
-    <el-scrollbar class="flex-1 min-h-0">
-      <div class="flex flex-col gap-4">
-        <SiliconeCard>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              FILE SELECTION
-            </div>
-            <div class="flex items-center">
-              <SiliconeButton @click="selectFile()" size="small" text>
-                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-              </SiliconeButton>
-              <SiliconeButton @click="transposeData()" :loading="isLoading" size="small" text>
-                <Icon icon="ri:play-large-line" class="w-4 h-4" />
-              </SiliconeButton>
+        <div class="preview-formula mt-4">
+          <span class="formula-label">Preview:</span>
+          <span class="formula-item">TRANSPOSE</span>
+          <span class="formula-operator">ROWS</span>
+          <span class="formula-item">{{ tableData?.length || 0 }}</span>
+          <span class="formula-operator">↔</span>
+          <span class="formula-item">COLS</span>
+          <span class="formula-item">{{ tableColumn?.length || 0 }}</span>
+        </div>
+
+        <div class="transpose-demo mt-4 mb-4">
+          <div class="demo-row">
+            <div class="demo-label">BEFORE</div>
+            <div class="demo-grid">
+              <div class="demo-cell header">A</div>
+              <div class="demo-cell header">B</div>
+              <div class="demo-cell header">C</div>
+              <div class="demo-cell">D</div>
+              <div class="demo-cell">E</div>
+              <div class="demo-cell">F</div>
             </div>
           </div>
-
-          <div v-if="path" class="mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-              SELECTED FILE
-            </div>
-            <div class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-              <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
+          <div class="demo-arrow">
+            <Icon icon="ri:arrow-right-line" />
+          </div>
+          <div class="demo-row">
+            <div class="demo-label">AFTER</div>
+            <div class="demo-grid transposed">
+              <div class="demo-cell header">A</div>
+              <div class="demo-cell header">D</div>
+              <div class="demo-cell header">B</div>
+              <div class="demo-cell header">E</div>
+              <div class="demo-cell header">C</div>
+              <div class="demo-cell header">F</div>
             </div>
           </div>
+        </div>
 
-          <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-            <label class="text-xs font-semibold text-gray-400 tracking-wider block mb-2">
-              BEFORE → AFTER
-            </label>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <div class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1 text-center">
-                  A B C
-                </div>
-                <div class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1 text-center">
-                  D E F
-                </div>
+        <div class="preview-header">
+          <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows × {{ tableColumn?.length || 0 }}
+            cols)</span>
+          <span class="mode-badge">{{ mode }}</span>
+        </div>
+        <div class="overflow-hidden rounded-lg">
+          <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+            <template #empty>
+              <div class="flex items-center justify-center gap-2 text-gray-500">
+                No data. Click above to select file.
               </div>
-              <div>
-                <div
-                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1 text-center">
-                  A D
-                </div>
-                <div
-                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1 text-center">
-                  B E
-                </div>
-                <div
-                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded text-center">
-                  C F
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
-              CONFIG
-            </label>
-            <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Process mode:</span>
-                <span class="font-mono">{{ mode }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Quoting:</span>
-                <span class="font-mono">{{ quoting.quoting }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Skip rows:</span>
-                <span class="font-mono">{{ skiprows.skiprows }}</span>
-              </div>
-            </div>
-          </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              DATA PREVIEW
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
-                <Icon icon="ri:cpu-line" class="w-3.5 h-3.5" />
-                {{ mode }}
-              </span>
-            </div>
-          </div>
-          <div class="overflow-hidden rounded-lg">
-            <SiliconeTable :data="tableData" :height="'400px'" show-overflow-tooltip class="select-text">
-              <template #empty>
-                <div class="flex items-center justify-center gap-2">
-                  No data. Click
-                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-                  to select file.
-                </div>
-              </template>
-              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
-                :key="column.prop" />
-            </SiliconeTable>
-          </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-            USAGE
-          </div>
-          <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click
-              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
-            </SiliconeText>
-            <SiliconeText type="info">2. Choose the process mode (Memory for speed, Multipass for memory efficiency)
-            </SiliconeText>
-            <SiliconeText type="info">3. Review the configuration details</SiliconeText>
-            <SiliconeText type="info">4. Click
-              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the transpose operation
-            </SiliconeText>
-            <SiliconeText type="info">5. Check the output log for details</SiliconeText>
-            <SiliconeText type="info">6. The output file will be created in the same directory as the original file
-            </SiliconeText>
-            <SiliconeText type="info">7. Rows will become columns and columns will become rows</SiliconeText>
-            <SiliconeText type="info">8. For large files, consider using Multipass mode to save memory</SiliconeText>
-          </div>
-        </SiliconeCard>
+            </template>
+            <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
+          </SiliconeTable>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -247,10 +195,287 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-:deep(.silicone-card) {
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  border-radius: 12px;
+  font-size: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  cursor: pointer;
+}
+
+.header-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.dark .header-text h1 {
+  color: #e8e8e8;
+}
+
+.header-text p {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dark .header-text p {
+  color: #999;
+}
+
+.file-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+}
+
+.dark .file-selection-bar {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #444;
+}
+
+.dark .file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.file-selection-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
+  border-radius: 10px;
+  font-size: 20px;
+  color: #666;
   flex-shrink: 0;
-  min-height: 0;
+}
+
+.dark .file-selection-icon {
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  color: #777;
+}
+
+.file-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .file-name {
+  color: #e0e0e0;
+}
+
+.file-path {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-prompt {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark .file-prompt {
+  color: #aaa;
+}
+
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 12px;
+  max-width: 200px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #fdf2f8, #fce7f3);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #2e1f26, #271a20);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #ec4899;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #f472b6;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.transpose-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 10px;
+}
+
+.dark .transpose-demo {
+  background: var(--el-fill-color-dark, #2a2a2a);
+}
+
+.demo-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.demo-grid.transposed {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.demo-cell {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .demo-cell {
+  background: #3a3a3a;
+  color: #aaa;
+  border-color: #444;
+}
+
+.demo-cell.header {
+  background: linear-gradient(135deg, #fdf2f8, #fce7f3);
+  color: #ec4899;
+  border-color: #f9a8d4;
+}
+
+.dark .demo-cell.header {
+  background: linear-gradient(135deg, #2e1f26, #271a20);
+  color: #f472b6;
+  border-color: #9d174d;
+}
+
+.demo-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #888;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.dark .preview-title {
+  color: #999;
+}
+
+.mode-badge {
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dark .mode-badge {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
 }
 </style>

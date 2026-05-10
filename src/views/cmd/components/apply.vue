@@ -202,13 +202,13 @@ onUnmounted(() => {
                 {{ columnContent }}
               </SiliconeTag>
               <SiliconeButton @click.stop="applyData()" :loading="loading" size="small">
-                Apply
+                Run
               </SiliconeButton>
             </div>
           </div>
 
           <!-- Mode toggle -->
-          <div class="mode-toggle mt-4 py-1">
+          <div class="mode-toggle py-1">
             <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5"
               :class="{ active: mode === item.value }" @click="mode = item.value">
               {{ item.label }}
@@ -367,7 +367,6 @@ onUnmounted(() => {
 }
 
 .mode-item {
-  max-width: 120px;
   text-align: center;
 }
 

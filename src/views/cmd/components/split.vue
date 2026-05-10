@@ -6,6 +6,7 @@ import { useDynamicHeight } from "@/utils/utils";
 import { viewOpenFile, toJson } from "@/utils/view";
 import { mdSplit, useMarkdown } from "@/utils/markdown";
 import { useSkiprows } from "@/store/modules/options";
+import { message } from "@/utils/message";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -30,10 +31,8 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
-    addLog('File selection cancelled', 'info');
     return;
   }
-  addLog(`Selected file: ${path.value}`, 'info');
 
   try {
     const { columnView, dataView } = await toJson(
@@ -47,14 +46,13 @@ async function selectFile() {
   }
 }
 
-// invoke split
 async function splitData() {
   if (path.value === "") {
-    addLog("CSV file not selected", 'warning');
+    message("CSV file not selected", { type: 'warning' });
     return;
   }
   if (skiprows.skiprows !== 0) {
-    addLog("split only support skiprows=0", 'warning');
+    message("split only support skiprows=0", { type: 'warning' });
     return;
   }
 
@@ -81,178 +79,86 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
+    <div class="p-3">
+      <div class="header-content">
+        <div class="header-icon" @click="dialog = true">
           <Icon icon="ri:scissors-cut-line" />
-          Split
-        </h1>
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-        <div class="text-xs font-semibold text-gray-400">
-          Split one CSV file into many CSV files
         </div>
-        <div class="mode-toggle ml-auto">
-          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1 w-24"
-            :class="{ active: mode === item.value }" @click="mode = item.value">
-            {{ item.label }}
-          </span>
+        <div class="header-text">
+          <h1>Split</h1>
+          <p>Split one CSV file into many files</p>
         </div>
       </div>
-    </SiliconeCard>
+    </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="flex flex-col gap-4">
-        <SiliconeCard>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              FILE SELECTION
+      <div class="split-main">
+        <div class="p-3">
+          <div class="file-selection-bar mb-4" @click="selectFile()">
+            <div class="file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="flex items-center">
-              <SiliconeButton @click="selectFile()" size="small" text>
-                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+            <div class="file-selection-text">
+              <template v-if="path">
+                <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="file-prompt">Click to select a CSV file</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="splitData()" :loading="loading" size="small">
+                Run
               </SiliconeButton>
-              <SiliconeButton @click="splitData()" :loading="loading" size="small" text>
-                <Icon icon="ri:play-large-line" class="w-4 h-4" />
-              </SiliconeButton>
             </div>
           </div>
 
-          <div v-if="path" class="mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-              SELECTED FILE
-            </div>
-            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
+          <div class="mode-toggle">
+            <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-1"
+              :class="{ active: mode === item.value }" @click="mode = item.value">
+              {{ item.label }}
+            </span>
           </div>
 
-          <div class="mb-4">
-            <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
-              SPLIT SIZE
-            </label>
-            <SiliconeInputNumber v-model="size" :min="1" placeholder="Enter split size" style="width: 100%" />
-            <p class="mt-1 text-[12px] text-gray-400">
-              Each output file will contain this many rows
-            </p>
-          </div>
-
-          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div class="flex items-start gap-2">
-              <Icon icon="ri:information-line" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div class="text-[12px] text-blue-700 dark:text-blue-300">
-                <span v-if="mode === 'rows'">
-                  Split by fixed number of rows per file
-                </span>
-                <span v-else-if="mode === 'lines'">
-                  Split by lines, the delimiter can be ignored
-                </span>
-              </div>
+          <div class="options-grid mt-4">
+            <div class="option-section">
+              <div class="option-label">SPLIT SIZE</div>
+              <SiliconeInputNumber v-model="size" :min="1" placeholder="Enter split size" class="w-full" />
             </div>
           </div>
 
-          <div class="mt-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-              STATISTICS
+          <div class="stats-grid mt-4 mb-4">
+            <div class="stat-card stat-blue">
+              <div class="stat-label">Rows/File</div>
+              <div class="stat-value">{{ size }}</div>
             </div>
-            <div class="flex gap-4">
-              <div
-                class="flex-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      TODO
-                    </div>
-                    <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                      Output Files
-                    </div>
-                  </div>
-                  <Icon icon="ri:file-copy-line" class="w-6 h-6 text-blue-500" />
-                </div>
-              </div>
-
-              <div
-                class="flex-1 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-green-600 dark:text-green-400">
-                      {{ size }}
-                    </div>
-                    <div class="text-[12px] text-green-600 dark:text-green-400">
-                      Rows/File
-                    </div>
-                  </div>
-                  <Icon icon="ri:table-line" class="w-6 h-6 text-green-500" />
-                </div>
-              </div>
-
-              <div
-                class="flex-1 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-gray-800 dark:text-white">
-                      TODO
-                    </div>
-                    <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                      Total Rows
-                    </div>
-                  </div>
-                  <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-                </div>
-              </div>
+            <div class="stat-card">
+              <div class="stat-label">Total Rows</div>
+              <div class="stat-value">TODO</div>
+            </div>
+            <div class="stat-card stat-green">
+              <div class="stat-label">Output Files</div>
+              <div class="stat-value">TODO</div>
             </div>
           </div>
-        </SiliconeCard>
 
-        <SiliconeCard>
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              PREVIEW
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
-                <Icon icon="ri:scissors-cut-line" class="w-3.5 h-3.5" />
-                Mode: {{ mode }}
-              </span>
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded">
-                <Icon icon="ri:hashtag" class="w-3.5 h-3.5" />
-                Size: {{ size }}
-              </span>
-            </div>
+          <div class="preview-header">
+            <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <span class="mode-badge">Mode: {{ mode }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
-            <SiliconeTable :data="tableData" :height="'400px'"
-              show-overflow-tooltip class="select-text">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
-                <div class="flex items-center justify-center gap-2">
-                  No data. Click
-                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-                  to select file.
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  No data. Click above to select file.
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
                 :key="column.prop" />
             </SiliconeTable>
           </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-            USAGE
-          </div>
-          <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click
-              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
-            </SiliconeText>
-            <SiliconeText type="info">2. Select split mode (Rows or Lines)</SiliconeText>
-            <SiliconeText type="info">3. Enter the split size (number of rows per file)</SiliconeText>
-            <SiliconeText type="info">4. Click
-              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the split process
-            </SiliconeText>
-            <SiliconeText type="info">5. Check the output log for details</SiliconeText>
-            <SiliconeText type="info">6. The split files will be created in the same directory as the original file
-            </SiliconeText>
-          </div>
-        </SiliconeCard>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -265,10 +171,240 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-:deep(.silicone-card) {
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  border-radius: 12px;
+  font-size: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  cursor: pointer;
+}
+
+.header-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.dark .header-text h1 {
+  color: #e8e8e8;
+}
+
+.header-text p {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dark .header-text p {
+  color: #999;
+}
+
+.split-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.file-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+}
+
+.dark .file-selection-bar {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #444;
+}
+
+.dark .file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.file-selection-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
+  border-radius: 10px;
+  font-size: 20px;
+  color: #666;
   flex-shrink: 0;
-  min-height: 0;
+}
+
+.dark .file-selection-icon {
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  color: #777;
+}
+
+.file-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .file-name {
+  color: #e0e0e0;
+}
+
+.file-path {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-prompt {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark .file-prompt {
+  color: #aaa;
+}
+
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 12px;
+  max-width: 240px;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: linear-gradient(145deg, #f5f5f5, #e8e8e8);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .stat-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stat-value {
+  color: #e0e0e0;
+}
+
+.stat-card.stat-blue .stat-value {
+  color: #409eff;
+}
+
+.stat-card.stat-green .stat-value {
+  color: #67c23a;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.dark .stat-label {
+  color: #999;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.dark .preview-title {
+  color: #999;
+}
+
+.mode-badge {
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dark .mode-badge {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
 }
 </style>

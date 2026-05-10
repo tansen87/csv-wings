@@ -100,7 +100,7 @@ onUnmounted(() => {
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="createIndex()" :loading="loading" size="small">
-                Create Index
+                Run
               </SiliconeButton>
             </div>
           </div>

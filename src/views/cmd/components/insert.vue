@@ -13,6 +13,7 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
+import { message } from "@/utils/message";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -46,12 +47,10 @@ async function selectFile() {
   if (path.value === null) {
     path.value = "";
     column.value = "";
-    addLog('File selection canceled', 'info');
     return;
   }
 
   totalRows.value = 0;
-  addLog(`Selected file: ${path.value}`, 'info');
 
   try {
     tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
@@ -67,10 +66,9 @@ async function selectFile() {
   }
 }
 
-// invoke insert
 async function insertData() {
   if (path.value === "") {
-    addLog("CSV file not selected", 'warning');
+    message("CSV file not selected", { type: 'warning' });
     return;
   }
 
@@ -104,233 +102,128 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
+    <div class="p-3">
+      <div class="header-content">
+        <div class="header-icon" @click="dialog = true">
           <Icon icon="ri:insert-column-right" />
-          Insert
-        </h1>
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-        <div class="text-xs font-semibold text-gray-400">
-          Insert columns through index
+        </div>
+        <div class="header-text">
+          <h1>Insert</h1>
+          <p>Insert columns at specified position</p>
         </div>
       </div>
-    </SiliconeCard>
+    </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="flex flex-col gap-4">
-        <SiliconeCard>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              FILE SELECTION
-            </div>
-            <div class="flex items-center">
-              <SiliconeButton @click="selectFile()" size="small" text>
-                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-              </SiliconeButton>
-              <SiliconeButton @click="insertData()" :loading="loading" size="small" text>
-                <Icon icon="ri:play-large-line" class="w-4 h-4" />
-              </SiliconeButton>
-            </div>
+      <div class="p-3">
+        <div class="file-selection-bar" @click="selectFile()">
+          <div class="file-selection-icon">
+            <Icon icon="ri:folder-open-line" />
+          </div>
+          <div class="file-selection-text">
+            <template v-if="path">
+              <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="file-path">{{ path }}</span>
+            </template>
+            <template v-else>
+              <span class="file-prompt">Click to select a CSV file</span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <SiliconeButton @click.stop="insertData()" :loading="loading" size="small">
+              Run
+            </SiliconeButton>
+          </div>
+        </div>
+
+        <div class="options-grid mt-4">
+          <div class="option-section">
+            <div class="option-label">TARGET COLUMN</div>
+            <SiliconeSelect v-model="column" filterable placeholder="Select column" class="w-full">
+              <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+            </SiliconeSelect>
           </div>
 
-          <div v-if="path" class="mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-              SELECTED FILE
-            </div>
-            <div class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-              <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-            </div>
+          <div class="option-section">
+            <div class="option-label">POSITION</div>
+            <SiliconeInput v-model="position" placeholder="left | right | 1 | 2..." class="w-full" />
           </div>
 
-          <div class="mb-4">
-            <div class="grid grid-cols-3 gap-4">
-              <div>
-                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-                  COLUMN
-                </div>
-                <SiliconeSelect v-model="column" filterable placeholder="Select column">
-                  <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
-                </SiliconeSelect>
-              </div>
+          <div class="option-section">
+            <div class="option-label">VALUES</div>
+            <SiliconeInput v-model="values" placeholder="1 | | CNY..." class="w-full" />
+          </div>
+        </div>
 
-              <div>
-                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-                  POSITION
-                </div>
-                <SiliconeTooltip content="left = before, right = after, or use index number">
-                  <SiliconeInput v-model="position" placeholder="left | right | 1 | 2..." />
-                </SiliconeTooltip>
-              </div>
+        <div class="preview-formula mt-4">
+          <span class="formula-label">Preview:</span>
+          <span class="formula-item">INSERT</span>
+          <span class="formula-operator">COL</span>
+          <span class="formula-item">{{ column || "column" }}</span>
+          <span class="formula-operator">@</span>
+          <span class="formula-item">{{ position || "left" }}</span>
+          <span class="formula-operator">=</span>
+          <span class="formula-item">{{ values ? values.split('|').length : 0 }} vals</span>
+        </div>
 
-              <div>
-                <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-                  VALUES
-                </div>
-                <SiliconeTooltip content="Use | to separate multiple values">
-                  <SiliconeInput v-model="values" placeholder="1 | | CNY..." />
-                </SiliconeTooltip>
-              </div>
+        <div class="insert-demo mt-4">
+          <div class="demo-row">
+            <div class="demo-label">BEFORE</div>
+            <div class="demo-items">
+              <span class="demo-item">A</span>
+              <span class="demo-item">B</span>
+              <span class="demo-item">C</span>
             </div>
           </div>
-
-          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
-              PREVIEW
-            </label>
-            <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Column:</span>
-                <span class="font-mono">{{ column || "-" }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Position:</span>
-                <span class="font-mono">{{ position || "left" }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Values:</span>
-                <span class="font-mono truncate max-w-[120px]">{{
-                  values || "-"
-                }}</span>
-              </div>
+          <div class="demo-arrow">
+            <Icon icon="ri:arrow-right-line" />
+          </div>
+          <div class="demo-row">
+            <div class="demo-label">AFTER</div>
+            <div class="demo-items">
+              <span class="demo-item">A</span>
+              <span class="demo-item insert-highlight">X</span>
+              <span class="demo-item">B</span>
+              <span class="demo-item">C</span>
             </div>
           </div>
+        </div>
 
-          <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-            <label class="text-xs font-semibold text-gray-400 tracking-wider block mb-2">
-              EXAMPLE
-            </label>
-            <div class="text-[10px] space-y-1">
-              <div class="flex items-center gap-1">
-                <span class="text-gray-500">Before:</span>
-                <span class="font-mono bg-white dark:bg-gray-600 px-1 rounded">A | B | C</span>
-              </div>
-              <div class="flex items-center gap-1">
-                <Icon icon="ri:arrow-down-line" class="w-3 h-3 text-gray-400" />
-              </div>
-              <div class="flex items-center gap-1">
-                <span class="text-gray-500">After:</span>
-                <span
-                  class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-1 rounded">A |
-                  X | B | C</span>
-              </div>
+        <div class="stats-grid mt-4 mb-4">
+          <div class="stats-card">
+            <div class="stats-icon">
+              <Icon icon="ri:database-line" />
+            </div>
+            <div class="stats-info">
+              <span class="stats-label">Total Rows</span>
+              <span class="stats-value">{{ totalRows }}</span>
             </div>
           </div>
-
-          <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
-              CONFIG
-            </label>
-            <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Skip rows:</span>
-                <span class="font-mono">{{ skiprows.skiprows }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Quoting:</span>
-                <span class="font-mono">{{ quoting.quoting }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Flexible:</span>
-                <span class="font-mono">{{ flexible.flexible }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">Progress:</span>
-                <span class="font-mono">{{ progress.progress }}</span>
-              </div>
+          <div class="stats-card blue">
+            <div class="stats-icon">
+              <Icon icon="ri:scan-line" />
+            </div>
+            <div class="stats-info">
+              <span class="stats-label">Progress</span>
             </div>
           </div>
+        </div>
 
-          <div class="mt-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-              STATISTICS
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-gray-800 dark:text-white">
-                      {{ totalRows }}
-                    </div>
-                    <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                      Total Rows
-                    </div>
-                  </div>
-                  <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-                </div>
+        <div class="preview-header">
+          <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows x {{ tableColumn?.length || 0 }}
+            cols)</span>
+          <span class="mode-badge">INSERT @ {{ position || "left" }}</span>
+        </div>
+        <div class="overflow-hidden rounded-lg">
+          <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+            <template #empty>
+              <div class="flex items-center justify-center gap-2 text-gray-500">
+                No data. Click above to select file.
               </div>
-
-              <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {{ currentRows }}
-                    </div>
-                    <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                      Scanned Rows
-                    </div>
-                  </div>
-                  <div class="relative w-6 h-6 flex items-center justify-center">
-                    <Icon v-if="totalRows === 0 || !isFinite(currentRows / totalRows)" icon="ri:scan-line"
-                      class="w-6 h-6 text-blue-500" />
-                    <SiliconeProgress v-else :percentage="Math.round((currentRows / totalRows) * 100)" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              DATA PREVIEW
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
-                <Icon icon="ri:pin-distance-line" class="w-3.5 h-3.5" />
-                {{ position || "left" }}
-              </span>
-            </div>
-          </div>
-          <div class="overflow-hidden rounded-lg">
-            <SiliconeTable :data="tableData" :height="'400px'"
-              show-overflow-tooltip class="select-text">
-              <template #empty>
-                <div class="flex items-center justify-center gap-2">
-                  No data. Click
-                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-                  to select file.
-                </div>
-              </template>
-              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
-                :key="column.prop" />
-            </SiliconeTable>
-          </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-            USAGE
-          </div>
-          <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click
-              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
-            </SiliconeText>
-            <SiliconeText type="info">2. Select the target column to insert relative to</SiliconeText>
-            <SiliconeText type="info">3. Specify the position (left, right, or index number)</SiliconeText>
-            <SiliconeText type="info">4. Enter values to insert, separated by |</SiliconeText>
-            <SiliconeText type="info">5. Review the configuration details</SiliconeText>
-            <SiliconeText type="info">6. Click
-              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the insert operation
-            </SiliconeText>
-            <SiliconeText type="info">7. Check the output log for details</SiliconeText>
-            <SiliconeText type="info">8. The output file will be created in the same directory as the original file
-            </SiliconeText>
-          </div>
-        </SiliconeCard>
+            </template>
+            <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
+          </SiliconeTable>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -343,10 +236,374 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-:deep(.silicone-card) {
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  border-radius: 12px;
+  font-size: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  cursor: pointer;
+}
+
+.header-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.dark .header-text h1 {
+  color: #e8e8e8;
+}
+
+.header-text p {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dark .header-text p {
+  color: #999;
+}
+
+.file-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+}
+
+.dark .file-selection-bar {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #444;
+}
+
+.dark .file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.file-selection-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
+  border-radius: 10px;
+  font-size: 20px;
+  color: #666;
   flex-shrink: 0;
-  min-height: 0;
+}
+
+.dark .file-selection-icon {
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  color: #777;
+}
+
+.file-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .file-name {
+  color: #e0e0e0;
+}
+
+.file-path {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-prompt {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark .file-prompt {
+  color: #aaa;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #ecfdf5, #d1fae5);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #1a2e25, #172219);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #34d399;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.insert-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 10px;
+}
+
+.dark .insert-demo {
+  background: var(--el-fill-color-dark, #2a2a2a);
+}
+
+.demo-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demo-items {
+  display: flex;
+  gap: 4px;
+}
+
+.demo-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .demo-item {
+  background: #3a3a3a;
+  color: #aaa;
+  border-color: #444;
+}
+
+.demo-item.insert-highlight {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #10b981;
+  border-color: #6ee7b7;
+}
+
+.dark .demo-item.insert-highlight {
+  background: linear-gradient(135deg, #1a2e25, #172219);
+  color: #34d399;
+  border-color: #065f46;
+}
+
+.demo-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #888;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stats-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .stats-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #3a3a3a;
+}
+
+.stats-card.blue {
+  background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+  border-color: #bae6fd;
+}
+
+.dark .stats-card.blue {
+  background: linear-gradient(145deg, #1e3a5f, #172554);
+  border-color: #1e40af;
+}
+
+.stats-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 8px;
+  font-size: 18px;
+  color: #666;
+}
+
+.dark .stats-icon {
+  background: #3a3a3a;
+  color: #999;
+}
+
+.stats-card.blue .stats-icon {
+  color: #0ea5e9;
+}
+
+.dark .stats-card.blue .stats-icon {
+  color: #38bdf8;
+}
+
+.stats-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stats-value {
+  color: #e8e8e8;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: #888;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.dark .preview-title {
+  color: #999;
+}
+
+.mode-badge {
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dark .mode-badge {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 768px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -13,6 +13,7 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
+import { message } from "@/utils/message";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -47,10 +48,8 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
-    addLog('File selection cancelled', 'info');
     return;
   }
-  addLog(`Selected file: ${path.value}`, 'info');
 
   totalRows.value = 0;
 
@@ -61,24 +60,22 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-    addLog(`Preview loaded: ${tableData.value.length} rows`, 'success');
   } catch (e) {
     addLog(`Failed to load file: ${e}`, 'error');
   }
 }
 
-// invoke enumer
 async function enumerate() {
   if (path.value === "") {
-    addLog("File not selected", 'warning');
+    message("File not selected", { type: 'warning' });
     return;
   }
   if (parseInt(start.value) < 0) {
-    addLog("start must be greater than 0", 'warning');
+    message("start must be greater than 0", { type: 'warning' });
     return;
   }
   if (parseInt(step.value) < 1) {
-    addLog("step must be greater than 1", 'warning');
+    message("step must be greater than 1", { type: 'warning' });
     return;
   }
 
@@ -110,185 +107,100 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
+    <div class="p-3">
+      <div class="header-content">
+        <div class="header-icon" @click="dialog = true">
           <Icon icon="ri:sort-number-asc" />
-          Enumerate
-        </h1>
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-        <div class="text-xs font-semibold text-gray-400">
-          Add a new column enumerating the lines of a CSV
+        </div>
+        <div class="header-text">
+          <h1>Enumerate</h1>
+          <p>Add a column enumerating the lines</p>
         </div>
       </div>
-    </SiliconeCard>
+    </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="flex flex-col gap-4">
-        <SiliconeCard>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              FILE SELECTION
+      <div class="enumerate-main">
+        <div class="p-3">
+          <div class="file-selection-bar" @click="selectFile()">
+            <div class="file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="flex items-center">
-              <SiliconeButton @click="selectFile()" size="small" text>
-                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-              </SiliconeButton>
-              <SiliconeButton @click="enumerate()" :loading="loading" size="small" text>
-                <Icon icon="ri:play-large-line" class="w-4 h-4" />
+            <div class="file-selection-text">
+              <template v-if="path">
+                <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="file-prompt">Click to select a CSV file</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="enumerate()" :loading="loading" size="small">
+                Run
               </SiliconeButton>
             </div>
           </div>
 
-          <div v-if="path" class="mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-              SELECTED FILE
-            </div>
-            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
-          </div>
-
-          <div class="flex gap-4 mb-4">
-            <div class="flex-1">
-              <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
-                COLUMN NAME
-              </label>
+          <div class="options-grid mt-4">
+            <div class="option-section">
+              <div class="option-label">COLUMN NAME</div>
               <SiliconeInput v-model="name" placeholder="column name" class="w-full" />
             </div>
 
-            <div class="flex-1">
-              <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
-                START
-              </label>
-              <SiliconeInput v-model="start" placeholder="start" class="w-full" />
-              <p class="mt-1 text-[10px] text-gray-400">
-                The first row will have this value
-              </p>
-            </div>
-
-            <div class="flex-1">
-              <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
-                STEP
-              </label>
-              <SiliconeInput v-model="step" placeholder="step" class="w-full" />
-              <p class="mt-1 text-[10px] text-gray-400">
-                Increment value for each row
-              </p>
-            </div>
-          </div>
-
-          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <label class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">
-              PREVIEW
-            </label>
-            <div class="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300 flex-wrap">
-              <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-                {{ name || "row_number" }}
-              </span>
-              <span>=</span>
-              <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-                {{ parseInt(start) || 0 }}
-              </span>
-              <span>,</span>
-              <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-                {{ (parseInt(start) || 0) + (parseInt(step) || 1) }}
-              </span>
-              <span>,</span>
-              <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-                {{ (parseInt(start) || 0) + 2 * (parseInt(step) || 1) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="mt-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-              STATISTICS
-            </div>
-            <div class="flex gap-4">
-              <div
-                class="flex-1 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-gray-800 dark:text-white">
-                      {{ totalRows }}
-                    </div>
-                    <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                      Total Rows
-                    </div>
-                  </div>
-                  <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+            <div class="option-section">
+              <div class="option-label">START & STEP</div>
+              <div class="flex gap-4">
+                <div class="flex-1">
+                  <SiliconeInput v-model="start" placeholder="start" class="w-full" />
                 </div>
-              </div>
-
-              <div
-                class="flex-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {{ currentRows }}
-                    </div>
-                    <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                      Scanned Rows
-                    </div>
-                  </div>
-                  <div class="relative w-6 h-6 flex items-center justify-center">
-                    <Icon v-if="totalRows === 0 || !isFinite(currentRows / totalRows)" icon="ri:scan-line"
-                      class="w-6 h-6 text-blue-500" />
-                    <SiliconeProgress v-else :percentage="Math.round((currentRows / totalRows) * 100)" />
-                  </div>
+                <div class="flex-1">
+                  <SiliconeInput v-model="step" placeholder="step" class="w-full" />
                 </div>
               </div>
             </div>
-          </div>
-        </SiliconeCard>
 
-        <SiliconeCard>
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              PREVIEW
+            <div class="preview-formula">
+              <span class="formula-label">Preview:</span>
+              <span class="formula-item">{{ name || "row_number" }}</span>
+              <span class="formula-operator">=</span>
+              <span class="formula-item">{{ parseInt(start) || 0 }}</span>
+              <span class="formula-operator">,</span>
+              <span class="formula-item">{{ (parseInt(start) || 0) + (parseInt(step) || 1) }}</span>
+              <span class="formula-operator">,</span>
+              <span class="formula-item">{{ (parseInt(start) || 0) + 2 * (parseInt(step) || 1) }}</span>
+              <span class="formula-operator">...</span>
             </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
-                <Icon icon="ri:sort-number-asc" class="w-3.5 h-3.5" />
-                {{ name || "row_number" }}: {{ start || 0 }} + {{ step || 1 }}
-              </span>
+          </div>
+
+          <div class="stats-grid mt-4 mb-4">
+            <div class="stat-card">
+              <div class="stat-label">Total Rows</div>
+              <div class="stat-value">{{ totalRows }}</div>
             </div>
+            <div class="stat-card stat-blue">
+              <div class="stat-label">Progress</div>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
+            </div>
+          </div>
+
+          <div class="preview-header">
+            <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <span class="mode-badge">{{ name || "row_number" }}: {{ start || 0 }} + {{ step || 1 }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
-            <SiliconeTable :data="tableData" :height="'400px'" show-overflow-tooltip class="select-text">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
-                <div class="flex items-center justify-center gap-2">
-                  No data. Click
-                  <Icon icon="ri:folder-open-line" class="w-4 h-4" />
-                  to select file.
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  No data. Click above to select file.
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
                 :key="column.prop" />
             </SiliconeTable>
           </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-            USAGE
-          </div>
-          <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click
-              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
-            </SiliconeText>
-            <SiliconeText type="info">2. Enter the column name for the enumeration</SiliconeText>
-            <SiliconeText type="info">3. Set the starting value for the enumeration</SiliconeText>
-            <SiliconeText type="info">4. Set the step value for incrementing each row</SiliconeText>
-            <SiliconeText type="info">5. Review the preview to confirm the enumeration pattern</SiliconeText>
-            <SiliconeText type="info">6. Click
-              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the enumerate process
-            </SiliconeText>
-            <SiliconeText type="info">7. Check the output log for details</SiliconeText>
-            <SiliconeText type="info">8. The output file will be created in the same directory as the original file
-            </SiliconeText>
-          </div>
-        </SiliconeCard>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -301,10 +213,271 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-:deep(.silicone-card) {
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  border-radius: 12px;
+  font-size: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  cursor: pointer;
+}
+
+.header-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.dark .header-text h1 {
+  color: #e8e8e8;
+}
+
+.header-text p {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dark .header-text p {
+  color: #999;
+}
+
+.enumerate-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.file-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+}
+
+.dark .file-selection-bar {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #444;
+}
+
+.dark .file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.file-selection-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
+  border-radius: 10px;
+  font-size: 20px;
+  color: #666;
   flex-shrink: 0;
-  min-height: 0;
+}
+
+.dark .file-selection-icon {
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  color: #777;
+}
+
+.file-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .file-name {
+  color: #e0e0e0;
+}
+
+.file-path {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-prompt {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark .file-prompt {
+  color: #aaa;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #409eff;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #66b1ff;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: linear-gradient(145deg, #f5f5f5, #e8e8e8);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .stat-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stat-value {
+  color: #e0e0e0;
+}
+
+.stat-card.stat-blue .stat-value {
+  color: #409eff;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.dark .stat-label {
+  color: #999;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.dark .preview-title {
+  color: #999;
+}
+
+.mode-badge {
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dark .mode-badge {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
 }
 </style>

@@ -91,7 +91,7 @@ export const useCommandStore = defineStore("command", {
       },
       {
         title: "Slice",
-        icon: "ri:timeline-view",
+        icon: "ri:crop-line",
         description: "Returns rows of a CSV file in the specified range",
         route: "/cmd/components/slice"
       },
@@ -133,7 +133,7 @@ export const useCommandStore = defineStore("command", {
       },
       {
         title: "String",
-        icon: "ri:formula",
+        icon: "ri:text",
         description: "String expr: slice, split, pad...",
         route: "/cmd/components/string"
       },

@@ -5,6 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { previewtNLines, viewOpenFile } from "@/utils/view";
 import { useMarkdown, mdSkip } from "@/utils/markdown";
+import { message } from "@/utils/message";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -30,10 +31,8 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
-    addLog('File selection cancelled', 'info');
     return;
   }
-  addLog(`Selected file: ${path.value}`, 'info');
 
   try {
     const rawLines = await previewtNLines(path.value, 50);
@@ -46,10 +45,9 @@ async function selectFile() {
   }
 }
 
-// invoke skip
 async function skipLines() {
   if (path.value === "") {
-    addLog("CSV file not selected", 'warning');
+    message("CSV file not selected", { type: 'warning' });
     return;
   }
 
@@ -76,7 +74,6 @@ const handleLineNumberScroll = () => {
 
   const scrollTop = lineNumberRef.value?.scrollTop ?? 0;
 
-  // 设置el-scrollbar内部容器的滚动
   if (codeScrollbarRef.value.wrapRef) {
     codeScrollbarRef.value.wrapRef.scrollTop = scrollTop;
   }
@@ -89,13 +86,11 @@ const handleCodeScroll = (event: any) => {
   if (isSyncing || !lineNumberRef.value) return;
   isSyncing = true;
 
-  // 获取代码区域的滚动顶部距离
   const scrollTop =
     event?.scrollTop ?? codeScrollbarRef.value?.wrapRef?.scrollTop ?? 0;
 
   lineNumberRef.value.scrollTop = scrollTop;
 
-  // 下一帧释放锁
   requestAnimationFrame(() => {
     isSyncing = false;
   });
@@ -109,77 +104,53 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-full overflow-hidden">
-    <SiliconeCard class="p-4 m-4 rounded-md flex-shrink-0">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-bold flex items-center gap-2" @click="dialog = true">
-          <Icon icon="ri:skip-forward-line" />
-          Skip
-        </h1>
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-        <div class="text-xs font-semibold text-gray-400">
-          Skip lines from CSV
+    <div class="p-3">
+      <div class="header-content">
+        <div class="header-icon" @click="dialog = true">
+          <Icon icon="ri:skip-up-line" />
+        </div>
+        <div class="header-text">
+          <h1>Skip</h1>
+          <p>Skip lines from CSV</p>
         </div>
       </div>
-    </SiliconeCard>
+    </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="flex flex-col gap-4">
-        <SiliconeCard>
-          <div class="flex justify-between items-center mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              FILE SELECTION
+      <div class="skip-main">
+        <div class="p-3">
+          <div class="file-selection-bar" @click="selectFile()">
+            <div class="file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="flex items-center">
-              <SiliconeButton @click="selectFile()" size="small" text>
-                <Icon icon="ri:folder-open-line" class="w-4 h-4" />
+            <div class="file-selection-text">
+              <template v-if="path">
+                <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="file-prompt">Click to select a CSV file</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="skipLines()" :loading="loading" size="small">
+                Run
               </SiliconeButton>
-              <SiliconeButton @click="skipLines()" :loading="loading" size="small" text>
-                <Icon icon="ri:play-large-line" class="w-4 h-4" />
-              </SiliconeButton>
             </div>
           </div>
 
-          <div v-if="path" class="mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider mb-2">
-              SELECTED FILE
+          <div class="options-grid mt-4 mb-4">
+            <div class="option-section">
+              <div class="option-label">SKIP LINES</div>
+              <SiliconeInput v-model="skiprows" placeholder="e.g. 10" clearable class="w-full" />
             </div>
-            <SiliconeText :max-lines="1" class="mb-2">{{ path }}</SiliconeText>
           </div>
 
-          <div class="mb-4">
-            <label class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block">
-              SKIP LINES
-            </label>
-            <SiliconeInput v-model="skiprows" placeholder="e.g. 10" clearable class="w-full" />
-            <p class="mt-1 text-[10px] text-gray-400">
-              Skip this many rows from the beginning of each file
-            </p>
+          <div class="preview-header">
+            <span class="preview-title">PREVIEW ({{ lines?.length || 0 }} lines)</span>
+            <span class="mode-badge">Skip: {{ skiprows }} lines</span>
           </div>
-
-          <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div class="flex items-start gap-2">
-              <Icon icon="ri:information-line" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div class="text-[12px] text-blue-700 dark:text-blue-300">
-                Useful for skipping header rows or metadata at the start of CSV file
-              </div>
-            </div>
-          </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              PREVIEW
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded">
-                <Icon icon="ri:skip-forward-line" class="w-3.5 h-3.5" />
-                Skipping: {{ skiprows }} lines
-              </span>
-            </div>
-          </div>
-          <div class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden h-[400px]">
+          <div class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden h-[350px]">
             <div class="line-number-wrapper" ref="lineNumberRef" @scroll="handleLineNumberScroll">
               <div class="line-number-container">
                 <div v-for="line in lines" :key="line.number" class="line-number-row">
@@ -198,26 +169,7 @@ onUnmounted(() => {
               </div>
             </el-scrollbar>
           </div>
-        </SiliconeCard>
-
-        <SiliconeCard>
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-4">
-            USAGE
-          </div>
-          <div class="flex flex-col gap-2">
-            <SiliconeText type="info">1. Click
-              <Icon icon="ri:folder-open-line" class="w-4 h-4 inline align-middle" /> to select a CSV file
-            </SiliconeText>
-            <SiliconeText type="info">2. Enter the number of lines to skip</SiliconeText>
-            <SiliconeText type="info">3. Review the preview to confirm which lines will be skipped</SiliconeText>
-            <SiliconeText type="info">4. Click
-              <Icon icon="ri:play-large-line" class="w-4 h-4 inline align-middle" /> to start the skip process
-            </SiliconeText>
-            <SiliconeText type="info">5. Check the output log for details</SiliconeText>
-            <SiliconeText type="info">6. The output file will be created in the same directory as the original file
-            </SiliconeText>
-          </div>
-        </SiliconeCard>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -230,11 +182,183 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-:deep(.silicone-card) {
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  border-radius: 12px;
+  font-size: 24px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  cursor: pointer;
+}
+
+.header-text h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.dark .header-text h1 {
+  color: #e8e8e8;
+}
+
+.header-text p {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.dark .header-text p {
+  color: #999;
+}
+
+.skip-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.file-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+}
+
+.dark .file-selection-bar {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #444;
+}
+
+.dark .file-selection-bar:hover {
+  border-color: #409eff;
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.file-selection-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
+  border-radius: 10px;
+  font-size: 20px;
+  color: #666;
   flex-shrink: 0;
-  min-height: 0;
+}
+
+.dark .file-selection-icon {
+  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
+  color: #777;
+}
+
+.file-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .file-name {
+  color: #e0e0e0;
+}
+
+.file-path {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-prompt {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.dark .file-prompt {
+  color: #aaa;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.dark .preview-title {
+  color: #999;
+}
+
+.mode-badge {
+  font-size: 12px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.dark .mode-badge {
+  color: #999;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .content-area {
@@ -261,7 +385,7 @@ onUnmounted(() => {
   scrollbar-width: none;
 }
 
-:deep(.dark) .line-number-wrapper {
+.dark .line-number-wrapper {
   background: #252525;
   border-right: 1px solid #404040;
 }
@@ -289,7 +413,7 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
-:deep(.dark) .line-number {
+.dark .line-number {
   color: #6b6b6b;
 }
 
@@ -300,7 +424,7 @@ onUnmounted(() => {
   background: #fff;
 }
 
-:deep(.dark) .code-content-wrapper {
+.dark .code-content-wrapper {
   background: #1e1e1e;
 }
 
@@ -316,7 +440,7 @@ onUnmounted(() => {
   background: #f5f7fa;
 }
 
-:deep(.dark) .line-row:hover {
+.dark .line-row:hover {
   background: #3d3d3d;
 }
 
@@ -331,7 +455,7 @@ onUnmounted(() => {
   color: #303133;
 }
 
-:deep(.dark) .line-content {
+.dark .line-content {
   color: #e0e0e0;
 }
 </style>
