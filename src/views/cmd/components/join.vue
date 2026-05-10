@@ -120,7 +120,7 @@ onUnmounted(() => {
     </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="join-main">
+      <div class="cmd-main">
         <div class="p-3">
           <div class="files-section">
             <div class="files-header">
@@ -328,13 +328,6 @@ onUnmounted(() => {
 
 .dark .header-text p {
   color: #999;
-}
-
-.join-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 .files-section {

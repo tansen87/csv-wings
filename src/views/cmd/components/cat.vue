@@ -8,6 +8,7 @@ import { mdCat, useMarkdown } from "@/utils/markdown";
 import { trimOpenFile } from "@/utils/view";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -222,11 +223,11 @@ onUnmounted(() => {
 <template>
   <div class="flex flex-col h-full overflow-hidden">
     <div class="p-3">
-      <div class="header-content">
-        <div class="header-icon" @click="dialog = true">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:merge-cells-vertical" />
         </div>
-        <div class="header-text">
+        <div class="cmd-header-text">
           <h1>Cat</h1>
           <p>Merge CSV or Excel files</p>
         </div>
@@ -234,18 +235,18 @@ onUnmounted(() => {
     </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="cat-main">
+      <div class="cmd-main">
         <div class="p-3">
-          <div class="file-selection-bar mb-4" @click="openFile()">
-            <div class="file-selection-icon">
+          <div class="cmd-file-selection-bar mb-4" @click="openFile()">
+            <div class="cmd-file-selection-icon">
               <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="file-selection-text">
+            <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="file-name">{{ fileSelect.length }} file(s) selected</span>
+                <span class="cmd-file-name">{{ fileSelect.length }} file(s) selected</span>
               </template>
               <template v-else>
-                <span class="file-prompt">Click to select files</span>
+                <span class="cmd-file-prompt">Click to select files</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
@@ -255,26 +256,28 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="mode-toggle py-1">
-            <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5"
-              :class="{ active: mode === item.value }" @click="mode = item.value">
-              {{ item.label }}
-            </span>
+          <div class="flex justify-center">
+            <div class="cmd-mode-toggle py-1">
+              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-28"
+                :class="{ active: mode === item.value }" @click="mode = item.value">
+                {{ item.label }}
+              </span>
+            </div>
           </div>
 
-          <div v-if="mode === 'excel'" class="mb-4 mt-4">
+          <div v-if="mode === 'excel'" class="mb-4 mt-4 flex justify-center">
             <SiliconeTooltip content="Merge all sheets or select one per file" placement="right">
-              <div class="mode-toggle">
+              <div class="cmd-mode-toggle py-1">
                 <span v-for="item in sheetsOptions" :key="String(item.value)" @click="allSheets = item.value"
-                  class="mode-item mx-0.5" :class="{ active: allSheets === item.value }">
+                  class="cmd-mode-item mx-0.5 w-28" :class="{ active: allSheets === item.value }">
                   {{ item.label }}
                 </span>
               </div>
             </SiliconeTooltip>
           </div>
 
-          <div class="preview-header mt-4">
-            <span class="preview-title">FILE LIST ({{ fileSelect.length }})</span>
+          <div class="cmd-preview-header mt-4">
+            <span class="cmd-preview-title">FILE LIST ({{ fileSelect.length }})</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="fileSelect" :height="'300px'" show-overflow-tooltip :row-style="{ height: '40px' }"
@@ -322,162 +325,3 @@ onUnmounted(() => {
     </SiliconeDialog>
   </div>
 </template>
-
-<style scoped>
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #409eff, #66b1ff);
-  border-radius: 12px;
-  font-size: 24px;
-  color: white;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-  cursor: pointer;
-}
-
-.header-text h1 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #333;
-  margin: 0 0 4px 0;
-}
-
-.dark .header-text h1 {
-  color: #e8e8e8;
-}
-
-.header-text p {
-  font-size: 13px;
-  color: #888;
-  margin: 0;
-}
-
-.dark .header-text p {
-  color: #999;
-}
-
-.cat-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.file-selection-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
-  border: 2px dashed #ddd;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.file-selection-bar:hover {
-  border-color: #409eff;
-  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
-}
-
-.dark .file-selection-bar {
-  background: linear-gradient(145deg, #2a2a2a, #222);
-  border-color: #444;
-}
-
-.dark .file-selection-bar:hover {
-  border-color: #409eff;
-  background: linear-gradient(145deg, #1e2a3a, #1a2535);
-}
-
-.file-selection-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
-  border-radius: 10px;
-  font-size: 20px;
-  color: #666;
-  flex-shrink: 0;
-}
-
-.dark .file-selection-icon {
-  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
-  color: #777;
-}
-
-.file-selection-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-  flex: 1;
-}
-
-.file-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-.dark .file-name {
-  color: #e0e0e0;
-}
-
-.file-path {
-  font-size: 12px;
-  color: #999;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-prompt {
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.dark .file-prompt {
-  color: #aaa;
-}
-
-.mode-toggle {
-  display: flex;
-  justify-content: center;
-  margin: 0 auto;
-  background: var(--el-fill-color-light, #f5f7fa);
-  border-radius: 12px;
-  max-width: 200px;
-}
-
-.mode-item {
-  text-align: center;
-}
-
-.preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.preview-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-</style>

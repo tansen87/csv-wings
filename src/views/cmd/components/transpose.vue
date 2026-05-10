@@ -90,11 +90,11 @@ onUnmounted(() => {
 <template>
   <div class="flex flex-col h-full overflow-hidden">
     <div class="p-3">
-      <div class="header-content">
-        <div class="header-icon" @click="dialog = true">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:loop-left-line" />
         </div>
-        <div class="header-text">
+        <div class="cmd-header-text">
           <h1>Transpose</h1>
           <p>Transpose rows and columns of a CSV</p>
         </div>
@@ -103,17 +103,17 @@ onUnmounted(() => {
 
     <el-scrollbar class="flex-1 min-h-0">
       <div class="p-3">
-        <div class="file-selection-bar mb-4" @click="selectFile()">
-          <div class="file-selection-icon">
+        <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+          <div class="cmd-file-selection-icon">
             <Icon icon="ri:folder-open-line" />
           </div>
-          <div class="file-selection-text">
+          <div class="cmd-file-selection-text">
             <template v-if="path">
-              <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
-              <span class="file-path">{{ path }}</span>
+              <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="cmd-file-path">{{ path }}</span>
             </template>
             <template v-else>
-              <span class="file-prompt">Click to select a CSV file</span>
+              <span class="cmd-file-prompt">Click to select a CSV file</span>
             </template>
           </div>
           <div class="flex items-center gap-2 ml-auto">
@@ -123,11 +123,13 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="mode-toggle py-1">
-          <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5"
-            :class="{ active: mode === item.value }" @click="mode = item.value">
-            {{ item.label }}
-          </span>
+        <div class="flex justify-center">
+          <div class="cmd-mode-toggle py-1">
+            <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-24"
+              :class="{ active: mode === item.value }" @click="mode = item.value">
+              {{ item.label }}
+            </span>
+          </div>
         </div>
 
         <div class="preview-formula mt-4">
@@ -168,10 +170,10 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="preview-header">
-          <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows × {{ tableColumn?.length || 0 }}
+        <div class="cmd-preview-header">
+          <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows × {{ tableColumn?.length || 0 }}
             cols)</span>
-          <span class="mode-badge">{{ mode }}</span>
+          <span class="cmd-mode-badge">{{ mode }}</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
@@ -195,137 +197,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #409eff, #66b1ff);
-  border-radius: 12px;
-  font-size: 24px;
-  color: white;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-  cursor: pointer;
-}
-
-.header-text h1 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #333;
-  margin: 0 0 4px 0;
-}
-
-.dark .header-text h1 {
-  color: #e8e8e8;
-}
-
-.header-text p {
-  font-size: 13px;
-  color: #888;
-  margin: 0;
-}
-
-.dark .header-text p {
-  color: #999;
-}
-
-.file-selection-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
-  border: 2px dashed #ddd;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.file-selection-bar:hover {
-  border-color: #409eff;
-  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
-}
-
-.dark .file-selection-bar {
-  background: linear-gradient(145deg, #2a2a2a, #222);
-  border-color: #444;
-}
-
-.dark .file-selection-bar:hover {
-  border-color: #409eff;
-  background: linear-gradient(145deg, #1e2a3a, #1a2535);
-}
-
-.file-selection-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
-  border-radius: 10px;
-  font-size: 20px;
-  color: #666;
-  flex-shrink: 0;
-}
-
-.dark .file-selection-icon {
-  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
-  color: #777;
-}
-
-.file-selection-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-  flex: 1;
-}
-
-.file-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-.dark .file-name {
-  color: #e0e0e0;
-}
-
-.file-path {
-  font-size: 12px;
-  color: #999;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-prompt {
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.dark .file-prompt {
-  color: #aaa;
-}
-
-.mode-toggle {
-  display: flex;
-  justify-content: center;
-  margin: 0 auto;
-  background: var(--el-fill-color-light, #f5f7fa);
-  border-radius: 12px;
-  max-width: 200px;
-}
-
 .preview-formula {
   display: flex;
   align-items: center;
@@ -447,35 +318,5 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 20px;
   color: #888;
-}
-
-.preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.preview-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #666;
-}
-
-.dark .preview-title {
-  color: #999;
-}
-
-.mode-badge {
-  font-size: 12px;
-  color: #666;
-  background: rgba(0, 0, 0, 0.05);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.dark .mode-badge {
-  color: #999;
-  background: rgba(255, 255, 255, 0.05);
 }
 </style>

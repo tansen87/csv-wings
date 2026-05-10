@@ -7,6 +7,7 @@ import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdDedup, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -109,11 +110,11 @@ onUnmounted(() => {
 <template>
   <div class="flex flex-col h-full overflow-hidden">
     <div class="p-3">
-      <div class="header-content">
-        <div class="header-icon" @click="dialog = true">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:table-alt-fill" />
         </div>
-        <div class="header-text">
+        <div class="cmd-header-text">
           <h1>Dedup</h1>
           <p>Remove duplicate rows based on selected columns</p>
         </div>
@@ -121,19 +122,19 @@ onUnmounted(() => {
     </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="dedup-main">
+      <div class="cmd-main">
         <div class="p-3">
-          <div class="file-selection-bar mb-4" @click="selectFile()">
-            <div class="file-selection-icon">
+          <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
               <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="file-selection-text">
+            <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="file-name">{{ path.split(/[/\\]/).pop() }}</span>
-                <span class="file-path">{{ path }}</span>
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">Click to select a CSV file</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
@@ -143,24 +144,26 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="mode-toggle py-1">
-            <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5"
-              :class="{ active: mode === item.value }" @click="mode = item.value">
-              {{ item.label }}
-            </span>
+          <div class="flex justify-center">
+            <div class="cmd-mode-toggle py-1">
+              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-28"
+                :class="{ active: mode === item.value }" @click="mode = item.value">
+                {{ item.label }}
+              </span>
+            </div>
           </div>
 
-          <div class="options-grid mt-4">
-            <div class="option-section">
-              <div class="option-label">COLUMNS ({{ columns.length }})</div>
+          <div class="cmd-options-grid mt-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">COLUMNS ({{ columns.length }})</div>
               <SiliconeSelect v-model="columns" multiple filterable placeholder="Select columns (empty = all)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
-            <div class="option-section">
-              <div class="option-label">SORTED</div>
-              <div class="mode-toggle-inline">
-                <span v-for="item in sortedOptions" :key="String(item.value)" class="toggle-item"
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">SORTED</div>
+              <div class="cmd-mode-toggle-inline">
+                <span v-for="item in sortedOptions" :key="String(item.value)" class="cmd-toggle-item"
                   :class="{ active: sorted === item.value }" @click="sorted = item.value">
                   {{ item.label }}
                 </span>
@@ -184,17 +187,17 @@ onUnmounted(() => {
           </div>
 
           <div v-if="outputRows > 0" class="stats-box mt-4">
-            <div class="stat-value" :class="mode === 'keep_duplicates' ? 'text-orange-500' : 'text-green-500'">
+            <div class="cmd-stat-value" :class="mode === 'keep_duplicates' ? 'text-orange-500' : 'text-green-500'">
               {{ outputRows }}
             </div>
-            <div class="stat-label">
+            <div class="cmd-stat-label">
               {{ mode === "keep_duplicates" ? "Duplicate Rows" : "Unique Rows Kept" }}
             </div>
           </div>
 
           <div class="mt-4">
-            <div class="preview-header">
-              <span class="preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <div class="cmd-preview-header">
+              <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
             </div>
             <div class="overflow-hidden rounded-lg">
               <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
@@ -221,221 +224,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #409eff, #66b1ff);
-  border-radius: 12px;
-  font-size: 24px;
-  color: white;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-  cursor: pointer;
-}
-
-.header-text h1 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #333;
-  margin: 0 0 4px 0;
-}
-
-.dark .header-text h1 {
-  color: #e8e8e8;
-}
-
-.header-text p {
-  font-size: 13px;
-  color: #888;
-  margin: 0;
-}
-
-.dark .header-text p {
-  color: #999;
-}
-
-.dedup-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.file-selection-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
-  border: 2px dashed #ddd;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.file-selection-bar:hover {
-  border-color: #409eff;
-  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
-}
-
-.dark .file-selection-bar {
-  background: linear-gradient(145deg, #2a2a2a, #222);
-  border-color: #444;
-}
-
-.dark .file-selection-bar:hover {
-  border-color: #409eff;
-  background: linear-gradient(145deg, #1e2a3a, #1a2535);
-}
-
-.file-selection-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, #e8e8e8, #d8d8d8);
-  border-radius: 10px;
-  font-size: 20px;
-  color: #666;
-  flex-shrink: 0;
-}
-
-.dark .file-selection-icon {
-  background: linear-gradient(145deg, #3a3a3a, #2d2d2d);
-  color: #777;
-}
-
-.file-selection-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-  flex: 1;
-}
-
-.file-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
-
-.dark .file-name {
-  color: #e0e0e0;
-}
-
-.file-path {
-  font-size: 12px;
-  color: #999;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-prompt {
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.dark .file-prompt {
-  color: #aaa;
-}
-
-.mode-toggle {
-  display: flex;
-  justify-content: center;
-  margin: 0 auto;
-  background: var(--el-fill-color-light, #f5f7fa);
-  border-radius: 12px;
-  max-width: 480px;
-}
-
-.mode-item {
-  text-align: center;
-}
-
-.mode-toggle-inline {
-  display: flex;
-  gap: 4px;
-}
-
-.toggle-item {
-  flex: 1;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  color: var(--el-text-color-regular);
-  cursor: pointer;
-  transition: all 0.25s ease;
-  user-select: none;
-  background: var(--el-fill-color-light, #f5f7fa);
-}
-
-.toggle-item:hover {
-  background-color: #e9e9e9;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.15),
-    0 2px 5px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-.toggle-item.active {
-  background-color: #d8d7d7;
-  color: #000000;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.dark .toggle-item {
-  background: #3a3a3a;
-  color: #c0c0c0;
-}
-
-.dark .toggle-item:hover {
-  background-color: #4a4a4a;
-}
-
-.dark .toggle-item.active {
-  background-color: #d8d7d7;
-  color: #000000;
-}
-
-.options-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.option-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.option-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
-.option-hint {
-  font-size: 11px;
-  color: #aaa;
-  margin-top: 6px;
-}
-
 .info-box {
   display: flex;
   align-items: center;
@@ -446,55 +234,5 @@ onUnmounted(() => {
   border-radius: 10px;
   font-size: 13px;
   color: #409eff;
-}
-
-.dark .info-box {
-  background: linear-gradient(145deg, #1e2a3a, #1a2535);
-  border-color: #2a4a6a;
-  color: #66b1ff;
-}
-
-.stats-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px;
-  background: linear-gradient(145deg, #f0fff4, #e6fff0);
-  border: 1px solid #67c23a;
-  border-radius: 10px;
-}
-
-.dark .stats-box {
-  background: linear-gradient(145deg, #1a2a20, #152518);
-  border-color: #2d4a2d;
-}
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #67c23a;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #888;
-  margin-top: 4px;
-}
-
-.preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.preview-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #666;
-}
-
-.dark .preview-title {
-  color: #999;
 }
 </style>
