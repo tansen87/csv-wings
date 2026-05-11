@@ -121,3 +121,14 @@ pub async fn preview_n_lines(path: String, n: usize) -> Result<Vec<String>, Stri
 
   Ok(lines)
 }
+
+#[tauri::command]
+pub async fn detect_separator(path: String, skiprows: usize) -> Result<String, String> {
+  let mut opts = CsvOptions::new(path);
+  opts.set_skiprows(skiprows);
+
+  match async { opts.skiprows_and_delimiter() }.await {
+    Ok((sep, _)) => Ok((sep as char).to_string()),
+    Err(err) => Err(format!("{err}")),
+  }
+}

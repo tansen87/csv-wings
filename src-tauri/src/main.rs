@@ -132,6 +132,7 @@ fn main() {
       command::to_json,
       command::xlsx_to_json,
       command::preview_n_lines,
+      command::detect_separator,
       apply::apply,
       cat::cat_csv,
       cat::cat_excel,

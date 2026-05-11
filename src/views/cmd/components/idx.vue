@@ -3,12 +3,13 @@ import { onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
-import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
+import { mapHeaders, viewOpenFile, toJson, detectSeparator } from "@/utils/view";
 import { message } from "@/utils/message"
 import "./common.css";
 
 const path = ref("");
 const loading = ref(false);
+const separator = ref("");
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 
 const emit = defineEmits<{
@@ -23,6 +24,7 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
+    separator.value = "";
     return;
   }
 
@@ -34,6 +36,7 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
+    separator.value = await detectSeparator(path.value, useSkiprows().skiprows);
   } catch (e) {
     addLog(`Failed to load file: ${e}`, 'error');
   }
@@ -62,6 +65,7 @@ async function createIndex() {
 
 onUnmounted(() => {
   path.value = "";
+  separator.value = "";
   tableHeader.value = [];
   tableColumn.value = [];
   tableData.value = [];
@@ -83,9 +87,8 @@ onUnmounted(() => {
     </div>
 
     <el-scrollbar class="flex-1 min-h-0">
-      <div class="idx-main">
+      <div class="cmd-main">
         <div class="p-3">
-
           <div class="cmd-file-selection-bar" :class="{ 'has-file': path }" @click="selectFile">
             <div class="cmd-file-selection-icon">
               <Icon icon="ri:folder-open-line" />
@@ -106,7 +109,15 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="mt-6">
+          <div v-if="separator" class="separator-info">
+            <div class="flex items-center gap-2">
+              <Icon icon="ri:tooth-line" class="w-4 h-4" />
+              <span class="text-sm">Detected separator:</span>
+              <span class="separator-value">{{ separator === '\t' ? 'Tab (\\t)' : separator }}</span>
+            </div>
+          </div>
+
+          <div class="mt-4">
             <div class="cmd-preview-header">
               <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
             </div>
@@ -129,10 +140,30 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.idx-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.separator-info {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color, #e4e7ed);
+  color: var(--el-text-color-regular, #303133);
+}
+
+.separator-value {
+  background: var(--el-color-primary-light-9, #e6f7ff);
+  color: var(--el-color-primary, #409eff);
+  font-size: 18px;
+  font-family: monospace;
+}
+
+.dark .separator-info {
+  background: var(--el-fill-color-dark, #2a2a2a);
+  border-color: var(--el-border-color-dark, #4a4a4a);
+  color: var(--el-text-color-regular, #c0c4cc);
+}
+
+.dark .separator-value {
+  background: var(--el-color-primary-dark-2, #1a365d);
+  color: var(--el-color-primary-light-3, #91caff);
 }
 </style>

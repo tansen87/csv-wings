@@ -136,3 +136,11 @@ export async function previewtNLines(
 ): Promise<string[]> {
   return await invoke("preview_n_lines", { path, n: n ?? 50 });
 }
+
+export async function detectSeparator(path: string, skiprows: number): Promise<string> {
+  const result: string = await invoke("detect_separator", {
+    path: path,
+    skiprows: skiprows
+  });
+  return result;
+}

@@ -7,6 +7,7 @@ import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { CheckboxValueType } from "element-plus";
 import { mdApply, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
+import { message } from "@/utils/message";
 import "./common.css";
 
 const emit = defineEmits<{
@@ -70,12 +71,10 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
-    addLog('File selection cancelled', 'info');
     return;
   }
 
   try {
-    addLog(`Selected file: ${path.value}`, 'info');
     tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
@@ -91,7 +90,7 @@ async function selectFile() {
 // invoke apply
 async function applyData() {
   if (path.value === "") {
-    addLog("CSV file not selected", 'warning');
+    message("CSV file not selected", { type: 'warning' });
     return;
   }
 
@@ -105,7 +104,7 @@ async function applyData() {
   }
 
   if (mode.value === "operations" && finalColumns.length === 0) {
-    addLog("Column not selected", 'warning');
+    message("Column not selected", { type: 'warning' });
     return;
   }
 
@@ -211,7 +210,7 @@ onUnmounted(() => {
           <!-- Mode toggle -->
           <div class="flex justify-center">
             <div class="cmd-mode-toggle py-1">
-              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-28"
+              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-24"
                 :class="{ active: mode === item.value }" @click="mode = item.value">
                 {{ item.label }}
               </span>

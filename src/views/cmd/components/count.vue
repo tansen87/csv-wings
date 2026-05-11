@@ -161,7 +161,7 @@ onUnmounted(() => {
 
           <div class="flex justify-center">
             <div class="cmd-mode-toggle py-1">
-              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-28"
+              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-24"
                 :class="{ active: mode === item.value }" @click="mode = item.value">
                 {{ item.label }}
               </span>
