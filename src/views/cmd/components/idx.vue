@@ -102,7 +102,7 @@ onUnmounted(() => {
                 <span class="cmd-file-prompt">Click to select a CSV file</span>
               </template>
             </div>
-            <div class="flex items-center gap-2 ml-auto">
+            <div class="flex ml-auto">
               <SiliconeButton @click.stop="createIndex()" :loading="loading" size="small">
                 Run
               </SiliconeButton>

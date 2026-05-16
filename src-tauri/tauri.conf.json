@@ -64,7 +64,7 @@
         "width": 840,
         "height": 660,
         "resizable": true,
-        "title": "csv-wings",
+        "title": "csv",
         "dragDropEnabled": false,
         "center": true,
         "decorations": true,
