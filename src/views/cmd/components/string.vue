@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -10,10 +11,14 @@ import { mdStr, useMarkdown } from "@/utils/markdown";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
 import { useProgress } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[String] ${msg}`, type);
@@ -66,23 +71,23 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)} ${e}`, 'error');
   }
 }
 
 async function StrData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (column.value.length === 0) {
-    message("Column not selected", { type: 'warning' });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog(`Starting ${activeTab.value} operation...`, 'info');
+    addLog(`${t('starting', locale.value)} ${t('operation', locale.value)}...`, 'info');
 
     let rtime: string;
     if (["left", "right", "slice"].includes(activeTab.value)) {
@@ -120,9 +125,9 @@ async function StrData() {
         skiprows: skiprows.skiprows
       });
     }
-    addLog(`${activeTab.value} done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('done', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`${activeTab.value} operation failed: ${e}`, 'error');
+    addLog(`${t('operation', locale.value)} ${t('failed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -144,8 +149,8 @@ onUnmounted(() => {
           <Icon icon="ri:text" />
         </div>
         <div class="cmd-header-text">
-          <h1>String</h1>
-          <p>String operations: slice, split, pad</p>
+          <h1>{{ t('string', locale) }}</h1>
+          <p>{{ t('stringDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -162,12 +167,12 @@ onUnmounted(() => {
               <span class="cmd-file-path">{{ path }}</span>
             </template>
             <template v-else>
-              <span class="cmd-file-prompt">Click to select a CSV file</span>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
             </template>
           </div>
           <div class="flex items-center gap-2 ml-auto">
             <SiliconeButton @click.stop="StrData()" :loading="loading" size="small">
-              Run
+              {{ t('run', locale) }}
             </SiliconeButton>
           </div>
         </div>
@@ -183,14 +188,14 @@ onUnmounted(() => {
 
         <div class="options-grid mt-4">
           <div class="option-section">
-            <div class="option-label">TARGET COLUMN</div>
-            <SiliconeSelect v-model="column" filterable placeholder="Select column" class="w-full">
+            <div class="option-label">{{ t('targetColumn', locale) }}</div>
+            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
 
           <div class="option-section">
-            <div class="option-label">REVERSE</div>
+            <div class="option-label">{{ t('reverse', locale) }}</div>
             <div class="mode-toggle py-1">
               <span v-for="item in reverseOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
                 :class="{ active: reverse === item.value }" @click="reverse = item.value">
@@ -200,41 +205,22 @@ onUnmounted(() => {
           </div>
 
           <div v-if="['left', 'right', 'slice', 'split_n', 'split_max'].includes(activeTab)" class="option-section">
-            <div class="option-label">{{ activeTab === 'slice' ? 'START INDEX' : 'N VALUE' }}</div>
-            <SiliconeInput v-model="n" :placeholder="activeTab === 'slice' ? 'e.g. 0' : 'e.g. 10'" class="w-full" />
+            <div class="option-label">{{ activeTab === 'slice' ? t('startIndex', locale) : t('nValue', locale) }}</div>
+            <SiliconeInput v-model="n" :placeholder="activeTab === 'slice' ? t('startIndexPlaceholder', locale) : t('nValuePlaceholder', locale)" class="w-full" />
           </div>
 
           <div v-if="['slice', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)" class="option-section">
-            <div class="option-label">{{ activeTab === 'slice' ? 'LENGTH' : 'PAD LENGTH' }}</div>
-            <SiliconeInput v-model="length" :placeholder="activeTab === 'slice' ? 'e.g. 5' : 'e.g. 20'" type="number"
+            <div class="option-label">{{ activeTab === 'slice' ? t('length', locale) : t('padLength', locale) }}</div>
+            <SiliconeInput v-model="length" :placeholder="activeTab === 'slice' ? t('lengthPlaceholder', locale) : t('padLengthPlaceholder', locale)" type="number"
               class="w-full" />
           </div>
 
           <div v-if="['split_n', 'split_max', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)"
             class="option-section">
-            <div class="option-label">{{ activeTab.includes('split') ? 'SPLIT BY' : 'PAD CHAR' }}</div>
-            <SiliconeInput v-model="by" :placeholder="activeTab.includes('split') ? 'e.g. ,' : 'e.g. 0'"
+            <div class="option-label">{{ activeTab.includes('split') ? t('splitBy', locale) : t('padChar', locale) }}</div>
+            <SiliconeInput v-model="by" :placeholder="activeTab.includes('split') ? t('splitByPlaceholder', locale) : t('padCharPlaceholder', locale)"
               class="w-full" />
           </div>
-        </div>
-
-        <div class="preview-formula mt-4">
-          <span class="formula-label">Preview:</span>
-          <span class="formula-item">{{ activeTab.toUpperCase() }}</span>
-          <span class="formula-operator">COL</span>
-          <span class="formula-item">{{ column || "column" }}</span>
-          <template v-if="['left', 'right', 'slice'].includes(activeTab)">
-            <span class="formula-operator">N={{ n }}</span>
-            <span v-if="activeTab === 'slice'" class="formula-operator">LEN={{ length }}</span>
-          </template>
-          <template v-if="['pad_left', 'pad_right', 'pad_both'].includes(activeTab)">
-            <span class="formula-operator">LEN={{ length }}</span>
-            <span class="formula-operator">CHAR="{{ by }}"</span>
-          </template>
-          <template v-if="['split_n', 'split_max'].includes(activeTab)">
-            <span class="formula-operator">N={{ n }}</span>
-            <span class="formula-operator">BY="{{ by }}"</span>
-          </template>
         </div>
 
         <div class="stats-grid mt-4 mb-4">
@@ -243,7 +229,7 @@ onUnmounted(() => {
               <Icon icon="ri:database-line" />
             </div>
             <div class="stats-info">
-              <span class="stats-label">Total Rows</span>
+              <span class="stats-label">{{ t('totalRows', locale) }}</span>
               <span class="stats-value">{{ totalRows }}</span>
             </div>
           </div>
@@ -252,7 +238,7 @@ onUnmounted(() => {
               <Icon icon="ri:scan-line" />
             </div>
             <div class="stats-info">
-              <span class="stats-label">Progress</span>
+              <span class="stats-label">{{ t('progress', locale) }}</span>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
@@ -260,14 +246,13 @@ onUnmounted(() => {
         </div>
 
         <div class="cmd-preview-header">
-          <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-          <span class="cmd-mode-badge">{{ activeTab }}</span>
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
             <template #empty>
               <div class="flex items-center justify-center gap-2 text-gray-500">
-                No data. Click above to select file.
+                {{ t('noData', locale) }}
               </div>
             </template>
             <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -276,7 +261,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="String - String expr: slice, split, pad..." width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('string', locale)} - ${t('stringDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
@@ -7,21 +7,26 @@ import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdSlice, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
 
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Slice] ${msg}`, type);
 };
 
-const mode = ref("lines");
-const modeOptions = [
-  { label: "Lines", value: "lines" },
-  { label: "Index", value: "index" }
-];
+const mode = ref("rows");
+const modeOptions = computed(() => [
+  { label: t('rows', locale.value), value: "rows" },
+  { label: t('index', locale.value), value: "index" }
+]);
 const [path, start, end] = [ref(""), ref("1"), ref("10")];
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
@@ -47,19 +52,19 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function sliceData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     isLoading.value = true;
-    addLog('Starting slice process...', 'info');
+    addLog(t('startingSliceProcess', locale.value), 'info');
     const rtime: string = await invoke("slice", {
       path: path.value,
       quoting: quoting.quoting,
@@ -69,9 +74,9 @@ async function sliceData() {
       skiprows: skiprows.skiprows,
       mode: mode.value
     });
-    addLog(`Slice done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('sliceDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Slice failed: ${e}`, 'error');
+    addLog(`${t('sliceFailed', locale.value)}: ${e}`, 'error');
   }
   isLoading.value = false;
 }
@@ -90,8 +95,8 @@ onUnmounted(() => {
           <Icon icon="ri:crop-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Slice</h1>
-          <p>Returns rows in the specified range</p>
+          <h1>{{ t('slice', locale) }}</h1>
+          <p>{{ t('sliceDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -109,12 +114,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="sliceData()" :loading="isLoading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -130,13 +135,13 @@ onUnmounted(() => {
 
           <div class="cmd-options-grid mt-4">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">ROW RANGE</div>
+              <div class="cmd-option-label">{{ t('rowRange', locale) }}</div>
               <div class="flex gap-4">
                 <div class="flex-1">
-                  <SiliconeInput v-model="start" placeholder="Start (e.g. 0)" class="w-full" />
+                  <SiliconeInput v-model="start" :placeholder="t('startPlaceholder', locale)" class="w-full" />
                 </div>
                 <div class="flex-1">
-                  <SiliconeInput v-model="end" placeholder="End (e.g. 100)" class="w-full" />
+                  <SiliconeInput v-model="end" :placeholder="t('endPlaceholder', locale)" class="w-full" />
                 </div>
               </div>
             </div>
@@ -145,23 +150,23 @@ onUnmounted(() => {
           <div class="cmd-stats-grid mt-4 mb-4">
             <div class="cmd-stat-card cmd-stat-card-blue">
               <div class="cmd-stat-value">{{ parseInt(end) - parseInt(start) || 0 }}</div>
-              <div class="cmd-stat-label">Sliced Rows</div>
+              <div class="cmd-stat-label">{{ t('slicedRows', locale) }}</div>
             </div>
             <div class="cmd-stat-card">
               <div class="cmd-stat-value">TODO</div>
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-            <span class="cmd-mode-badge">Range: {{ start || 0 }} - {{ end || "end" }}</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('range', locale) }}: {{ start || 0 }} - {{ end || t('end', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
@@ -172,7 +177,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Slice - Returns rows of a CSV file in the specified range" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('slice', locale)} - ${t('sliceDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

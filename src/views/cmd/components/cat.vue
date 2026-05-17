@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, reactive, onUnmounted } from "vue";
+import { ref, watch, reactive, onUnmounted, computed } from "vue";
 import { save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
@@ -8,23 +8,30 @@ import { mdCat, useMarkdown } from "@/utils/markdown";
 import { trimOpenFile } from "@/utils/view";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
 
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
 const mode = ref("csv");
-const modeOptions = [
-  { label: "Csv", value: "csv" },
-  { label: "Excel", value: "excel" }
-];
+const modeOptions = computed(() => [
+  { label: t('csv', locale.value), value: "csv" },
+  { label: t('excel', locale.value), value: "excel" }
+]);
 const [backendInfo, path] = [ref(""), ref("")];
 const fileSelect = ref<
   Array<{
     filename: string;
     selectSheet?: string;
     sheets?: string[];
+    infoMsg?: string;
+    status?: string;
     message?: string;
   }>
 >([]);
@@ -44,10 +51,10 @@ const addLog = (message: string, type: string = 'info') => {
 const allSheets = ref(true);
 const mapSheets = ref<Record<string, string[]> | null>(null);
 const fileSheet = ref<Array<{ filename: string; sheetname: string }>>([]);
-const sheetsOptions = [
-  { label: "All Sheets", value: true },
-  { label: "One Sheet", value: false }
-];
+const sheetsOptions = computed(() => [
+  { label: t('allSheets', locale.value), value: true },
+  { label: t('oneSheet', locale.value), value: false }
+]);
 
 // Watch selectSheet changes to update fileSheet
 watch(
@@ -86,7 +93,7 @@ async function loadExcelSheets() {
     );
     if (alreadyLoaded) return;
 
-    addLog('Fetching Excel sheets...', 'info');
+    addLog(t('fetchingExcelSheets', locale.value), 'info');
 
     const result = await invoke<
       [Record<string, string[]>, Record<string, string>]
@@ -101,9 +108,9 @@ async function loadExcelSheets() {
       }
     });
 
-    addLog("Sheet detection completed", 'success');
+    addLog(t('sheetDetectionCompleted', locale.value), 'success');
   } catch (e) {
-    addLog(`loadExcelSheets failed: ${e}`, 'error');
+    addLog(`${t('loadExcelSheetsFailed', locale.value)}: ${e}`, 'error');
   }
 }
 
@@ -134,7 +141,7 @@ async function openFile() {
       await loadExcelSheets();
     }
   } catch (e) {
-    addLog(`Failed to open file: ${e}`, 'error');
+    addLog(`${t('failedToOpenFile', locale.value)}: ${e}`, 'error');
   }
 }
 
@@ -158,12 +165,12 @@ watch(
 
 async function run() {
   if (path.value === "") {
-    message("No files selected", { type: 'warning' });
+    message(t('noFilesSelected', locale.value), { type: 'warning' });
     return;
   }
 
   const outputPath = await save({
-    title: "Export Csv",
+    title: t('exportCsv', locale.value),
     defaultPath: `cat_${new Date().getTime()}`,
     filters: [
       {
@@ -177,11 +184,11 @@ async function run() {
 
   try {
     loading.value = true;
-    addLog(`Starting merge process for ${fileSelect.value.length} files...`, 'info');
+    addLog(`${t('startingMergeProcess', locale.value)} ${fileSelect.value.length} ${t('files', locale.value)}...`, 'info');
     let rtime: string;
 
     if (mode.value === "excel") {
-      addLog('Processing Excel files...', 'info');
+      addLog(t('processingExcelFiles', locale.value), 'info');
       rtime = await invoke("cat_excel", {
         path: path.value,
         outputPath,
@@ -191,7 +198,7 @@ async function run() {
         allSheets: allSheets.value
       });
     } else {
-      addLog('Processing CSV files...', 'info');
+      addLog(t('processingCsvFiles', locale.value), 'info');
       rtime = await invoke("cat_csv", {
         path: path.value,
         outputPath,
@@ -200,9 +207,9 @@ async function run() {
       });
     }
 
-    addLog(`Merge completed in ${rtime}s`, 'success');
+    addLog(`${t('mergeCompleted', locale.value)} ${rtime}s`, 'success');
   } catch (e) {
-    addLog(`cat failed: ${e}`, 'error');
+    addLog(`${t('catFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -211,7 +218,7 @@ async function run() {
 const removeFile = index => {
   const removedFile = fileSelect.value[index];
   fileSelect.value.splice(index, 1);
-  message(`Removed file: ${removedFile.filename}`, { type: 'info' });
+  message(`${t('removedFile', locale.value)}: ${removedFile.filename}`, { type: 'info' });
 };
 
 onUnmounted(() => {
@@ -228,8 +235,8 @@ onUnmounted(() => {
           <Icon icon="ri:merge-cells-vertical" />
         </div>
         <div class="cmd-header-text">
-          <h1>Cat</h1>
-          <p>Merge CSV or Excel files</p>
+          <h1>{{ t('cat', locale) }}</h1>
+          <p>{{ t('catDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -243,15 +250,15 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} file(s) selected</span>
+                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale) }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select files</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="run()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -266,7 +273,7 @@ onUnmounted(() => {
           </div>
 
           <div v-if="mode === 'excel'" class="mb-4 mt-4 flex justify-center">
-            <SiliconeTooltip content="Merge all sheets or select one per file" placement="right">
+            <SiliconeTooltip :content="t('mergeAllSheetsOrSelect', locale)" placement="right">
               <div class="cmd-mode-toggle py-1">
                 <span v-for="item in sheetsOptions" :key="String(item.value)" @click="allSheets = item.value"
                   class="cmd-mode-item mx-0.5 w-28" :class="{ active: allSheets === item.value }">
@@ -277,7 +284,7 @@ onUnmounted(() => {
           </div>
 
           <div class="cmd-preview-header mt-4">
-            <span class="cmd-preview-title">FILE LIST ({{ fileSelect.length }})</span>
+            <span class="cmd-preview-title">{{ t('fileList', locale) }} ({{ fileSelect.length }})</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="fileSelect" :height="'300px'" show-overflow-tooltip :row-style="{ height: '40px' }"
@@ -286,18 +293,18 @@ onUnmounted(() => {
               }">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select files.
+                  {{ t('noDataClickSelectFiles', locale) }}
                 </div>
               </template>
-              <el-table-column prop="filename" label="File Name" min-width="150" />
-              <el-table-column label="Options" min-width="150">
+              <el-table-column prop="filename" :label="t('fileName', locale)" min-width="150" />
+              <el-table-column :label="t('options', locale)" min-width="150">
                 <template #default="scope">
                   <template v-if="
                     mode === 'excel' &&
                     scope.row.sheets &&
                     scope.row.sheets.length > 0
                   ">
-                    <SiliconeSelect v-model="scope.row.selectSheet" placeholder="Select sheet" size="small"
+                    <SiliconeSelect v-model="scope.row.selectSheet" :placeholder="t('selectSheet', locale)" size="small"
                       class="mb-[1px]">
                       <el-option v-for="sheet in scope.row.sheets" :key="sheet" :label="sheet" :value="sheet" />
                     </SiliconeSelect>
@@ -318,7 +325,8 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Cat - Merge multiple CSV or Excel files" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('cat', locale)} - ${t('catDesc', locale)}`"
+      width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

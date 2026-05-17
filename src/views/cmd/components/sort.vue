@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
@@ -7,28 +8,32 @@ import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdSort, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Sort] ${msg}`, type);
 };
 
 const mode = ref("Sort");
-const modeOptions = [
-  { label: "Sort", value: "Sort" },
-  { label: "ExtSort", value: "ExtSort" }
-];
-const numOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
-];
-const reverseOptions = [
-  { label: "Asc", value: false },
-  { label: "Desc", value: true }
-];
+const modeOptions = computed(() => [
+  { label: t('sort', locale.value), value: "Sort" },
+  { label: t('extSort', locale.value), value: "ExtSort" }
+]);
+const numOptions = computed(() => [
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
+]);
+const reverseOptions = computed(() => [
+  { label: t('asc', locale.value), value: false },
+  { label: t('desc', locale.value), value: true }
+]);
 const [column, path] = [ref(""), ref("")];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const [loading, dialog, numeric, reverse] = [
@@ -59,23 +64,23 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function sortData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (column.value.length === 0 && mode.value !== "index") {
-    message("Column not selected", { type: 'warning' });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog(`Starting ${mode.value} process...`, 'info');
+    addLog(`${t('starting', locale.value)} ${mode.value} ${t('process', locale.value)}...`, 'info');
 
     let rtime: string;
     if (mode.value == "Sort") {
@@ -96,9 +101,9 @@ async function sortData() {
         quoting: quoting.quoting
       });
     }
-    addLog(`${mode.value} done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${mode.value} ${t('done', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (err) {
-    addLog(`${mode.value} failed: ${err.toString()}`, 'error');
+    addLog(`${mode.value} ${t('failed', locale.value)}: ${err.toString()}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -118,8 +123,8 @@ onUnmounted(() => {
           <Icon icon="ri:sort-alphabet-asc" />
         </div>
         <div class="cmd-header-text">
-          <h1>Sort</h1>
-          <p>Sort CSV data lexicographically</p>
+          <h1>{{ t('sort', locale) }}</h1>
+          <p>{{ t('sortDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -137,12 +142,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="sortData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -158,14 +163,14 @@ onUnmounted(() => {
 
           <div class="options-grid mt-4">
             <div class="option-section">
-              <div class="option-label">SORT COLUMN</div>
-              <SiliconeSelect v-model="column" filterable placeholder="Select column" class="w-full">
+              <div class="option-label">{{ t('sortColumn', locale) }}</div>
+              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
-              <div class="option-label">NUMERIC</div>
+              <div class="option-label">{{ t('numeric', locale) }}</div>
               <div class="mode-toggle py-1">
                 <span v-for="item in numOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
                   :class="{ active: numeric === item.value }" @click="numeric = item.value">
@@ -175,7 +180,7 @@ onUnmounted(() => {
             </div>
 
             <div class="option-section">
-              <div class="option-label">ORDER</div>
+              <div class="option-label">{{ t('order', locale) }}</div>
               <div class="mode-toggle py-1">
                 <span v-for="item in reverseOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
                   :class="{ active: reverse === item.value }" @click="reverse = item.value">
@@ -186,23 +191,23 @@ onUnmounted(() => {
           </div>
 
           <div class="preview-formula mt-4 mb-4">
-            <span class="formula-label">Preview:</span>
+            <span class="formula-label">{{ t('preview', locale) }}:</span>
             <span class="formula-item">{{ mode }}</span>
-            <span class="formula-operator">BY</span>
-            <span class="formula-item">{{ column || "column" }}</span>
-            <span class="formula-operator">{{ numeric ? "(NUMERIC)" : "" }}</span>
-            <span class="formula-operator">{{ reverse ? "DESC" : "ASC" }}</span>
+            <span class="formula-operator">{{ t('by', locale) }}</span>
+            <span class="formula-item">{{ column || t('column', locale) }}</span>
+            <span class="formula-operator">{{ numeric ? t('numericLabel', locale) : "" }}</span>
+            <span class="formula-operator">{{ reverse ? t('desc', locale) : t('asc', locale) }}</span>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-            <span class="cmd-mode-badge">{{ mode }} | {{ column || "none" }} | {{ reverse ? "Desc" : "Asc" }}</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ mode }} | {{ column || t('none', locale) }} | {{ reverse ? t('desc', locale) : t('asc', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noData', locale) }}
                 </div>
               </template>
               <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -212,7 +217,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Sort - Sorts CSV data lexicographically" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('sort', locale)} - ${t('sortDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

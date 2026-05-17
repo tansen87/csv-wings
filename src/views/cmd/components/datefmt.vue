@@ -14,10 +14,15 @@ import {
   useSkiprows
 } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Date Format] ${msg}`, type);
@@ -33,7 +38,7 @@ const inputFormats = ref<Record<string, string>>({});
 const outputFormats = ref<Record<string, string>>({});
 
 const dateFormats = [
-  { label: "Auto detect", value: "" },
+  { label: t('autoDetect', locale.value), value: "" },
   { label: "YYYYMMDD", value: "%Y%m%d" },
   { label: "YYYYMMDDHHMMSS", value: "%Y%m%d%H%M%S" },
   { label: "YYYYMMDDHHMM", value: "%Y%m%d%H%M" },
@@ -142,17 +147,17 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function convertDates() {
   if (!path.value) {
-    message("File not selected", { type: 'warning' });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (columns.value.length === 0) {
-    message("No column selected", { type: 'warning' });
+    message(t('noColumnSelected', locale.value), { type: 'warning' });
     return;
   }
 
@@ -173,10 +178,10 @@ async function convertDates() {
 
   try {
     loading.value = true;
-    addLog('Starting date format conversion...', 'info');
+    addLog(`${t('startingDateConversion', locale.value)}...`, 'info');
 
     for (const [col, config] of Object.entries(columnConfigs)) {
-      addLog(`Column ${col}: Input format = ${config.inputFormat || 'Auto'}, Output format = ${config.outputFormat}`, 'info');
+      addLog(`${t('column', locale.value)} ${col}: ${t('inputFormat', locale.value)} = ${config.inputFormat || t('auto', locale.value)}, ${t('outputFormat', locale.value)} = ${config.outputFormat}`, 'info');
     }
 
     const rtime: string = await invoke("datefmt", {
@@ -187,9 +192,9 @@ async function convertDates() {
       skiprows: skiprows.skiprows,
       progress: progress.progress
     });
-    addLog(`Date conversion completed, time: ${rtime} s`, 'success');
+    addLog(`${t('dateConversionCompleted', locale.value)}, ${t('time', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Date conversion failed: ${e}`, 'error');
+    addLog(`${t('dateConversionFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -209,8 +214,8 @@ onUnmounted(() => {
           <Icon icon="ri:calendar-event-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Date Format</h1>
-          <p>Convert date columns between formats</p>
+          <h1>{{ t('datefmt', locale) }}</h1>
+          <p>{{ t('datefmtDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -227,20 +232,20 @@ onUnmounted(() => {
               <span class="cmd-file-path">{{ path }}</span>
             </template>
             <template v-else>
-              <span class="cmd-file-prompt">Click to select a CSV file</span>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
             </template>
           </div>
           <div class="flex items-center gap-2 ml-auto">
             <SiliconeButton @click.stop="convertDates()" :loading="loading" size="small">
-              Run
+              {{ t('run', locale) }}
             </SiliconeButton>
           </div>
         </div>
 
         <div class="options-grid mt-4">
           <div class="option-section full-width">
-            <div class="option-label">DATE COLUMNS ({{ columns.length }})</div>
-            <SiliconeSelect v-model="columns" multiple filterable placeholder="Select date columns" class="w-full">
+            <div class="option-label">{{ t('dateColumns', locale) }} ({{ columns.length }})</div>
+            <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectDateColumns', locale)" class="w-full">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
@@ -254,8 +259,8 @@ onUnmounted(() => {
             </div>
             <div class="format-card-body">
               <div class="format-section">
-                <span class="format-label">IN</span>
-                <SiliconeSelect v-model="inputFormats[col]" filterable placeholder="Auto" size="small" class="w-full">
+                <span class="format-label">{{ t('in', locale) }}</span>
+                <SiliconeSelect v-model="inputFormats[col]" filterable :placeholder="t('auto', locale)" size="small" class="w-full">
                   <el-option v-for="fmt in dateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
                 </SiliconeSelect>
               </div>
@@ -263,8 +268,8 @@ onUnmounted(() => {
                 <Icon icon="ri:arrow-right-line" />
               </div>
               <div class="format-section">
-                <span class="format-label">OUT</span>
-                <SiliconeSelect v-model="outputFormats[col]" filterable placeholder="Select" size="small"
+                <span class="format-label">{{ t('out', locale) }}</span>
+                <SiliconeSelect v-model="outputFormats[col]" filterable :placeholder="t('select', locale)" size="small"
                   class="w-full">
                   <el-option v-for="fmt in outputDateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
                 </SiliconeSelect>
@@ -275,15 +280,15 @@ onUnmounted(() => {
 
         <div v-else class="format-empty mt-4">
           <Icon icon="ri:calendar-line" class="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-          <p class="text-xs text-gray-400">Select date columns above to configure formats</p>
+          <p class="text-xs text-gray-400">{{ t('selectDateColumnsToConfigure', locale) }}</p>
         </div>
 
         <div class="preview-formula mt-4">
-          <span class="formula-label">Preview:</span>
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
           <span class="formula-item">DATEFMT</span>
           <span class="formula-operator">@</span>
           <span class="formula-item">{{ columns.length }}</span>
-          <span class="formula-operator">cols</span>
+          <span class="formula-operator">{{ t('cols', locale) }}</span>
         </div>
 
         <div class="stats-grid mt-4 mb-4">
@@ -292,7 +297,7 @@ onUnmounted(() => {
               <Icon icon="ri:database-line" />
             </div>
             <div class="stats-info">
-              <span class="stats-label">Total Rows</span>
+              <span class="stats-label">{{ t('totalRows', locale) }}</span>
               <span class="stats-value">{{ totalRows }}</span>
             </div>
           </div>
@@ -301,20 +306,19 @@ onUnmounted(() => {
               <Icon icon="ri:scan-line" />
             </div>
             <div class="stats-info">
-              <span class="stats-label">Progress</span>
+              <span class="stats-label">{{ t('progress', locale) }}</span>
             </div>
           </div>
         </div>
 
         <div class="cmd-preview-header">
-          <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows x {{ tableColumn?.length || 0 }}
-            cols)</span>
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} x {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
             <template #empty>
               <div class="flex items-center justify-center gap-2 text-gray-500">
-                No data. Click above to select file.
+                {{ t('noData', locale) }}
               </div>
             </template>
             <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -323,7 +327,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Date Format Converter" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('datefmt', locale)} - ${t('datefmtDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

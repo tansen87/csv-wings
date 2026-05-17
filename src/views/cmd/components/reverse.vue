@@ -7,11 +7,16 @@ import { viewOpenFile, toJson } from "@/utils/view";
 import { mdReverse, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Reverse] ${msg}`, type);
@@ -41,19 +46,19 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function reverseData() {
   if (path.value === "") {
-    message("File not selected", { type: 'warning' });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting reverse operation...', 'info');
+    addLog(`${t('startingReverse', locale.value)}...`, 'info');
 
     const rtime: string = await invoke("reverse", {
       path: path.value,
@@ -61,9 +66,9 @@ async function reverseData() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    addLog(`Reverse done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('reverseDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Reverse operation failed: ${e}`, 'error');
+    addLog(`${t('reverseFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -83,8 +88,8 @@ onUnmounted(() => {
           <Icon icon="ri:arrow-up-down-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Reverse</h1>
-          <p>Reverse order of rows in a CSV</p>
+          <h1>{{ t('reverse', locale) }}</h1>
+          <p>{{ t('reverseDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -101,27 +106,27 @@ onUnmounted(() => {
               <span class="cmd-file-path">{{ path }}</span>
             </template>
             <template v-else>
-              <span class="cmd-file-prompt">Click to select a CSV file</span>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
             </template>
           </div>
           <div class="flex items-center gap-2 ml-auto">
             <SiliconeButton @click.stop="reverseData()" :loading="loading" size="small">
-              Run
+              {{ t('run', locale) }}
             </SiliconeButton>
           </div>
         </div>
 
         <div class="preview-formula mt-4">
-          <span class="formula-label">Preview:</span>
-          <span class="formula-item">REVERSE</span>
-          <span class="formula-operator">ROWS</span>
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
+          <span class="formula-item">{{ t('reverse', locale).toUpperCase() }}</span>
+          <span class="formula-operator">{{ t('rows', locale).toUpperCase() }}</span>
           <span class="formula-item">{{ tableData?.length || 0 }}</span>
-          <span class="formula-operator">FIRST → LAST</span>
+          <span class="formula-operator">{{ t('firstLast', locale) }}</span>
         </div>
 
         <div class="reverse-demo mt-4 mb-4">
           <div class="demo-row">
-            <div class="demo-label">BEFORE</div>
+            <div class="demo-label">{{ t('before', locale) }}</div>
             <div class="demo-items">
               <span class="demo-item">1</span>
               <span class="demo-item">2</span>
@@ -132,7 +137,7 @@ onUnmounted(() => {
             <Icon icon="ri:arrow-right-line" />
           </div>
           <div class="demo-row">
-            <div class="demo-label">AFTER</div>
+            <div class="demo-label">{{ t('after', locale) }}</div>
             <div class="demo-items">
               <span class="demo-item reversed">3</span>
               <span class="demo-item reversed">2</span>
@@ -142,14 +147,14 @@ onUnmounted(() => {
         </div>
 
         <div class="cmd-preview-header">
-          <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-          <span class="cmd-mode-badge">Reverse</span>
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+          <span class="cmd-mode-badge">{{ t('reverse', locale) }}</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
             <template #empty>
               <div class="flex items-center justify-center gap-2 text-gray-500">
-                No data. Click above to select file.
+                {{ t('noData', locale) }}
               </div>
             </template>
             <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -158,7 +163,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Reverse - Reverse order of rows in a CSV" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('reverse', locale)} - ${t('reverseDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onUnmounted } from "vue";
+import { ref, reactive, onUnmounted, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
@@ -7,10 +7,15 @@ import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdJoin, useMarkdown } from "@/utils/markdown";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Join] ${msg}`, type);
@@ -19,10 +24,10 @@ const addLog = (msg: string, type: string = 'info') => {
 const joinType = ref("left");
 const [sel1, sel2] = [ref(""), ref("")];
 const [dialog, loading, nulls] = [ref(false), ref(false), ref(false)];
-const nullOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
-];
+const nullOptions = computed(() => [
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
+]);
 const [
   tableHeader1,
   tableHeader2,
@@ -58,23 +63,23 @@ async function selectFile(fileIndex: number) {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file for Data ${fileIndex}: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)} ${t('data', locale.value)} ${fileIndex}: ${e}`, 'error');
   }
 }
 
 async function joinData() {
   if (data.path1 === "" || data.path2 === "") {
-    message("File not selected", { type: 'warning' });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (sel1.value.length === 0 || sel2.value.length === 0) {
-    message("Column not selected", { type: 'warning' });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting join process...', 'info');
+    addLog(t('startingJoinProcess', locale.value), 'info');
     const rtime: string = await invoke("join", {
       path1: data.path1,
       path2: data.path2,
@@ -84,9 +89,9 @@ async function joinData() {
       nulls: nulls.value,
       quoting: quoting.quoting
     });
-    addLog(`Join done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('joinDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Join failed: ${e}`, 'error');
+    addLog(`${t('joinFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -113,8 +118,8 @@ onUnmounted(() => {
           <Icon icon="ri:merge-cells-horizontal" />
         </div>
         <div class="header-text">
-          <h1>Join</h1>
-          <p>Join two CSV files on specified columns</p>
+          <h1>{{ t('join', locale) }}</h1>
+          <p>{{ t('joinDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -124,9 +129,9 @@ onUnmounted(() => {
         <div class="p-3">
           <div class="files-section">
             <div class="files-header">
-              <span class="files-title">DATA FILES</span>
+              <span class="files-title">{{ t('dataFiles', locale) }}</span>
               <SiliconeButton @click="joinData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
 
@@ -136,9 +141,9 @@ onUnmounted(() => {
                   <Icon icon="ri:file-text-line" />
                 </div>
                 <div class="file-info">
-                  <span class="file-label">Data 1</span>
+                  <span class="file-label">{{ t('data', locale) }} 1</span>
                   <span v-if="data.path1" class="file-name">{{ data.path1.split(/[/\\]/).pop() }}</span>
-                  <span v-else class="file-prompt">Click to select</span>
+                  <span v-else class="file-prompt">{{ t('clickToSelect', locale) }}</span>
                 </div>
                 <div v-if="data.path1" class="file-check">
                   <Icon icon="ri:check-circle-line" />
@@ -154,9 +159,9 @@ onUnmounted(() => {
                   <Icon icon="ri:file-text-line" />
                 </div>
                 <div class="file-info">
-                  <span class="file-label">Data 2</span>
+                  <span class="file-label">{{ t('data', locale) }} 2</span>
                   <span v-if="data.path2" class="file-name">{{ data.path2.split(/[/\\]/).pop() }}</span>
-                  <span v-else class="file-prompt">Click to select</span>
+                  <span v-else class="file-prompt">{{ t('clickToSelect', locale) }}</span>
                 </div>
                 <div v-if="data.path2" class="file-check">
                   <Icon icon="ri:check-circle-line" />
@@ -167,36 +172,36 @@ onUnmounted(() => {
 
           <div class="options-grid mt-4 mb-4">
             <div class="option-section">
-              <div class="option-label">DATA 1 COLUMN</div>
-              <SiliconeSelect v-model="sel1" filterable placeholder="Select column" class="w-full">
+              <div class="option-label">{{ t('data1Column', locale) }}</div>
+              <SiliconeSelect v-model="sel1" filterable :placeholder="t('selectColumn', locale)" class="w-full">
                 <el-option v-for="item in tableHeader1" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
-              <div class="option-label">DATA 2 COLUMN</div>
-              <SiliconeSelect v-model="sel2" filterable placeholder="Select column" class="w-full">
+              <div class="option-label">{{ t('data2Column', locale) }}</div>
+              <SiliconeSelect v-model="sel2" filterable :placeholder="t('selectColumn', locale)" class="w-full">
                 <el-option v-for="item in tableHeader2" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
-              <div class="option-label">JOIN TYPE</div>
+              <div class="option-label">{{ t('joinType', locale) }}</div>
               <SiliconeSelect v-model="joinType" class="w-full">
-                <el-option label="Inner" value="inner" />
-                <el-option label="Left" value="left" />
-                <el-option label="Right" value="right" />
-                <el-option label="Full" value="full" />
-                <el-option label="Cross" value="cross" />
-                <el-option label="Left Semi" value="left_semi" />
-                <el-option label="Left Anti" value="left_anti" />
-                <el-option label="Right Semi" value="right_semi" />
-                <el-option label="Right Anti" value="right_anti" />
+                <el-option :label="t('inner', locale)" value="inner" />
+                <el-option :label="t('left', locale)" value="left" />
+                <el-option :label="t('right', locale)" value="right" />
+                <el-option :label="t('full', locale)" value="full" />
+                <el-option :label="t('cross', locale)" value="cross" />
+                <el-option :label="t('leftSemi', locale)" value="left_semi" />
+                <el-option :label="t('leftAnti', locale)" value="left_anti" />
+                <el-option :label="t('rightSemi', locale)" value="right_semi" />
+                <el-option :label="t('rightAnti', locale)" value="right_anti" />
               </SiliconeSelect>
             </div>
           </div>
 
-          <div class="option-label">NULLS</div>
+          <div class="option-label">{{ t('nulls', locale) }}</div>
           <div class="mode-toggle py-1">
             <span v-for="item in nullOptions" :key="String(item.value)" class="mode-item mx-0.5"
               :class="{ active: nulls === item.value }" @click="nulls = item.value">
@@ -205,52 +210,34 @@ onUnmounted(() => {
           </div>
 
           <div class="preview-formula mt-4">
-            <span class="formula-label">Preview:</span>
-            <span class="formula-item">{{ sel1 || "col1" }}</span>
-            <span class="formula-operator">{{ joinType.toUpperCase() }} JOIN</span>
-            <span class="formula-item">{{ sel2 || "col2" }}</span>
+            <span class="formula-label">{{ t('preview', locale) }}:</span>
+            <span class="formula-item">{{ sel1 || t('col1', locale) }}</span>
+            <span class="formula-operator">{{ t(joinType + 'Join', locale) }}</span>
+            <span class="formula-item">{{ sel2 || t('col2', locale) }}</span>
           </div>
 
           <div class="join-description mt-4">
-            <div v-if="joinType === 'inner'">
-              Returns only matching rows from both datasets
-            </div>
-            <div v-else-if="joinType === 'left'">
-              Returns all rows from data 1, matched from data 2
-            </div>
-            <div v-else-if="joinType === 'right'">
-              Returns all rows from data 2, matched from data 1
-            </div>
-            <div v-else-if="joinType === 'full'">
-              Returns all rows from both datasets
-            </div>
-            <div v-else-if="joinType === 'cross'">
-              Returns cartesian product of both datasets
-            </div>
-            <div v-else-if="joinType === 'left_semi'">
-              Returns rows from data 1 with matching rows in data 2
-            </div>
-            <div v-else-if="joinType === 'left_anti'">
-              Returns rows from data 1 without matching rows in data 2
-            </div>
-            <div v-else-if="joinType === 'right_semi'">
-              Returns rows from data 2 with matching rows in data 1
-            </div>
-            <div v-else-if="joinType === 'right_anti'">
-              Returns rows from data 2 without matching rows in data 1
-            </div>
+            <div v-if="joinType === 'inner'">{{ t('innerJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'left'">{{ t('leftJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'right'">{{ t('rightJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'full'">{{ t('fullJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'cross'">{{ t('crossJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'left_semi'">{{ t('leftSemiJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'left_anti'">{{ t('leftAntiJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'right_semi'">{{ t('rightSemiJoinDesc', locale) }}</div>
+            <div v-else-if="joinType === 'right_anti'">{{ t('rightAntiJoinDesc', locale) }}</div>
           </div>
 
           <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
               <div class="preview-header">
-                <span class="preview-title">DATA 1 ({{ tableData1?.length || 0 }} rows)</span>
+                <span class="preview-title">{{ t('data', locale) }} 1 ({{ tableData1?.length || 0 }} {{ t('rows', locale) }})</span>
               </div>
               <div class="overflow-hidden rounded-lg">
                 <SiliconeTable :data="tableData1" :height="'300px'" show-overflow-tooltip class="select-text">
                   <template #empty>
                     <div class="flex items-center justify-center gap-2 text-gray-500">
-                      No data. Click Data 1 to select file.
+                      {{ t('noDataClickData1ToSelectFile', locale) }}
                     </div>
                   </template>
                   <el-table-column v-for="column in tableColumn1" :prop="column.prop" :label="column.label"
@@ -261,13 +248,13 @@ onUnmounted(() => {
 
             <div>
               <div class="preview-header">
-                <span class="preview-title">DATA 2 ({{ tableData2?.length || 0 }} rows)</span>
+                <span class="preview-title">{{ t('data', locale) }} 2 ({{ tableData2?.length || 0 }} {{ t('rows', locale) }})</span>
               </div>
               <div class="overflow-hidden rounded-lg">
                 <SiliconeTable :data="tableData2" :height="'300px'" show-overflow-tooltip class="select-text">
                   <template #empty>
                     <div class="flex items-center justify-center gap-2 text-gray-500">
-                      No data. Click Data 2 to select file.
+                      {{ t('noDataClickData2ToSelectFile', locale) }}
                     </div>
                   </template>
                   <el-table-column v-for="column in tableColumn2" :prop="column.prop" :label="column.label"
@@ -280,7 +267,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Join - Joins two sets of CSV data on specified columns" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('join', locale)} - ${t('joinDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

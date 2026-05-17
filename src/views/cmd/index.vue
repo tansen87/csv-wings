@@ -6,6 +6,7 @@ import { useCommandStore } from "@/store/modules/commands";
 import { useDark } from "@pureadmin/utils";
 import { emitter } from "@/utils/mitt";
 import setting from "@/layout/setting/index.vue";
+import { useLocale, t } from "@/store/modules/locale";
 
 import Apply from "./components/apply.vue";
 import Cat from "./components/cat.vue";
@@ -43,6 +44,12 @@ const logHeight = ref(200);
 const isResizing = ref(false);
 
 const { isDark, toggleDark } = useDark();
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const toggleLocale = () => {
+  localeStore.toggleLocale();
+};
 
 // Logs state
 const logs = ref([]);
@@ -134,7 +141,7 @@ const startResize = (e) => {
       <div class="cmd-sidebar">
         <div class="sidebar-header">
           <div class="header-content">
-            <SiliconeInput placeholder="Search command" v-model="searchText" />
+            <SiliconeInput :placeholder="t('searchCommand', locale)" v-model="searchText" />
           </div>
         </div>
         <el-scrollbar class="commands-list">
@@ -148,7 +155,10 @@ const startResize = (e) => {
           </div>
           <div class="bottom-controls">
             <div class="theme-toggle" @click="toggleDark">
-              <Icon :icon="isDark ? 'icon-park-outline:sun' : 'icon-park-outline:moon'" width="20" height="20" />
+              <Icon :icon="isDark ? 'icon-park-outline:moon' : 'icon-park-outline:sun'" width="20" height="20" />
+            </div>
+            <div class="lang-toggle" @click="toggleLocale">
+              <Icon :icon="locale === 'en' ? 'ri:english-input' : 'uil:letter-chinese-a'" width="20" height="20" />
             </div>
             <div class="setting-item" @click="emitter.emit('openPanel', '')">
               <Icon icon="ri:settings-2-line" width="20" height="20" />
@@ -167,9 +177,9 @@ const startResize = (e) => {
 
         <div class="log-output" :style="{ height: logHeight + 'px' }">
           <div class="log-header">
-            <h3>Logs</h3>
+            <h3>{{ t('logs', locale) }}</h3>
             <SiliconeButton @click="clearLog" size="small">
-              Clear
+              {{ t('clear', locale) }}
             </SiliconeButton>
           </div>
           <el-scrollbar class="log-content">
@@ -310,7 +320,7 @@ const startResize = (e) => {
   border-top-color: var(--dark-card-border);
 }
 
-.theme-toggle, .setting-item {
+.theme-toggle, .lang-toggle, .setting-item {
   cursor: pointer;
   padding: 10px;
   border-radius: 12px;

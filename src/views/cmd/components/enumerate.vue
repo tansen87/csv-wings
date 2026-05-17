@@ -14,11 +14,16 @@ import {
   useSkiprows
 } from "@/store/modules/options";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Enumerate] ${msg}`, type);
@@ -62,27 +67,27 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function enumerate() {
   if (path.value === "") {
-    message("File not selected", { type: 'warning' });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (parseInt(start.value) < 0) {
-    message("start must be greater than 0", { type: 'warning' });
+    message(t('startMustBeGreater', locale.value), { type: 'warning' });
     return;
   }
   if (parseInt(step.value) < 1) {
-    message("step must be greater than 1", { type: 'warning' });
+    message(t('stepMustBeGreater', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting enumerate process...', 'info');
+    addLog(`${t('startingEnumerate', locale.value)}...`, 'info');
     const rtime: string = await invoke("enumer", {
       path: path.value,
       progress: progress.progress,
@@ -93,9 +98,9 @@ async function enumerate() {
       start: start.value,
       step: step.value
     });
-    addLog(`Enumerate done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('enumerateDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Enumerate failed: ${e}`, 'error');
+    addLog(`${t('enumerateFailed', locale.value)}: ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -114,8 +119,8 @@ onUnmounted(() => {
           <Icon icon="ri:sort-number-asc" />
         </div>
         <div class="cmd-header-text">
-          <h1>Enumerate</h1>
-          <p>Add a column enumerating the lines</p>
+          <h1>{{ t('enumerate', locale) }}</h1>
+          <p>{{ t('enumerateDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -133,36 +138,36 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="enumerate()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
 
           <div class="cmd-options-grid mt-4">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">COLUMN NAME</div>
-              <SiliconeInput v-model="name" placeholder="column name" class="w-full" />
+              <div class="cmd-option-label">{{ t('columnName', locale) }}</div>
+              <SiliconeInput v-model="name" :placeholder="t('columnNamePlaceholder', locale)" class="w-full" />
             </div>
 
             <div class="cmd-option-section">
-              <div class="cmd-option-label">START & STEP</div>
+              <div class="cmd-option-label">{{ t('startStep', locale) }}</div>
               <div class="flex gap-4">
                 <div class="flex-1">
-                  <SiliconeInput v-model="start" placeholder="start" class="w-full" />
+                  <SiliconeInput v-model="start" :placeholder="t('start', locale)" class="w-full" />
                 </div>
                 <div class="flex-1">
-                  <SiliconeInput v-model="step" placeholder="step" class="w-full" />
+                  <SiliconeInput v-model="step" :placeholder="t('step', locale)" class="w-full" />
                 </div>
               </div>
             </div>
 
             <div class="preview-formula">
-              <span class="formula-label">Preview:</span>
+              <span class="formula-label">{{ t('preview', locale) }}:</span>
               <span class="formula-item">{{ name || "row_number" }}</span>
               <span class="formula-operator">=</span>
               <span class="formula-item">{{ parseInt(start) || 0 }}</span>
@@ -176,25 +181,25 @@ onUnmounted(() => {
 
           <div class="cmd-stats-grid mt-4 mb-4">
             <div class="cmd-stat-card">
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
               <div class="cmd-stat-value">{{ totalRows }}</div>
             </div>
             <div class="cmd-stat-card cmd-stat-card-blue">
-              <div class="cmd-stat-label">Progress</div>
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
             <span class="cmd-mode-badge">{{ name || "row_number" }}: {{ start || 0 }} + {{ step || 1 }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noData', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
@@ -205,7 +210,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Enumerate - Add a new column enumerating the lines of a CSV" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('enumerate', locale)} - ${t('enumerateDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
+import { onUnmounted, ref, watch, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -15,11 +15,16 @@ import {
   useThreads
 } from "@/store/modules/options";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Search Chain] ${msg}`, type);
@@ -46,6 +51,28 @@ const skiprows = useSkiprows();
 const progress = useProgress();
 const flexible = useFlexible();
 const threads = useThreads();
+
+const filterModeOptions = computed(() => [
+  { label: t('equal', locale.value), value: "equal" },
+  { label: t('notEqual', locale.value), value: "not_equal" },
+  { label: t('contains', locale.value), value: "contains" },
+  { label: t('notContains', locale.value), value: "not_contains" },
+  { label: t('startsWith', locale.value), value: "starts_with" },
+  { label: t('endsWith', locale.value), value: "ends_with" },
+  { label: t('regex', locale.value), value: "regex" },
+  { label: t('isNull', locale.value), value: "is_null" },
+  { label: t('isNotNull', locale.value), value: "is_not_null" },
+  { label: t('gt', locale.value), value: "gt" },
+  { label: t('ge', locale.value), value: "ge" },
+  { label: t('lt', locale.value), value: "lt" },
+  { label: t('le', locale.value), value: "le" },
+  { label: t('between', locale.value), value: "between" }
+]);
+
+const logicOptions = computed(() => [
+  { label: t('and', locale.value), value: "and" },
+  { label: t('or', locale.value), value: "or" }
+]);
 
 listen("update-search-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -76,7 +103,7 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
@@ -94,28 +121,28 @@ function removeColumn(index: number) {
 
 async function searchData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (columnConfigs.value.length === 0) {
-    message("Add at least one column filter", { type: 'warning' });
+    message(t('addAtLeastOneFilter', locale.value), { type: 'warning' });
     return;
   }
   if (skiprows.skiprows > 0 && threads.threads !== 1) {
-    message("threads only support skiprows = 0", { type: 'warning' });
+    message(t('threadsOnlySupportSkiprowsZero', locale.value), { type: 'warning' });
     return;
   }
 
   for (const cfg of columnConfigs.value) {
     if (!cfg.column) {
-      message("All columns must be selected", { type: 'warning' });
+      message(t('allColumnsMustBeSelected', locale.value), { type: 'warning' });
       return;
     }
   }
 
   try {
     loading.value = true;
-    addLog(`Number of filters: ${columnConfigs.value.length}`, 'info');
+    addLog(`${t('numberOfFilters', locale.value)}: ${columnConfigs.value.length}`, 'info');
 
     const res: string[] = await invoke("search_chain", {
       path: path.value,
@@ -129,9 +156,9 @@ async function searchData() {
     });
 
     matchRows.value = Number(res[0]);
-    addLog(`Match ${res[0]} rows, elapsed time: ${res[1]} s`, 'success');
+    addLog(`${t('matched', locale.value)} ${res[0]} ${t('rows', locale.value)}, ${t('elapsedTime', locale.value)}: ${res[1]} s`, 'success');
   } catch (e) {
-    addLog(`Search failed: ${e}`, 'error');
+    addLog(`${t('searchFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -151,8 +178,8 @@ onUnmounted(() => {
           <Icon icon="ri:filter-3-fill" />
         </div>
         <div class="cmd-header-text">
-          <h1>Search Chain</h1>
-          <p>Multi-condition filter for CSV</p>
+          <h1>{{ t('searchChain', locale) }}</h1>
+          <p>{{ t('searchChainDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -170,7 +197,7 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
@@ -178,14 +205,14 @@ onUnmounted(() => {
                 <Icon icon="ri:add-line" class="w-4 h-4" />
               </SiliconeButton>
               <SiliconeButton @click.stop="searchData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
 
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">FILTERS ({{ columnConfigs.length }})</div>
+              <div class="cmd-option-label">{{ t('filters', locale) }} ({{ columnConfigs.length }})</div>
               <div class="filters-list">
                 <div v-for="(cfg, index) in columnConfigs" :key="index" class="filter-item">
                   <div class="filter-header">
@@ -196,43 +223,31 @@ onUnmounted(() => {
                   </div>
 
                   <div class="flex gap-2 mb-2">
-                    <SiliconeSelect v-model="cfg.column" filterable placeholder="Column" size="small" class="flex-1">
+                    <SiliconeSelect v-model="cfg.column" filterable :placeholder="t('column', locale)" size="small" class="flex-1">
                       <el-option v-for="item in tableHeader" :key="item.value" :label="item.label"
                         :value="item.value" />
                     </SiliconeSelect>
 
                     <SiliconeSelect v-model="cfg.mode" filterable size="small" class="flex-1">
-                      <el-option label="equal" value="equal" />
-                      <el-option label="not_equal" value="not_equal" />
-                      <el-option label="contains" value="contains" />
-                      <el-option label="not_contains" value="not_contains" />
-                      <el-option label="starts_with" value="starts_with" />
-                      <el-option label="ends_with" value="ends_with" />
-                      <el-option label="regex" value="regex" />
-                      <el-option label="is_null" value="is_null" />
-                      <el-option label="is_not_null" value="is_not_null" />
-                      <el-option label="gt (>)" value="gt" />
-                      <el-option label="ge (≥)" value="ge" />
-                      <el-option label="lt (<)" value="lt" />
-                      <el-option label="le (≤)" value="le" />
-                      <el-option label="between" value="between" />
+                      <el-option v-for="option in filterModeOptions" :key="option.value" :label="option.label"
+                        :value="option.value" />
                     </SiliconeSelect>
                   </div>
 
-                  <SiliconeInput v-model="cfg.condition" placeholder="Value (use | for multiple)" type="textarea"
+                  <SiliconeInput v-model="cfg.condition" :placeholder="t('valueUsePipeForMultiple', locale)" type="textarea"
                     :autosize="{ minRows: 2, maxRows: 2 }" class="w-full mb-2" />
 
                   <div v-if="index < columnConfigs.length - 1" class="logic-select">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">LOGIC</div>
-                    <SiliconeSelect v-model="logics[index]" placeholder="Logic" size="small" class="w-full">
-                      <el-option label="AND" value="and" />
-                      <el-option label="OR" value="or" />
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('logic', locale) }}</div>
+                    <SiliconeSelect v-model="logics[index]" :placeholder="t('logic', locale)" size="small" class="w-full">
+                      <el-option v-for="option in logicOptions" :key="option.value" :label="option.label"
+                        :value="option.value" />
                     </SiliconeSelect>
                   </div>
                 </div>
 
                 <div v-if="columnConfigs.length === 0" class="empty-filters">
-                  Click <strong>+</strong> button to add filters
+                  {{ t('clickAddButtonToAddFilters', locale) }}
                 </div>
               </div>
             </div>
@@ -241,28 +256,28 @@ onUnmounted(() => {
           <div class="cmd-stats-grid mt-4" v-if="totalRows > 0">
             <div class="cmd-stat-card">
               <div class="cmd-stat-value">{{ totalRows }}</div>
-              <div class="cmd-stat-label">Total</div>
+              <div class="cmd-stat-label">{{ t('total', locale) }}</div>
             </div>
             <div class="cmd-stat-card stat-blue">
               <div class="cmd-stat-value">{{ currentRows }}</div>
-              <div class="cmd-stat-label">Scanned</div>
+              <div class="cmd-stat-label">{{ t('scanned', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
             <div class="stat-card stat-green">
               <div class="cmd-stat-value">{{ matchRows }}</div>
-              <div class="cmd-stat-label">Matched</div>
+              <div class="cmd-stat-label">{{ t('matched', locale) }}</div>
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
@@ -273,7 +288,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Search Chain - Multi condition filter" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('searchChain', locale)} - ${t('searchChainDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

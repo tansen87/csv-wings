@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { onUnmounted, ref } from "vue";
+import { storeToRefs } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
 import { mapHeaders, viewOpenFile, toJson, detectSeparator } from "@/utils/view";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
 import "./common.css";
 
 const path = ref("");
 const loading = ref(false);
 const separator = ref("");
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
@@ -38,27 +42,27 @@ async function selectFile() {
     tableData.value = dataView;
     separator.value = await detectSeparator(path.value, useSkiprows().skiprows);
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)} ${e}`, 'error');
   }
 }
 
 async function createIndex() {
   if (path.value === "") {
-    message(`CSV file not selected`, { type: 'warning' });
+    message(`${t('csvFileNotSelected', locale.value)}`, { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog(`Processing file: ${path.value}`, 'info');
+    addLog(`${t('processingFile', locale.value)} ${path.value}`, 'info');
     const rtime: string = await invoke("csv_idx", {
       path: path.value,
       quoting: useQuoting().quoting,
       skiprows: useSkiprows().skiprows
     });
-    addLog(`Create index done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('createIndexDone', locale.value)} ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`createIndex failed: ${e}`, 'error');
+    addLog(`${t('createIndexFailed', locale.value)} ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -80,8 +84,8 @@ onUnmounted(() => {
           <Icon icon="ri:rocket-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Index</h1>
-          <p>Create indexed files for faster CSV reading</p>
+          <h1>{{ t('createIndex', locale) }}</h1>
+          <p>{{ t('createIndexDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -99,12 +103,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex ml-auto">
               <SiliconeButton @click.stop="createIndex()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -112,20 +116,20 @@ onUnmounted(() => {
           <div v-if="separator" class="separator-info">
             <div class="flex items-center gap-2">
               <Icon icon="ri:tooth-line" class="w-4 h-4" />
-              <span class="text-sm">Detected separator:</span>
-              <span class="separator-value">{{ separator === '\t' ? 'Tab (\\t)' : separator }}</span>
+              <span class="text-sm">{{ t('detectedSeparator', locale) }}</span>
+              <span class="separator-value">{{ separator === '\t' ? t('tab', locale) : separator }}</span>
             </div>
           </div>
 
           <div class="mt-4">
             <div class="cmd-preview-header">
-              <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+              <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
             </div>
             <div class="overflow-hidden rounded-lg">
               <SiliconeTable :data="tableData" :height="'400px'" show-overflow-tooltip>
                 <template #empty>
                   <div class="flex items-center justify-center gap-2 text-gray-500">
-                    No data. Click above to select file.
+                    {{ t('noData', locale) }}
                   </div>
                 </template>
                 <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"

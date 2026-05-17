@@ -14,10 +14,15 @@ import {
   useSkiprows
 } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Insert] ${msg}`, type);
@@ -60,21 +65,21 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-    addLog(`Loaded ${tableData.value.length} rows with ${tableColumn.value.length} columns`, 'success');
+    addLog(`${t('loaded', locale.value)} ${tableData.value.length} ${t('rows', locale.value)} with ${tableColumn.value.length} ${t('columns', locale.value)}`, 'success');
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function insertData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting insert operation...', 'info');
+    addLog(`${t('startingInsert', locale.value)}...`, 'info');
 
     const rtime: string = await invoke("insert", {
       path: path.value,
@@ -86,9 +91,9 @@ async function insertData() {
       flexible: flexible.flexible,
       progress: progress.progress
     });
-    addLog(`Insert done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('insertDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Insert operation failed: ${e}`, 'error');
+    addLog(`${t('insertFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -108,8 +113,8 @@ onUnmounted(() => {
           <Icon icon="ri:insert-column-right" />
         </div>
         <div class="cmd-header-text">
-          <h1>Insert</h1>
-          <p>Insert columns at specified position</p>
+          <h1>{{ t('insert', locale) }}</h1>
+          <p>{{ t('insertDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -126,49 +131,49 @@ onUnmounted(() => {
               <span class="cmd-file-path">{{ path }}</span>
             </template>
             <template v-else>
-              <span class="cmd-file-prompt">Click to select a CSV file</span>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
             </template>
           </div>
           <div class="flex items-center gap-2 ml-auto">
             <SiliconeButton @click.stop="insertData()" :loading="loading" size="small">
-              Run
+              {{ t('run', locale) }}
             </SiliconeButton>
           </div>
         </div>
 
         <div class="options-grid mt-4">
           <div class="option-section">
-            <div class="option-label">TARGET COLUMN</div>
-            <SiliconeSelect v-model="column" filterable placeholder="Select column" class="w-full">
+            <div class="option-label">{{ t('targetColumn', locale) }}</div>
+            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
 
           <div class="option-section">
-            <div class="option-label">POSITION</div>
-            <SiliconeInput v-model="position" placeholder="left | right | 1 | 2..." class="w-full" />
+            <div class="option-label">{{ t('position', locale) }}</div>
+            <SiliconeInput v-model="position" :placeholder="t('positionPlaceholder', locale)" class="w-full" />
           </div>
 
           <div class="option-section">
-            <div class="option-label">VALUES</div>
-            <SiliconeInput v-model="values" placeholder="1 | | CNY..." class="w-full" />
+            <div class="option-label">{{ t('values', locale) }}</div>
+            <SiliconeInput v-model="values" :placeholder="t('valuesPlaceholder', locale)" class="w-full" />
           </div>
         </div>
 
         <div class="preview-formula mt-4">
-          <span class="formula-label">Preview:</span>
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
           <span class="formula-item">INSERT</span>
-          <span class="formula-operator">COL</span>
-          <span class="formula-item">{{ column || "column" }}</span>
+          <span class="formula-operator">{{ t('col', locale) }}</span>
+          <span class="formula-item">{{ column || t('column', locale) }}</span>
           <span class="formula-operator">@</span>
-          <span class="formula-item">{{ position || "left" }}</span>
+          <span class="formula-item">{{ position || t('left', locale) }}</span>
           <span class="formula-operator">=</span>
-          <span class="formula-item">{{ values ? values.split('|').length : 0 }} vals</span>
+          <span class="formula-item">{{ values ? values.split('|').length : 0 }} {{ t('vals', locale) }}</span>
         </div>
 
         <div class="insert-demo mt-4">
           <div class="demo-row">
-            <div class="demo-label">BEFORE</div>
+            <div class="demo-label">{{ t('before', locale) }}</div>
             <div class="demo-items">
               <span class="demo-item">A</span>
               <span class="demo-item">B</span>
@@ -179,7 +184,7 @@ onUnmounted(() => {
             <Icon icon="ri:arrow-right-line" />
           </div>
           <div class="demo-row">
-            <div class="demo-label">AFTER</div>
+            <div class="demo-label">{{ t('after', locale) }}</div>
             <div class="demo-items">
               <span class="demo-item">A</span>
               <span class="demo-item insert-highlight">X</span>
@@ -195,7 +200,7 @@ onUnmounted(() => {
               <Icon icon="ri:database-line" />
             </div>
             <div class="stats-info">
-              <span class="stats-label">Total Rows</span>
+              <span class="stats-label">{{ t('totalRows', locale) }}</span>
               <span class="stats-value">{{ totalRows }}</span>
             </div>
           </div>
@@ -204,21 +209,20 @@ onUnmounted(() => {
               <Icon icon="ri:scan-line" />
             </div>
             <div class="stats-info">
-              <span class="stats-label">Progress</span>
+              <span class="stats-label">{{ t('progress', locale) }}</span>
             </div>
           </div>
         </div>
 
         <div class="cmd-preview-header">
-          <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows x {{ tableColumn?.length || 0 }}
-            cols)</span>
-          <span class="cmd-mode-badge">INSERT @ {{ position || "left" }}</span>
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} x {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
+          <span class="cmd-mode-badge">INSERT @ {{ position || t('left', locale) }}</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip>
             <template #empty>
               <div class="flex items-center justify-center gap-2 text-gray-500">
-                No data. Click above to select file.
+                {{ t('noData', locale) }}
               </div>
             </template>
             <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -227,7 +231,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Insert - Insert columns through index" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('insert', locale)} - ${t('insertDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

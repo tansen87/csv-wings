@@ -14,11 +14,16 @@ import {
   useSkiprows
 } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Rename] ${msg}`, type);
@@ -73,21 +78,20 @@ async function selectFile() {
       tableData.value.push(colData);
     }
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke rename
 async function renameData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
     const renamedCount = tableData.value.filter(row => row.col2 && row.col2 !== row.col1).length;
-    addLog(`Starting rename operation with ${renamedCount} columns to rename`, 'info');
+    addLog(`${t('startingRename', locale.value)} ${t('with', locale.value)} ${renamedCount} ${t('columnsToRename', locale.value)}`, 'info');
 
     const headersStringArray = tableData.value.map((row: any) => row.col2);
     const headersString = headersStringArray.join(",");
@@ -99,9 +103,9 @@ async function renameData() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    addLog(`Rename done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('renameDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Rename failed: ${e}`, 'error');
+    addLog(`${t('renameFailed', locale.value)}: ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -131,8 +135,8 @@ onUnmounted(() => {
           <Icon icon="ri:heading" />
         </div>
         <div class="cmd-header-text">
-          <h1>Rename</h1>
-          <p>Rename the columns of a CSV</p>
+          <h1>{{ t('rename', locale) }}</h1>
+          <p>{{ t('renameDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -150,74 +154,74 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="renameData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
 
           <div class="cmd-stats-grid mt-4">
             <div class="cmd-stat-card">
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
               <div class="cmd-stat-value">{{ totalRows }}</div>
             </div>
             <div class="cmd-stat-card">
-              <div class="cmd-stat-label">Progress</div>
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
             <div class="cmd-stat-card cmd-stat-green">
-              <div class="cmd-stat-label">To Rename</div>
+              <div class="cmd-stat-label">{{ t('toRename', locale) }}</div>
               <div class="cmd-stat-value">{{ renamedCount }}</div>
             </div>
           </div>
 
           <div class="rename-search-section mt-4 mb-4">
-            <div class="cmd-option-label">SEARCH HEADER</div>
-            <SiliconeInput v-model="search" placeholder="Type to search headers..." clearable class="w-full">
+            <div class="cmd-option-label">{{ t('searchHeader', locale) }}</div>
+            <SiliconeInput v-model="search" :placeholder="t('typeToSearchHeaders', locale)" clearable class="w-full">
               <template #prefix>
                 <Icon icon="ri:search-line" class="w-4 h-4 text-gray-400" />
               </template>
             </SiliconeInput>
             <div v-if="search" class="mt-1 text-[10px] text-gray-400">
-              Found {{ filterTableData.length }} / {{ totalColumns || 0 }} columns
+              {{ t('found', locale) }} {{ filterTableData.length }} / {{ totalColumns || 0 }} {{ t('columns', locale) }}
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">COLUMN EDITOR ({{ filterTableData.length }})</span>
+            <span class="cmd-preview-title">{{ t('columnEditor', locale) }} ({{ filterTableData.length }})</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="filterTableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noData', locale) }}
                 </div>
               </template>
-              <el-table-column prop="col1" label="Header" min-width="150">
+              <el-table-column prop="col1" :label="t('header', locale)" min-width="150">
                 <template #default="{ row }">
                   <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {{ row.col1 }}
                   </span>
                 </template>
               </el-table-column>
-              <el-table-column prop="col2" label="New Header" min-width="150">
+              <el-table-column prop="col2" :label="t('newHeader', locale)" min-width="150">
                 <template #default="{ row }">
-                  <SiliconeInput v-model="row.col2" placeholder="Enter new header name" @blur="headerEdit(row)"
+                  <SiliconeInput v-model="row.col2" :placeholder="t('enterNewHeaderName', locale)" @blur="headerEdit(row)"
                     @keyup.enter="headerEdit(row)" size="small" />
                 </template>
               </el-table-column>
-              <el-table-column label="Status" width="120">
+              <el-table-column :label="t('status', locale)" width="120">
                 <template #default="{ row }">
                   <span v-if="row.col2 && row.col2 !== row.col1" class="status-changed">
-                    Changed
+                    {{ t('changed', locale) }}
                   </span>
                   <span v-else class="status-unchanged">
-                    Unchanged
+                    {{ t('unchanged', locale) }}
                   </span>
                 </template>
               </el-table-column>
@@ -227,7 +231,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Rename - Rename the columns of a CSV" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('rename', locale)} - ${t('renameDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

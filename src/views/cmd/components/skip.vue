@@ -6,11 +6,16 @@ import { useDynamicHeight } from "@/utils/utils";
 import { previewtNLines, viewOpenFile } from "@/utils/view";
 import { useMarkdown, mdSkip } from "@/utils/markdown";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Skip] ${msg}`, type);
@@ -42,26 +47,26 @@ async function selectFile() {
       content
     }));
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function skipLines() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting skip process...', 'info');
+    addLog(t('startingSkipProcess', locale.value), 'info');
     const rtime: string = await invoke("skip", {
       path: path.value,
       skiprows: skiprows.value
     });
-    addLog(`Skip done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('skipDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Skip failed: ${e}`, 'error');
+    addLog(`${t('skipFailed', locale.value)}: ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -111,8 +116,8 @@ onUnmounted(() => {
           <Icon icon="ri:skip-up-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Skip</h1>
-          <p>Skip lines from CSV</p>
+          <h1>{{ t('skip', locale) }}</h1>
+          <p>{{ t('skipDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -130,26 +135,25 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="skipLines()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
 
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">SKIP LINES</div>
-              <SiliconeInput v-model="skiprows" placeholder="e.g. 10" clearable class="w-full" />
+              <div class="cmd-option-label">{{ t('skipLines', locale) }}</div>
+              <SiliconeInput v-model="skiprows" :placeholder="t('skipLinesPlaceholder', locale)" clearable class="w-full" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ lines?.length || 0 }} lines)</span>
-            <span class="cmd-mode-badge">Skip: {{ skiprows }} lines</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ lines?.length || 0 }} {{ t('rows', locale) }})</span>
           </div>
           <div class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden h-[350px]">
             <div class="line-number-wrapper" ref="lineNumberRef" @scroll="handleLineNumberScroll">
@@ -174,7 +178,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Skip - Skip lines from CSV" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('skip', locale)} - ${t('skipDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
+import { onUnmounted, ref, watch, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -14,10 +14,15 @@ import {
   useSkiprows
 } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Enumerate Group] ${msg}`, type);
@@ -31,10 +36,10 @@ const sorted = ref(false);
 
 const indexColumnName = ref("Line Number");
 const groupByColumn = ref("");
-const sortedOpts = [
-  { label: "True", value: true },
-  { label: "False", value: false }
-];
+const sortedOpts = computed(() => [
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
+]);
 
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdEnumer);
@@ -77,23 +82,23 @@ async function selectFile() {
       groupByColumn.value = columnView[0].prop;
     }
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function enumerate() {
   if (path.value === "") {
-    message("File not selected", { type: 'warning' });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (!groupByColumn.value) {
-    message("Please select a column to group by", { type: 'warning' });
+    message(t('pleaseSelectColumnToGroupBy', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting enumerate by group process...', 'info');
+    addLog(t('startingEnumerateByGroupProcess', locale.value), 'info');
     const rtime: string = await invoke("enumer_by_group", {
       path: path.value,
       progress: progress.progress,
@@ -104,9 +109,9 @@ async function enumerate() {
       groupByColumn: groupByColumn.value,
       sorted: sorted.value
     });
-    addLog(`Enumerate by group done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('enumerateByGroupDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Enumerate by group failed: ${e}`, 'error');
+    addLog(`${t('enumerateByGroupFailed', locale.value)}: ${e}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -126,8 +131,8 @@ onUnmounted(() => {
           <Icon icon="ri:group-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Enumer Group</h1>
-          <p>Add row number within each group</p>
+          <h1>{{ t('enumerateByGroup', locale) }}</h1>
+          <p>{{ t('enumerateByGroupDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -145,12 +150,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="enumerate()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -166,49 +171,49 @@ onUnmounted(() => {
 
           <div class="options-grid mt-4">
             <div class="option-section">
-              <div class="option-label">INDEX COLUMN NAME</div>
-              <SiliconeInput v-model="indexColumnName" placeholder="e.g. row_num" class="w-full" />
+              <div class="option-label">{{ t('indexColumnName', locale) }}</div>
+              <SiliconeInput v-model="indexColumnName" :placeholder="t('indexColumnNamePlaceholder', locale)" class="w-full" />
             </div>
 
             <div class="option-section">
-              <div class="option-label">GROUP BY COLUMN</div>
-              <SiliconeSelect v-model="groupByColumn" placeholder="Select column" class="w-full">
+              <div class="option-label">{{ t('groupByColumn', locale) }}</div>
+              <SiliconeSelect v-model="groupByColumn" :placeholder="t('selectColumn', locale)" class="w-full">
                 <el-option v-for="col in tableColumn" :key="col.prop" :label="col.label" :value="col.prop" />
               </SiliconeSelect>
             </div>
 
             <div class="preview-formula">
-              <span class="formula-label">Preview:</span>
+              <span class="formula-label">{{ t('preview', locale) }}:</span>
               <span class="formula-item">{{ indexColumnName }}</span>
               <span class="formula-operator">=</span>
               <span class="formula-item">ROW_NUMBER()</span>
               <span class="formula-operator">OVER (PARTITION BY</span>
-              <span class="formula-item">{{ groupByColumn || "column" }}</span>
+              <span class="formula-item">{{ groupByColumn || t('column', locale) }}</span>
               <span class="formula-operator">)</span>
             </div>
           </div>
 
           <div class="stats-grid mt-4 mb-4">
             <div class="stat-card">
-              <div class="stat-label">Total Rows</div>
+              <div class="stat-label">{{ t('totalRows', locale) }}</div>
               <div class="stat-value">{{ totalRows }}</div>
             </div>
             <div class="stat-card stat-blue">
-              <div class="stat-label">Progress</div>
+              <div class="stat-label">{{ t('progress', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-            <span class="cmd-mode-badge">Group by: {{ groupByColumn || "none" }}</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('groupBy', locale) }}: {{ groupByColumn || t('none', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
@@ -219,7 +224,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Enumerate by Group - Add row numbers within each group" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('enumerateByGroup', locale)} - ${t('enumerateByGroupDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

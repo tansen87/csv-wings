@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -14,11 +14,16 @@ import {
   useSkiprows
 } from "@/store/modules/options";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Fill] ${msg}`, type);
@@ -26,10 +31,10 @@ const addLog = (msg: string, type: string = 'info') => {
 
 const [fillChar, mode] = [ref("0"), ref("fill")];
 const [currentRows, totalRows] = [ref(0), ref(0)];
-const modeOptions = [
-  { label: "fill", value: "fill" },
-  { label: "f-fill", value: "ffill" }
-];
+const modeOptions = computed(() => [
+  { label: t('fillMode', locale.value), value: "fill" },
+  { label: t('ffillMode', locale.value), value: "ffill" }
+]);
 const [loading, dialog] = [ref(false), ref(false)];
 const [columns, path] = [ref(""), ref("")];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
@@ -65,23 +70,23 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function fillData() {
   if (path.value === "") {
-    message("File not selected", { type: 'warning' });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (columns.value.length === 0) {
-    message("Column not selected", { type: 'warning' });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting fill process...', 'info');
+    addLog(t('startingFillProcess', locale.value), 'info');
     const cols = Object.values(columns.value).join("|");
     const rtime: string = await invoke("fill", {
       path: path.value,
@@ -93,9 +98,9 @@ async function fillData() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    addLog(`Fill done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('fillDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Fill failed: ${e}`, 'error');
+    addLog(`${t('fillFailed', locale.value)}: ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -114,8 +119,8 @@ onUnmounted(() => {
           <Icon icon="ri:rhythm-fill" />
         </div>
         <div class="cmd-header-text">
-          <h1>Fill</h1>
-          <p>Fill empty fields in selected columns</p>
+          <h1>{{ t('fill', locale) }}</h1>
+          <p>{{ t('fillDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -133,12 +138,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="fillData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -154,39 +159,39 @@ onUnmounted(() => {
 
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">COLUMNS ({{ columns.length }})</div>
-              <SiliconeSelect v-model="columns" multiple filterable placeholder="Select columns" class="w-full">
+              <div class="cmd-option-label">{{ t('columns', locale) }} ({{ columns.length }})</div>
+              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="cmd-option-section" v-if="mode === 'fill'">
-              <div class="cmd-option-label">FILL VALUE</div>
-              <SiliconeInput v-model="fillChar" placeholder="Enter fill value" class="w-full" />
+              <div class="cmd-option-label">{{ t('fillValue', locale) }}</div>
+              <SiliconeInput v-model="fillChar" :placeholder="t('enterFillValue', locale)" class="w-full" />
             </div>
           </div>
 
           <div class="cmd-stats-grid mt-4" v-if="totalRows > 0">
             <div class="cmd-stat-card">
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
               <div class="cmd-stat-value">{{ totalRows }}</div>
             </div>
             <div class="cmd-stat-card cmd-stat-card-blue">
-              <div class="cmd-stat-label">Progress</div>
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-            <span class="cmd-mode-badge">Mode: {{ mode }}</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('mode', locale) }}: {{ mode === 'fill' ? t('fillMode', locale) : t('ffillMode', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
@@ -197,7 +202,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Fill - Fill empty fields in selected columns of a CSV" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('fill', locale)} - ${t('fillDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

@@ -11,17 +11,22 @@ import { shortFileName, useDynamicHeight, updateEvent } from "@/utils/utils";
 import { useMarkdown, mdCount } from "@/utils/markdown";
 import { useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
 
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
 const mode = ref("count");
-const modeOptions = [
-  { label: "Count", value: "count" },
-  { label: "Check", value: "check" }
-];
+const modeOptions = computed(() => [
+  { label: t('count', locale.value), value: "count" },
+  { label: t('check', locale.value), value: "check" }
+]);
 const path = ref("");
 const [dialog, loading] = [ref(false), ref(false)];
 const fileSelect = ref([]);
@@ -92,19 +97,19 @@ async function selectFile() {
 
 async function countData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog(`Starting ${mode.value}...`, 'info');
+    addLog(`${t('starting', locale.value)} ${mode.value}...`, 'info');
     const rtime: string = await invoke("count", {
       path: path.value,
       mode: mode.value,
       skiprows: skiprows.skiprows
     });
-    addLog(`${mode.value} done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${mode.value} ${t('done', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
     addLog(`${e}`, 'error');
   }
@@ -114,7 +119,7 @@ async function countData() {
 const removeFile = index => {
   const removedFile = fileSelect.value[index];
   fileSelect.value.splice(index, 1);
-  message(`Removed file: ${removedFile.filename}`, { type: 'info' });
+  message(`${t('removedFile', locale.value)}: ${removedFile.filename}`, { type: 'info' });
 };
 
 onUnmounted(() => {
@@ -131,8 +136,8 @@ onUnmounted(() => {
           <Icon icon="ri:numbers-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Count</h1>
-          <p>Count or check CSV files</p>
+          <h1>{{ t('count', locale) }}</h1>
+          <p>{{ t('countDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -146,15 +151,15 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} file(s) selected</span>
+                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale) }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select files</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="countData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -171,20 +176,20 @@ onUnmounted(() => {
           <div v-if="fileSelect.length > 0" class="cmd-stats-grid mt-4">
             <div class="cmd-stat-card cmd-stat-success">
               <div class="cmd-stat-value">{{ successCount }}</div>
-              <div class="cmd-stat-label">Succeed</div>
+              <div class="cmd-stat-label">{{ t('succeed', locale) }}</div>
             </div>
             <div class="cmd-stat-card cmd-stat-error">
               <div class="cmd-stat-value">{{ failedCount }}</div>
-              <div class="cmd-stat-label">Failed</div>
+              <div class="cmd-stat-label">{{ t('failed', locale) }}</div>
             </div>
             <div v-if="mode === 'count'" class="cmd-stat-card cmd-stat-total">
               <div class="cmd-stat-value">{{ totalRows }}</div>
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
             </div>
           </div>
 
           <div class="cmd-preview-header mt-4">
-            <span class="cmd-preview-title">FILE LIST ({{ fileSelect.length }})</span>
+            <span class="cmd-preview-title">{{ t('fileList', locale) }} ({{ fileSelect.length }})</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="fileSelect" :height="'300px'" show-overflow-tooltip :row-style="{ height: '40px' }"
@@ -193,10 +198,10 @@ onUnmounted(() => {
               }" class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select files.
+                  {{ t('noDataClickSelectFiles', locale) }}
                 </div>
               </template>
-              <el-table-column prop="filename" label="File" min-width="150" />
+              <el-table-column prop="filename" :label="t('file', locale)" min-width="150" />
               <el-table-column prop="status" width="70">
                 <template #default="scope">
                   <ElIcon v-if="scope.row.status === ''" class="is-loading">
@@ -210,7 +215,7 @@ onUnmounted(() => {
                   </ElIcon>
                 </template>
               </el-table-column>
-              <el-table-column prop="message" label="Message" min-width="100">
+              <el-table-column prop="message" :label="t('message', locale)" min-width="100">
                 <template #default="scope">
                   <span v-if="scope.row.status === 'error'"
                     class="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
@@ -235,7 +240,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Count - Count the rows of CSV files" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('count', locale)} - ${t('countDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

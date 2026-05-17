@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
+import { onUnmounted, ref, watch, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -16,6 +16,8 @@ import {
   useSkiprows,
   useThreads
 } from "@/store/modules/options";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
@@ -49,53 +51,65 @@ const [detectedEncoding, encodingConfidence, manualEncoding] = [
   ref(0),
   ref("")
 ];
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
 const encodingOptions = [
-  { label: "Auto", value: "" },
+  { label: t('auto', locale.value), value: "" },
   { label: "简体中文 (GBK)", value: "GBK" },
   { label: "UTF-8", value: "UTF-8" },
   { label: "UTF-16LE", value: "UTF-16LE" },
   { label: "UTF-16BE", value: "UTF-16BE" }
 ];
 
-const modeOptions = [
-  { label: "FormatCsv", value: "fmt" },
-  { label: "EncodingCsv", value: "encoding" },
-  { label: "Excel2Csv", value: "excel" },
-  { label: "Csv2Xlsx", value: "csv" },
-  { label: "Dbf2Csv", value: "dbf" },
-  { label: "Json2Csv", value: "json" },
-  { label: "NdJson2Csv", value: "jsonl" }
-];
+const modeOptions = computed(() => [
+  { label: t('formatCsv', locale.value), value: "fmt" },
+  { label: t('encodingCsv', locale.value), value: "encoding" },
+  { label: t('excel2Csv', locale.value), value: "excel" },
+  { label: t('csv2Xlsx', locale.value), value: "csv" },
+  { label: t('dbf2Csv', locale.value), value: "dbf" },
+  { label: t('json2Csv', locale.value), value: "json" },
+  { label: t('ndJson2Csv', locale.value), value: "jsonl" }
+]);
+
 const sheetsOptions = [
-  { label: "All", value: true },
-  { label: "One", value: false }
+  { label: t('all', locale.value), value: true },
+  { label: t('one', locale.value), value: false }
 ];
+
 const writeOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
 ];
+
 const quoteOptions = [
   { label: "'", value: "'" },
   { label: '"', value: '"' }
 ];
+
 const csvModeOptions = [
-  { label: "One", value: "one" },
-  { label: "Multi", value: "multi" }
+  { label: t('one', locale.value), value: "one" },
+  { label: t('multi', locale.value), value: "multi" }
 ];
+
 const iErrOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
 ];
+
 const fmtOptions = [
-  { label: "Necessary", value: "necessary" },
-  { label: "Always", value: "always" },
-  { label: "NonNumeric", value: "non_numeric" },
-  { label: "Never", value: "never" }
+  { label: t('necessary', locale.value), value: "necessary" },
+  { label: t('always', locale.value), value: "always" },
+  { label: t('nonNumeric', locale.value), value: "non_numeric" },
+  { label: t('never', locale.value), value: "never" }
 ];
+
 const bomOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
 ];
+
 const sheetsData = ref({});
 const fileSelect = ref<ListenEvent[]>([]);
 const quoting = useQuoting();
@@ -213,10 +227,10 @@ async function selectFile() {
     });
     path.value = trimFile.filePath;
     fileSelect.value = trimFile.fileInfo;
-    addLog(`Selected ${fileSelect.value.length} file(s)`, "info");
+    addLog(`${t('selected', locale.value)} ${fileSelect.value.length} ${t('file', locale.value)}(s)`, "info");
 
     if (activeTab.value === "excel") {
-      addLog("Getting Excel sheets...", "info");
+      addLog(t('gettingExcelSheets', locale.value), "info");
       mapSheets.value = await invoke<ExcelSheetMap>("map_excel_sheets", {
         path: path.value
       });
@@ -238,14 +252,14 @@ async function selectFile() {
         file.sheets = getSheetsForFile(file.filename);
       });
       addLog(
-        `Found ${totalSheets} sheets in ${fileSelect.value.length} files`,
+        `${t('found', locale.value)} ${totalSheets} ${t('sheets', locale.value)} ${t('in', locale.value)} ${fileSelect.value.length} ${t('files', locale.value)}`,
         "success"
       );
     }
 
     // encoding 模式自动检测编码
     if (activeTab.value === "encoding" && fileSelect.value.length > 0) {
-      addLog("Detecting file encoding...", "info");
+      addLog(t('detectingFileEncoding', locale.value), "info");
 
       try {
         const result = await invoke<{
@@ -262,36 +276,36 @@ async function selectFile() {
 
         // 置信度低时提示用户手动选择
         if (result.confidence < 0.7) {
-          const warningMessage = `编码检测置信度较低 (${(
+          const warningMessage = `${t('encodingConfidenceLow', locale.value)} (${(
             result.confidence * 100
-          ).toFixed(1)}%),建议手动确认`;
+          ).toFixed(1)}%),${t('suggestManualConfirm', locale.value)}`;
           addLog(warningMessage, "warning");
         } else {
           addLog(
-            `Detected encoding: ${result.encoding} (${(
+            `${t('detectedEncoding', locale.value)}: ${result.encoding} (${(
               result.confidence * 100
-            ).toFixed(1)}% confidence)`,
+            ).toFixed(1)}% ${t('confidence', locale.value)})`,
             "success"
           );
         }
       } catch (e) {
-        addLog(`编码检测失败：${e}`, "error");
+        addLog(`${t('encodingDetectionFailed', locale.value)}：${e}`, "error");
       }
     }
   } catch (e) {
-    addLog(`File selection failed: ${e}`, "error");
+    addLog(`${t('fileSelectionFailed', locale.value)}: ${e}`, "error");
   }
 }
 
 // invoke convert
 async function convert() {
   if (path.value === "") {
-    addLog("File not selected", "warning");
+    addLog(t('fileNotSelected', locale.value), "warning");
     return;
   }
   try {
     loading.value = true;
-    addLog(`Starting conversion: ${activeTab.value} mode`, "info");
+    addLog(`${t('startingConversion', locale.value)}: ${activeTab.value} ${t('mode', locale.value)}`, "info");
     let rtime: string;
     if (activeTab.value === "excel") {
       const mapFileSheet = fileSheet.value.map(item => ({
@@ -349,9 +363,9 @@ async function convert() {
         ignoreErr: ignoreErr.value
       });
     }
-    addLog(`${activeTab.value} done, elapsed time: ${rtime} s`, "success");
+    addLog(`${activeTab.value} ${t('done', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, "success");
   } catch (e) {
-    addLog(`Conversion failed: ${e}`, "error");
+    addLog(`${t('conversionFailed', locale.value)}: ${e}`, "error");
   }
   loading.value = false;
 }
@@ -369,8 +383,8 @@ onUnmounted(() => {
           <Icon icon="ri:exchange-2-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Convert</h1>
-          <p>Convert between different file formats</p>
+          <h1>{{ t('convert', locale) }}</h1>
+          <p>{{ t('convertDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -384,15 +398,15 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} file(s) selected</span>
+                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale) }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select files</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="convert()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -409,7 +423,7 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4 mb-4">
             <template v-if="activeTab === 'excel'">
               <div class="cmd-option-section">
-                <div class="cmd-option-label">CONVERT MODE</div>
+                <div class="cmd-option-label">{{ t('convertMode', locale) }}</div>
                 <div class="cmd-mode-toggle-inline">
                   <span v-for="item in sheetsOptions" :key="String(item.value)" class="cmd-toggle-item"
                     :class="{ active: allSheets === item.value }" @click="allSheets = item.value">
@@ -418,7 +432,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="cmd-option-section">
-                <div class="cmd-option-label">WRITE SHEET NAME</div>
+                <div class="cmd-option-label">{{ t('writeSheetName', locale) }}</div>
                 <div class="cmd-mode-toggle-inline">
                   <span v-for="item in writeOptions" :key="String(item.value)" class="cmd-toggle-item"
                     :class="{ active: writeSheetname === item.value }" @click="writeSheetname = item.value">
@@ -430,7 +444,7 @@ onUnmounted(() => {
 
             <template v-if="activeTab === 'fmt'">
               <div class="cmd-option-section">
-                <div class="cmd-option-label">QUOTE CHARACTER</div>
+                <div class="cmd-option-label">{{ t('quoteCharacter', locale) }}</div>
                 <div class="cmd-mode-toggle-inline">
                   <span v-for="item in quoteOptions" :key="item.value" class="cmd-toggle-item"
                     :class="{ active: quote === item.value }" @click="quote = item.value">
@@ -439,7 +453,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="cmd-option-section">
-                <div class="cmd-option-label">QUOTE STYLE</div>
+                <div class="cmd-option-label">{{ t('quoteStyle', locale) }}</div>
                 <div class="cmd-mode-toggle-inline">
                   <span v-for="item in fmtOptions" :key="item.value" class="cmd-toggle-item"
                     :class="{ active: quoteStyle === item.value }" @click="quoteStyle = item.value">
@@ -451,7 +465,7 @@ onUnmounted(() => {
 
             <template v-if="activeTab === 'csv'">
               <div class="cmd-option-section">
-                <div class="cmd-option-label">MODE</div>
+                <div class="cmd-option-label">{{ t('mode', locale) }}</div>
                 <div class="cmd-mode-toggle-inline">
                   <span v-for="item in csvModeOptions" :key="item.value" class="cmd-toggle-item"
                     :class="{ active: csvMode === item.value }" @click="csvMode = item.value">
@@ -460,7 +474,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="cmd-option-section">
-                <div class="cmd-option-label">CHUNK SIZE</div>
+                <div class="cmd-option-label">{{ t('chunkSize', locale) }}</div>
                 <SiliconeInput v-model="chunksize" class="w-full" />
               </div>
             </template>
@@ -476,8 +490,8 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="cmd-option-section">
-                <div class="cmd-option-label">ENCODING</div>
-                <SiliconeSelect v-model="manualEncoding" placeholder="Auto Detect" clearable class="w-full">
+                <div class="cmd-option-label">{{ t('encoding', locale) }}</div>
+                <SiliconeSelect v-model="manualEncoding" :placeholder="t('autoDetect', locale)" clearable class="w-full">
                   <el-option v-for="item in encodingOptions" :key="item.value" :label="item.label"
                     :value="item.value" />
                 </SiliconeSelect>
@@ -486,7 +500,7 @@ onUnmounted(() => {
 
             <template v-if="activeTab === 'jsonl'">
               <div class="cmd-option-section">
-                <div class="cmd-option-label">ERROR HANDLING</div>
+                <div class="cmd-option-label">{{ t('errorHandling', locale) }}</div>
                 <div class="cmd-mode-toggle-inline">
                   <span v-for="item in iErrOptions" :key="String(item.value)" class="cmd-toggle-item"
                     :class="{ active: ignoreErr === item.value }" @click="ignoreErr = item.value">
@@ -498,24 +512,24 @@ onUnmounted(() => {
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">FILE LIST ({{ fileSelect.length }})</span>
-            <span class="cmd-mode-badge" v-if="activeTab === 'fmt'" size="small">Format CSV</span>
-            <span class="cmd-mode-badge" v-else-if="activeTab === 'encoding'" size="small">To UTF-8</span>
-            <span class="cmd-mode-badge" v-else-if="activeTab === 'excel'" size="small">Excel to CSV</span>
-            <span class="cmd-mode-badge" v-else-if="activeTab === 'csv'" size="small">CSV to Xlsx</span>
-            <span class="cmd-mode-badge" v-else-if="activeTab === 'dbf'" size="small">DBF to CSV</span>
-            <span class="cmd-mode-badge" v-else-if="activeTab === 'json'" size="small">Json to CSV</span>
-            <span class="cmd-mode-badge" v-else-if="activeTab === 'jsonl'" size="small">JSONL to CSV</span>
+            <span class="cmd-preview-title">{{ t('fileList', locale) }} ({{ fileSelect.length }})</span>
+            <span class="cmd-mode-badge" v-if="activeTab === 'fmt'" size="small">{{ t('formatCsv', locale) }}</span>
+            <span class="cmd-mode-badge" v-else-if="activeTab === 'encoding'" size="small">{{ t('toUtf8', locale) }}</span>
+            <span class="cmd-mode-badge" v-else-if="activeTab === 'excel'" size="small">{{ t('excelToCsv', locale) }}</span>
+            <span class="cmd-mode-badge" v-else-if="activeTab === 'csv'" size="small">{{ t('csvToXlsx', locale) }}</span>
+            <span class="cmd-mode-badge" v-else-if="activeTab === 'dbf'" size="small">{{ t('dbfToCsv', locale) }}</span>
+            <span class="cmd-mode-badge" v-else-if="activeTab === 'json'" size="small">{{ t('jsonToCsv', locale) }}</span>
+            <span class="cmd-mode-badge" v-else-if="activeTab === 'jsonl'" size="small">{{ t('jsonlToCsv', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="fileSelect" :height="'350px'" show-overflow-tooltip :key="activeTab"
               :row-style="{ height: '40px' }" :cell-style="{ borderBottom: '1px solid #f0f0f0' }">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select files.
+                  {{ t('noDataClickSelectFiles', locale) }}
                 </div>
               </template>
-              <el-table-column prop="filename" label="File Name" min-width="150" />
+              <el-table-column prop="filename" :label="t('fileName', locale)" min-width="150" />
               <el-table-column prop="status" width="70">
                 <template #default="scope">
                   <ElIcon v-if="scope.row.status === 'loading'" class="is-loading">
@@ -529,14 +543,14 @@ onUnmounted(() => {
                   </ElIcon>
                 </template>
               </el-table-column>
-              <el-table-column prop="message" label="Message" :filters="[
-                { text: 'No worksheet', value: 'zero' },
-                { text: '1 worksheet', value: 'one' },
-                { text: 'Multiple worksheets', value: 'many' }
+              <el-table-column prop="message" :label="t('message', locale)" :filters="[
+                { text: t('noWorksheet', locale), value: 'zero' },
+                { text: '1 ' + t('worksheet', locale), value: 'one' },
+                { text: t('multipleWorksheets', locale), value: 'many' }
               ]" :filter-method="filterBySheetCount" min-width="150">
                 <template #default="scope">
                   <template v-if="activeTab === 'excel'">
-                    <SiliconeSelect v-model="scope.row.selectSheet" placeholder="Select a sheet" class="mb-[1px]"
+                    <SiliconeSelect v-model="scope.row.selectSheet" :placeholder="t('selectSheet', locale)" class="mb-[1px]"
                       @change="updateFileSheet(scope.row)"
                       :disabled="!scope.row.sheets || scope.row.sheets.length === 0" size="small">
                       <el-option v-for="sheet in scope.row.sheets" :key="sheet" :label="sheet" :value="sheet" />

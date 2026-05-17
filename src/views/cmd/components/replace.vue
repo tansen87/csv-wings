@@ -15,10 +15,15 @@ import {
   useThreads
 } from "@/store/modules/options";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Replace] ${msg}`, type);
@@ -66,27 +71,27 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function replaceData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (column.value.length === 0) {
-    message("Column not selected", { type: 'warning' });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (skiprows.skiprows > 0 && threads.threads !== 1) {
-    message("threads only support skiprows = 0", { type: 'warning' });
+    message(t('threadsOnlySupportSkiprowsZero', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     isLoading.value = true;
-    addLog('Starting replace process...', 'info');
+    addLog(t('startingReplaceProcess', locale.value), 'info');
     const res: string[] = await invoke("replace", {
       path: path.value,
       column: column.value,
@@ -99,9 +104,9 @@ async function replaceData() {
       threads: threads.threads
     });
     matchRows.value = Number(res[0]);
-    addLog(`Replaced ${res[0]} rows, elapsed time: ${res[1]} s`, 'success');
+    addLog(`${t('replaced', locale.value)} ${res[0]} ${t('rows', locale.value)}, ${t('elapsedTime', locale.value)}: ${res[1]} s`, 'success');
   } catch (e) {
-    addLog(`Replace failed: ${e}`, 'error');
+    addLog(`${t('replaceFailed', locale.value)}: ${e}`, 'error');
   } finally {
     isLoading.value = false;
   }
@@ -121,8 +126,8 @@ onUnmounted(() => {
           <Icon icon="ri:find-replace-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Replace</h1>
-          <p>Replace CSV data using regex</p>
+          <h1>{{ t('replace', locale) }}</h1>
+          <p>{{ t('replaceDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -140,65 +145,64 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="replaceData()" :loading="isLoading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
 
           <div class="options-grid mt-4">
             <div class="option-section">
-              <div class="option-label">COLUMN</div>
-              <SiliconeSelect v-model="column" filterable placeholder="Select column" class="w-full">
+              <div class="option-label">{{ t('column', locale) }}</div>
+              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
-              <div class="option-label">REGEX PATTERN</div>
-              <SiliconeInput v-model="regexPattern" placeholder="e.g. \d+ or [a-z]+" class="w-full" />
+              <div class="option-label">{{ t('regexPattern', locale) }}</div>
+              <SiliconeInput v-model="regexPattern" :placeholder="t('regexPatternPlaceholder', locale)" class="w-full" />
             </div>
 
             <div class="option-section">
-              <div class="option-label">REPLACEMENT</div>
-              <SiliconeInput v-model="replacement" placeholder="e.g. *** or new_value" class="w-full" />
+              <div class="option-label">{{ t('replacement', locale) }}</div>
+              <SiliconeInput v-model="replacement" :placeholder="t('replacementPlaceholder', locale)" class="w-full" />
             </div>
 
             <div class="preview-formula">
-              <span class="formula-label">Preview:</span>
-              <span class="formula-item">str.replace({{ regexPattern || "pattern" }}, {{ replacement || "value"
-              }})</span>
+              <span class="formula-label">{{ t('preview', locale) }}:</span>
+              <span class="formula-item">str.replace({{ regexPattern || t('pattern', locale) }}, {{ replacement || t('value', locale) }})</span>
             </div>
           </div>
 
           <div class="stats-grid mt-4 mb-4">
             <div class="stat-card stat-green">
-              <div class="stat-label">Replaced Rows</div>
+              <div class="stat-label">{{ t('replacedRows', locale) }}</div>
               <div class="stat-value">{{ matchRows }}</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Total Rows</div>
+              <div class="stat-label">{{ t('totalRows', locale) }}</div>
               <div class="stat-value">{{ totalRows }}</div>
             </div>
             <div class="stat-card stat-blue">
-              <div class="stat-label">Progress</div>
+              <div class="stat-label">{{ t('progress', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
                 </div>
               </template>
               <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -208,7 +212,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Replace - Replace CSV data using a regex" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('replace', locale)} - ${t('replaceDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

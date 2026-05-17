@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
@@ -7,21 +7,26 @@ import { viewOpenFile, toJson } from "@/utils/view";
 import { mdSplit, useMarkdown } from "@/utils/markdown";
 import { useSkiprows } from "@/store/modules/options";
 import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 import "./common.css";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
 
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Split] ${msg}`, type);
 };
 
 const [path, size, mode] = [ref(""), ref(1000000), ref("rows")];
-const modeOptions = [
-  { label: "Rows", value: "rows" },
-  { label: "Lines", value: "lines" }
-];
+const modeOptions = computed(() => [
+  { label: t('rows', locale.value), value: "rows" },
+  { label: t('lines', locale.value), value: "lines" }
+]);
 const [tableColumn, tableData] = [ref([]), ref([])];
 const [loading, dialog] = [ref(false), ref(false)];
 const { dynamicHeight } = useDynamicHeight(120);
@@ -43,31 +48,31 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function splitData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (skiprows.skiprows !== 0) {
-    message("split only support skiprows=0", { type: 'warning' });
+    message(t('splitOnlySupportSkiprowsZero', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     loading.value = true;
-    addLog('Starting split process...', 'info');
+    addLog(t('startingSplitProcess', locale.value), 'info');
     const rtime: string = await invoke("split", {
       path: path.value,
       size: size.value,
       mode: mode.value
     });
-    addLog(`Split done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('splitDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Split failed: ${e}`, 'error');
+    addLog(`${t('splitFailed', locale.value)}: ${e}`, 'error');
   }
   loading.value = false;
 }
@@ -86,8 +91,8 @@ onUnmounted(() => {
           <Icon icon="ri:scissors-cut-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Split</h1>
-          <p>Split one CSV file into many files</p>
+          <h1>{{ t('split', locale) }}</h1>
+          <p>{{ t('splitDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -105,12 +110,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="splitData()" :loading="loading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -126,35 +131,35 @@ onUnmounted(() => {
 
           <div class="cmd-options-grid mt-4 flex">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">SPLIT SIZE</div>
-              <SiliconeInputNumber v-model="size" :min="1" placeholder="Enter split size" class="w-full" />
+              <div class="cmd-option-label">{{ t('splitSize', locale) }}</div>
+              <SiliconeInputNumber v-model="size" :min="1" :placeholder="t('enterSplitSize', locale)" class="w-full" />
             </div>
           </div>
 
           <div class="cmd-stats-grid mt-4 mb-4">
             <div class="stat-card stat-blue">
-              <div class="cmd-stat-label">Rows/File</div>
+              <div class="cmd-stat-label">{{ t('rowsPerFile', locale) }}</div>
               <div class="cmd-stat-value">{{ size }}</div>
             </div>
             <div class="cmd-stat-card">
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
               <div class="cmd-stat-value">TODO</div>
             </div>
             <div class="cmd-stat-card stat-green">
-              <div class="cmd-stat-label">Output Files</div>
+              <div class="cmd-stat-label">{{ t('outputFiles', locale) }}</div>
               <div class="cmd-stat-value">TODO</div>
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-            <span class="cmd-mode-badge">Mode: {{ mode }}</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('mode', locale) }}: {{ mode === 'rows' ? t('rows', locale) : t('lines', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
@@ -165,7 +170,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Split - Split one CSV file into many CSV files" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('split', locale)} - ${t('splitDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

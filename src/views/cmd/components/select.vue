@@ -16,10 +16,15 @@ import {
 } from "@/store/modules/options";
 import "./common.css";
 import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Select] ${msg}`, type);
@@ -28,10 +33,10 @@ const addLog = (msg: string, type: string = 'info') => {
 const path = ref("");
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const selMode = ref("include");
-const selModeOptions = [
-  { label: "Include", value: "include" },
-  { label: "Exclude", value: "exclude" }
-];
+const selModeOptions = computed(() => [
+  { label: t('include', locale.value), value: "include" },
+  { label: t('exclude', locale.value), value: "exclude" }
+]);
 const [originalColumns, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const [isLoading, dialog, checkAll, indeterminate] = [
   ref(false),
@@ -92,18 +97,17 @@ async function selectFile() {
     const { dataView } = await toJson(path.value, skiprows.skiprows);
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke select
 async function selectColumns() {
   if (path.value === "") {
-    message("CSV file not selected", { type: 'warning' });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (selColumns.value.length === 0) {
-    message("Column not selected", { type: 'warning' });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
@@ -111,7 +115,7 @@ async function selectColumns() {
     isLoading.value = true;
     const selectedCount = selColumns.value.length;
     const totalCount = originalColumns.value.length;
-    addLog(`Starting select operation: ${selMode.value} ${selectedCount} of ${totalCount} columns`, 'info');
+    addLog(`${t('startingSelect', locale.value)}: ${selMode.value} ${selectedCount} ${t('of', locale.value)} ${totalCount} ${t('columns', locale.value)}`, 'info');
 
     const selCols = Object.values(selColumns.value).join("|");
     const rtime: string = await invoke("select", {
@@ -123,9 +127,9 @@ async function selectColumns() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    addLog(`Select done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('selectDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Select failed: ${e}`, 'error');
+    addLog(`${t('selectFailed', locale.value)}: ${e}`, 'error');
   }
   isLoading.value = false;
 }
@@ -168,8 +172,8 @@ onUnmounted(() => {
           <Icon icon="ri:check-double-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Select</h1>
-          <p>Select, drop, re-order columns</p>
+          <h1>{{ t('select', locale) }}</h1>
+          <p>{{ t('selectDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -187,12 +191,12 @@ onUnmounted(() => {
                 <span class="cmd-file-path">{{ path }}</span>
               </template>
               <template v-else>
-                <span class="cmd-file-prompt">Click to select a CSV file</span>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
               </template>
             </div>
             <div class="flex items-center gap-2 ml-auto">
               <SiliconeButton @click.stop="selectColumns()" :loading="isLoading" size="small">
-                Run
+                {{ t('run', locale) }}
               </SiliconeButton>
             </div>
           </div>
@@ -208,16 +212,16 @@ onUnmounted(() => {
 
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
-              <div class="cmd-option-label">COLUMNS ({{ selColumns.length }} / {{ originalColumns.length }})</div>
-              <SiliconeSelect v-model="selColumns" multiple filterable placeholder="Select columns" class="w-full">
+              <div class="cmd-option-label">{{ t('columns', locale) }} ({{ selColumns.length }} / {{ originalColumns.length }})</div>
+              <SiliconeSelect v-model="selColumns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
                 <template #header>
                   <div class="flex items-center justify-between px-2 py-1">
                     <el-checkbox v-model="checkAll" :indeterminate="indeterminate" @change="handleCheckAll"
                       class="text-xs">
-                      All
+                      {{ t('all', locale) }}
                     </el-checkbox>
                     <span class="text-xs text-gray-400">
-                      {{ selColumns.length }} selected
+                      {{ selColumns.length }} {{ t('selected', locale) }}
                     </span>
                   </div>
                 </template>
@@ -228,25 +232,25 @@ onUnmounted(() => {
 
           <div class="cmd-stats-grid mt-4" v-if="totalRows > 0">
             <div class="cmd-stat-card">
-              <div class="cmd-stat-label">Total Rows</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
               <div class="cmd-stat-value">{{ totalRows }}</div>
             </div>
             <div class="cmd-stat-card cmd-stat-blue">
-              <div class="cmd-stat-label">Progress</div>
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
-            <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows)</span>
-            <span class="cmd-mode-badge">Mode: {{ selMode }}</span>
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('mode', locale) }}: {{ selMode === 'include' ? t('include', locale) : t('exclude', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="displayedTableData" :height="'350px'" show-overflow-tooltip class="select-text">
               <template #empty>
                 <div class="flex items-center justify-center gap-2 text-gray-500">
-                  No data. Click above to select file.
+                  {{ t('noData', locale) }}
                 </div>
               </template>
               <el-table-column v-for="column in displayedColumns" :key="column.value" :prop="column.value"
@@ -257,7 +261,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Select - Select, drop, re-order columns" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('select', locale)} - ${t('selectDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

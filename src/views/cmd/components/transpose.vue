@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdTranspose, useMarkdown } from "@/utils/markdown";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
 const emit = defineEmits<{
   (e: 'add-log', message: string, type: string): void
 }>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const addLog = (msg: string, type: string = 'info') => {
   emit('add-log', `[Transpose] ${msg}`, type);
 };
 
 const [path, mode] = [ref(""), ref("memory")];
-const modeOptions = [
-  { label: "Memory", value: "memory" },
-  { label: "Multipass", value: "multipass" }
-];
+const modeOptions = computed(() => [
+  { label: t('memory', locale.value), value: "memory" },
+  { label: t('multipass', locale.value), value: "multipass" }
+]);
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const { dynamicHeight } = useDynamicHeight(120);
@@ -31,14 +36,14 @@ async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
-    addLog('File selection canceled', 'info');
+    addLog(t('fileSelectionCanceled', locale.value), 'info');
     return;
   }
 
-  addLog(`Selected file: ${path.value}`, 'info');
+  addLog(`${t('selectedFile', locale.value)}: ${path.value}`, 'info');
 
   try {
-    addLog('Loading file data...', 'info');
+    addLog(t('loadingFileData', locale.value), 'info');
     tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
       path.value,
@@ -47,24 +52,24 @@ async function selectFile() {
     tableColumn.value = columnView;
     tableData.value = dataView;
   } catch (e) {
-    addLog(`Failed to load file: ${e}`, 'error');
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function transposeData() {
   if (path.value === "") {
-    addLog("File not selected", 'warning');
+    addLog(t('fileNotSelected', locale.value), 'warning');
     return;
   }
 
   try {
     isLoading.value = true;
-    addLog('Starting transpose operation...', 'info');
+    addLog(`${t('startingTranspose', locale.value)}...`, 'info');
 
     if (mode.value === 'memory') {
-      addLog('Using memory mode: faster but uses more RAM for large files', 'info');
+      addLog(t('usingMemoryMode', locale.value), 'info');
     } else {
-      addLog('Using multipass mode: slower but memory-efficient for large files', 'info');
+      addLog(t('usingMultipassMode', locale.value), 'info');
     }
 
     const rtime: string = await invoke("transpose", {
@@ -73,9 +78,9 @@ async function transposeData() {
       quoting: quoting.quoting,
       skiprows: skiprows.skiprows
     });
-    addLog(`Transpose done, elapsed time: ${rtime} s`, 'success');
+    addLog(`${t('transposeDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (e) {
-    addLog(`Transpose operation failed: ${e}`, 'error');
+    addLog(`${t('transposeFailed', locale.value)}: ${e}`, 'error');
   } finally {
     isLoading.value = false;
   }
@@ -95,8 +100,8 @@ onUnmounted(() => {
           <Icon icon="ri:loop-left-line" />
         </div>
         <div class="cmd-header-text">
-          <h1>Transpose</h1>
-          <p>Transpose rows and columns of a CSV</p>
+          <h1>{{ t('transpose', locale) }}</h1>
+          <p>{{ t('transposeDesc', locale) }}</p>
         </div>
       </div>
     </div>
@@ -113,12 +118,12 @@ onUnmounted(() => {
               <span class="cmd-file-path">{{ path }}</span>
             </template>
             <template v-else>
-              <span class="cmd-file-prompt">Click to select a CSV file</span>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
             </template>
           </div>
           <div class="flex items-center gap-2 ml-auto">
             <SiliconeButton @click.stop="transposeData()" :loading="isLoading" size="small">
-              Run
+              {{ t('run', locale) }}
             </SiliconeButton>
           </div>
         </div>
@@ -133,18 +138,18 @@ onUnmounted(() => {
         </div>
 
         <div class="preview-formula mt-4">
-          <span class="formula-label">Preview:</span>
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
           <span class="formula-item">TRANSPOSE</span>
-          <span class="formula-operator">ROWS</span>
+          <span class="formula-operator">{{ t('rows', locale) }}</span>
           <span class="formula-item">{{ tableData?.length || 0 }}</span>
           <span class="formula-operator">↔</span>
-          <span class="formula-item">COLS</span>
+          <span class="formula-item">{{ t('cols', locale) }}</span>
           <span class="formula-item">{{ tableColumn?.length || 0 }}</span>
         </div>
 
         <div class="transpose-demo mt-4 mb-4">
           <div class="demo-row">
-            <div class="demo-label">BEFORE</div>
+            <div class="demo-label">{{ t('before', locale) }}</div>
             <div class="demo-grid">
               <div class="demo-cell header">A</div>
               <div class="demo-cell header">B</div>
@@ -158,7 +163,7 @@ onUnmounted(() => {
             <Icon icon="ri:arrow-right-line" />
           </div>
           <div class="demo-row">
-            <div class="demo-label">AFTER</div>
+            <div class="demo-label">{{ t('after', locale) }}</div>
             <div class="demo-grid transposed">
               <div class="demo-cell header">A</div>
               <div class="demo-cell header">D</div>
@@ -171,15 +176,14 @@ onUnmounted(() => {
         </div>
 
         <div class="cmd-preview-header">
-          <span class="cmd-preview-title">PREVIEW ({{ tableData?.length || 0 }} rows × {{ tableColumn?.length || 0 }}
-            cols)</span>
-          <span class="cmd-mode-badge">{{ mode }}</span>
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} × {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
+          <span class="cmd-mode-badge">{{ mode === 'memory' ? t('memory', locale) : t('multipass', locale) }}</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
             <template #empty>
               <div class="flex items-center justify-center gap-2 text-gray-500">
-                No data. Click above to select file.
+                {{ t('noData', locale) }}
               </div>
             </template>
             <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
@@ -188,7 +192,7 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Transpose - Transpose rows/columns of a CSV" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('transpose', locale)} - ${t('transposeDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
