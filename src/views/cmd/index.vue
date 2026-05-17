@@ -5,7 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useCommandStore } from "@/store/modules/commands";
 import { useDark } from "@pureadmin/utils";
 import { emitter } from "@/utils/mitt";
-import setting from "@/layout/components/setting/index.vue";
+import setting from "@/layout/setting/index.vue";
 
 import Apply from "./components/apply.vue";
 import Cat from "./components/cat.vue";

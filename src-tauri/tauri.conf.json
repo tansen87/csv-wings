@@ -21,12 +21,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "fileAssociations": [
-      {
-        "ext": ["*"],
-        "description": "text-view"
-      }
-    ],
     "copyright": "",
     "category": "DeveloperTool",
     "shortDescription": "",
@@ -51,10 +45,10 @@
       }
     }
   },
-  "productName": "csv-wings",
-  "mainBinaryName": "csv-wings",
+  "productName": "cs",
+  "mainBinaryName": "cs",
   "version": "../package.json",
-  "identifier": "com.csv-wings.dev",
+  "identifier": "com.cs.dev",
   "plugins": {},
   "app": {
     "windows": [
@@ -64,7 +58,7 @@
         "width": 840,
         "height": 660,
         "resizable": true,
-        "title": "csv",
+        "title": "cs",
         "dragDropEnabled": false,
         "center": true,
         "decorations": true,

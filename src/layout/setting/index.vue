@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { ref, unref, watch, onBeforeMount, reactive } from "vue";
-import { debounce, useDark, useGlobal } from "@pureadmin/utils";
+import { ref } from "vue";
+import { useDark } from "@pureadmin/utils";
 import { emitter } from "@/utils/mitt";
-import { toggleTheme } from "@pureadmin/theme/dist/browser-utils";
-import { useAppStoreHook } from "@/store/modules/app";
-import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import {
   useDelimiter,
   useFlexible,
@@ -14,27 +11,11 @@ import {
   useThreads
 } from "@/store/modules/options";
 
-const { $storage } = useGlobal<GlobalPropertiesApi>();
-const { layoutTheme, dataThemeChange } = useDataThemeChange();
 const dialog = ref(false);
 
 emitter.on("openPanel", () => {
   dialog.value = true;
 });
-
-if (unref(layoutTheme)) {
-  const layout = unref(layoutTheme).layout;
-  const theme = unref(layoutTheme).theme;
-  toggleTheme({ scopeName: `layout-theme- ${theme}` });
-  setLayoutModel(layout);
-}
-
-function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
-  const targetEl = target || document.body;
-  let { className } = targetEl;
-  className = className.replace(clsName, "").trim();
-  targetEl.className = flag ? `${className} ${clsName}` : className;
-}
 
 const quotingStore = useQuoting();
 const flexibleStore = useFlexible();
@@ -42,53 +23,6 @@ const skiprowsStore = useSkiprows();
 const progressStore = useProgress();
 const threadsStore = useThreads();
 const delimiterStore = useDelimiter();
-
-const mixRef = ref();
-const verticalRef = ref();
-const horizontalRef = ref();
-
-function setFalse(Doms): any {
-  Doms.forEach(v => {
-    toggleClass(false, "is-select", unref(v));
-  });
-}
-
-function setLayoutModel(layout: string) {
-  layoutTheme.value.layout = layout;
-  window.document.body.setAttribute("layout", layout);
-  $storage.layout = {
-    layout,
-    theme: layoutTheme.value.theme,
-    darkMode: $storage.layout?.darkMode,
-    sidebarStatus: $storage.layout?.sidebarStatus,
-    epThemeColor: $storage.layout?.epThemeColor
-  };
-  useAppStoreHook().setLayout(layout);
-}
-
-watch($storage, ({ layout }) => {
-  switch (layout["layout"]) {
-    case "vertical":
-      toggleClass(true, "is-select", unref(verticalRef));
-      debounce(setFalse([horizontalRef]), 50);
-      debounce(setFalse([mixRef]), 50);
-      break;
-    case "horizontal":
-      toggleClass(true, "is-select", unref(horizontalRef));
-      debounce(setFalse([verticalRef]), 50);
-      debounce(setFalse([mixRef]), 50);
-      break;
-    case "mix":
-      toggleClass(true, "is-select", unref(mixRef));
-      debounce(setFalse([verticalRef]), 50);
-      debounce(setFalse([horizontalRef]), 50);
-      break;
-  }
-});
-
-onBeforeMount(() => {
-  dataThemeChange();
-});
 
 const opts = ref("general");
 const options = [

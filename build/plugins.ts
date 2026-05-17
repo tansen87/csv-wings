@@ -7,8 +7,6 @@ import { viteMockServe } from "vite-plugin-mock";
 import { configCompressPlugin } from "./compress";
 import { visualizer } from "rollup-plugin-visualizer";
 import removeConsole from "vite-plugin-remove-console";
-import themePreprocessorPlugin from "@pureadmin/theme";
-import { genScssMultipleScopeVars } from "../src/layout/theme";
 
 export function getPluginsList(
   command: string,
@@ -26,13 +24,6 @@ export function getPluginsList(
     // 线上环境删除console
     removeConsole({ external: ["src/assets/iconfont/iconfont.js"] }),
     viteBuildInfo(),
-    // 自定义主题
-    themePreprocessorPlugin({
-      scss: {
-        multipleScopeVars: genScssMultipleScopeVars(),
-        extract: true
-      }
-    }),
     // svg组件化支持
     svgLoader(),
     // ElementPlus({}),

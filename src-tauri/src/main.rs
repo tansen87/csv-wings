@@ -79,7 +79,7 @@ fn main() {
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
-        .tooltip("csv")
+        .tooltip("cs")
         .on_tray_icon_event(|tray, event| match event {
           TrayIconEvent::Click {
             button: MouseButton::Left,
