@@ -196,11 +196,10 @@ onUnmounted(() => {
                 <span class="cmd-file-prompt">Click to select a CSV file</span>
               </template>
             </div>
-            <div class="flex items-center gap-2 ml-auto">
-              <SiliconeTag @click.stop="addNewColumn" :disabled="mode === 'cat' || mode === 'calcconv'" text
-                class="cursor-pointer">
+            <div class="flex items-center gap-1 ml-auto">
+              <SiliconeButton @click.stop="addNewColumn" :disabled="mode === 'cat' || mode === 'calcconv'" size="small">
                 {{ columnContent }}
-              </SiliconeTag>
+              </SiliconeButton>
               <SiliconeButton @click.stop="applyData()" :loading="loading" size="small">
                 Run
               </SiliconeButton>

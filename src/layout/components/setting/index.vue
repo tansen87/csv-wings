@@ -29,11 +29,6 @@ if (unref(layoutTheme)) {
   setLayoutModel(layout);
 }
 
-const _settings = reactive({
-  showModel: $storage.configure.showModel,
-  multiTagsCache: $storage.configure.multiTagsCache
-});
-
 function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
   const targetEl = target || document.body;
   let { className } = targetEl;
@@ -105,11 +100,11 @@ const { isDark } = useDark();
 
 <template>
   <SiliconeDialog v-model="dialog" title="Setting" width="70%">
-    <div class="mode-toggle w-[200px] ml-[0px] mb-1">
+    <div class="mode-toggle ml-[0px] mb-1 py-1">
       <span
         v-for="item in options"
         :key="item.value"
-        class="mode-item"
+        class="mode-item mx-0.5 w-24"
         :class="{
           active: opts === item.value,
           'active-dark': isDark && opts === item.value

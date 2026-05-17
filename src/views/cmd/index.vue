@@ -285,7 +285,7 @@ const startResize = (e) => {
 
 .commands-content {
   padding: 8px;
-  padding-bottom: 72px;
+  padding-bottom: 36px;
 }
 
 .commands-list {
@@ -297,11 +297,10 @@ const startResize = (e) => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 15px;
   background: var(--card-bg);
   border-top: 1px solid var(--card-border);
 }
