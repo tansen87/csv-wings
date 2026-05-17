@@ -6,7 +6,7 @@ import type { Event } from "@tauri-apps/api/event";
 import { ElIcon } from "element-plus";
 import { Icon } from "@iconify/vue";
 import { CloseBold, Select, Loading } from "@element-plus/icons-vue";
-import { filterFileStatus, ListenEvent, updateEvent } from "@/utils/utils";
+import { ListenEvent, updateEvent } from "@/utils/utils";
 import { trimOpenFile } from "@/utils/view";
 import {
   useDelimiter,
