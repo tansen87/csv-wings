@@ -13,7 +13,7 @@ import {
   useProgress,
   useQuoting,
   useSkiprows
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import "./common.css";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";

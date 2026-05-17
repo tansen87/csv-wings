@@ -13,7 +13,7 @@ import {
   useQuoting,
   useSkiprows,
   useThreads
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { message } from "@/utils/message"
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";

@@ -15,7 +15,7 @@ import {
   useQuoting,
   useSkiprows,
   useThreads
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
 import "./common.css";

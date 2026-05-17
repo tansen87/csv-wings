@@ -9,7 +9,7 @@ import {
   useQuoting,
   useSkiprows,
   useThreads
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 
 const dialog = ref(false);
 

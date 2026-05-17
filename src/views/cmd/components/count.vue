@@ -9,7 +9,7 @@ import { Loading, CloseBold, Select } from "@element-plus/icons-vue";
 import { Icon } from "@iconify/vue";
 import { shortFileName, useDynamicHeight, updateEvent } from "@/utils/utils";
 import { useMarkdown, mdCount } from "@/utils/markdown";
-import { useSkiprows } from "@/store/modules/options";
+import { useSkiprows } from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
