@@ -3,14 +3,27 @@ import { onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
-import { message } from "@/utils/message";
 import { previewtNLines, viewOpenFile } from "@/utils/view";
 import { useMarkdown, mdSkip } from "@/utils/markdown";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Skip] ${msg}`, type);
+};
 
 const path = ref("");
 const skiprows = ref("1");
-const [dialog, isLoading] = [ref(false), ref(false)];
+const [dialog, loading] = [ref(false), ref(false)];
 const { dynamicHeight } = useDynamicHeight(82);
 const { mdShow } = useMarkdown(mdSkip);
 
@@ -33,30 +46,29 @@ async function selectFile() {
       number: i + 1,
       content
     }));
-    console.log(lines.value);
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke skip
 async function skipLines() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(t('startingSkipProcess', locale.value), 'info');
     const rtime: string = await invoke("skip", {
       path: path.value,
       skiprows: skiprows.value
     });
-    message(`Skip done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error", duration: 10000 });
+    addLog(`${t('skipDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('skipFailed', locale.value)}: ${e}`, 'error');
   }
-  isLoading.value = false;
+  loading.value = false;
 }
 
 const lineNumberRef = ref<HTMLElement | null>(null);
@@ -68,7 +80,6 @@ const handleLineNumberScroll = () => {
 
   const scrollTop = lineNumberRef.value?.scrollTop ?? 0;
 
-  // 设置el-scrollbar内部容器的滚动
   if (codeScrollbarRef.value.wrapRef) {
     codeScrollbarRef.value.wrapRef.scrollTop = scrollTop;
   }
@@ -81,25 +92,15 @@ const handleCodeScroll = (event: any) => {
   if (isSyncing || !lineNumberRef.value) return;
   isSyncing = true;
 
-  // 获取代码区域的滚动顶部距离
   const scrollTop =
     event?.scrollTop ?? codeScrollbarRef.value?.wrapRef?.scrollTop ?? 0;
 
   lineNumberRef.value.scrollTop = scrollTop;
 
-  // 下一帧释放锁
   requestAnimationFrame(() => {
     isSyncing = false;
   });
 };
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => skipLines(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -108,132 +109,84 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
-          <Icon icon="ri:skip-forward-line" />
-          Skip
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Skip lines from CSV
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
+          <Icon icon="ri:skip-up-line" />
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('skip', locale) }}</h1>
+          <p>{{ t('skipDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="skipLines()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SKIP LINES
-          </label>
-          <SiliconeInput v-model="skiprows" placeholder="e.g. 10" clearable />
-          <p class="mt-1 text-[10px] text-gray-400">
-            Skip this many rows from the beginning of each file
-          </p>
-        </div>
-
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <div class="flex items-start gap-2">
-            <Icon
-              icon="ri:information-line"
-              class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"
-            />
-            <div class="text-[12px] text-blue-700 dark:text-blue-300">
-              Useful for skipping header rows or metadata at the start of CSV
-              file
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-          </div>
-        </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden"
-        >
-          <div
-            class="line-number-wrapper"
-            ref="lineNumberRef"
-            @scroll="handleLineNumberScroll"
-          >
-            <div class="line-number-container">
-              <div
-                v-for="line in lines"
-                :key="line.number"
-                class="line-number-row"
-              >
-                <span class="line-number">
-                  {{ line.number }}
-                </span>
-              </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="skipLines()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
             </div>
           </div>
 
-          <el-scrollbar
-            ref="codeScrollbarRef"
-            class="code-content-wrapper"
-            @scroll="handleCodeScroll"
-          >
-            <div class="content-area">
-              <div
-                v-for="line in lines"
-                :key="line.number"
-                class="line-row"
-                :data-line-number="line.number"
-              >
-                <span class="line-content">{{ line.content }}</span>
+          <div class="cmd-options-grid mt-4 mb-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('skipLines', locale) }}</div>
+              <SiliconeInput v-model="skiprows" :placeholder="t('skipLinesPlaceholder', locale)" clearable class="w-full" />
+            </div>
+          </div>
+
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ lines?.length || 0 }} {{ t('rows', locale) }})</span>
+          </div>
+          <div class="content-wrapper flex-1 min-h-0 relative w-full flex overflow-hidden h-[350px]">
+            <div class="line-number-wrapper" ref="lineNumberRef" @scroll="handleLineNumberScroll">
+              <div class="line-number-container">
+                <div v-for="line in lines" :key="line.number" class="line-number-row">
+                  <span class="line-number">
+                    {{ line.number }}
+                  </span>
+                </div>
               </div>
             </div>
-          </el-scrollbar>
+
+            <el-scrollbar ref="codeScrollbarRef" class="code-content-wrapper" @scroll="handleCodeScroll">
+              <div class="content-area">
+                <div v-for="line in lines" :key="line.number" class="line-row" :data-line-number="line.number">
+                  <span class="line-content">{{ line.content }}</span>
+                </div>
+              </div>
+            </el-scrollbar>
+          </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Skip - Skip lines from CSV"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('skip', locale)} - ${t('skipDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
 
-<style lang="css">
+<style scoped>
 .content-area {
   min-width: 100%;
   width: max-content;
@@ -247,31 +200,6 @@ onUnmounted(() => {
   border-radius: 12px;
 }
 
-.line-number-wrapper {
-  flex-shrink: 0;
-  width: 30px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #fafafa;
-  border-right: 1px solid #e4e7ed;
-  z-index: 10;
-  scrollbar-width: none;
-}
-.dark .line-number-wrapper {
-  background: #252525;
-  border-right: 1px solid #404040;
-}
-.line-number-container {
-  width: 100%;
-}
-
-.line-number-row {
-  display: flex;
-  height: 24px;
-  line-height: 24px;
-  white-space: pre;
-}
-
 .line-number {
   width: 100%;
   text-align: right;
@@ -283,19 +211,6 @@ onUnmounted(() => {
     sans-serif;
   font-size: 14px;
 }
-.dark .line-number {
-  color: #6b6b6b;
-}
-
-.code-content-wrapper {
-  flex: 1;
-  height: 100%;
-  overflow: hidden;
-  background: #fff;
-}
-.dark .code-content-wrapper {
-  background: #1e1e1e;
-}
 
 .line-row {
   display: flex;
@@ -303,12 +218,6 @@ onUnmounted(() => {
   line-height: 24px;
   white-space: pre;
   cursor: text;
-}
-.line-row:hover {
-  background: #f5f7fa;
-}
-.dark .line-row:hover {
-  background: #3d3d3d;
 }
 
 .line-content {
@@ -320,8 +229,5 @@ onUnmounted(() => {
     sans-serif;
   font-size: 14px;
   color: #303133;
-}
-.dark .line-content {
-  color: #e0e0e0;
 }
 </style>

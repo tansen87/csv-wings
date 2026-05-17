@@ -1,19 +1,32 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdSlice, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
 
-const mode = ref("lines");
-const modeOptions = [
-  { label: "Lines", value: "lines" },
-  { label: "Index", value: "index" }
-];
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Slice] ${msg}`, type);
+};
+
+const mode = ref("rows");
+const modeOptions = computed(() => [
+  { label: t('rows', locale.value), value: "rows" },
+  { label: t('index', locale.value), value: "index" }
+]);
 const [path, start, end] = [ref(""), ref("1"), ref("10")];
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
@@ -38,20 +51,20 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke slice
 async function sliceData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
     isLoading.value = true;
+    addLog(t('startingSliceProcess', locale.value), 'info');
     const rtime: string = await invoke("slice", {
       path: path.value,
       quoting: quoting.quoting,
@@ -61,20 +74,12 @@ async function sliceData() {
       skiprows: skiprows.skiprows,
       mode: mode.value
     });
-    message(`Slice done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('sliceDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('sliceFailed', locale.value)}: ${e}`, 'error');
   }
   isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => sliceData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -83,210 +88,99 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:crop-line" />
-          Slice
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Returns rows of a CSV file in the specified range
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('slice', locale) }}</h1>
+          <p>{{ t('sliceDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="sliceData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SLICE MODE
-          </label>
-          <div class="mode-toggle-v h-8">
-            <span
-              v-for="item in modeOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{ active: mode === item.value }"
-              @click="mode = item.value"
-            >
-              {{ item.label }}
-            </span>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
+            </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="sliceData()" :loading="isLoading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
+            </div>
           </div>
-        </div>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            ROW RANGE
-          </label>
-
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <span
-                class="text-sm text-gray-600 dark:text-gray-300 w-12 shrink-0"
-              >
-                Start
+          <div class="flex justify-center">
+            <div class="mode-toggle py-1">
+              <span v-for="item in modeOptions" :key="item.value" class="mode-item mx-0.5 w-24"
+                :class="{ active: mode === item.value }" @click="mode = item.value">
+                {{ item.label }}
               </span>
-              <SiliconeInput
-                v-model="start"
-                placeholder="Start (e.g. 0)"
-                class="flex-1"
-              />
-            </div>
-
-            <div class="flex items-center gap-2">
-              <span
-                class="text-sm text-gray-600 dark:text-gray-300 w-12 shrink-0"
-              >
-                End
-              </span>
-              <SiliconeInput
-                v-model="end"
-                placeholder="End (e.g. 100)"
-                class="flex-1"
-              />
             </div>
           </div>
-        </div>
 
-        <div
-          v-if="start || end"
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <div class="flex items-center gap-2">
-            <Icon icon="ri:brackets-line" class="w-5 h-5 text-blue-500" />
-            <span class="text-xs text-blue-700 dark:text-blue-300">
-              Range: <span class="font-mono">{{ start || 0 }}</span> to
-              <span class="font-mono">{{ end || "end" }}</span>
-            </span>
-          </div>
-        </div>
-
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
-
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ parseInt(end) - parseInt(start) }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Sliced Rows
-                  </div>
+          <div class="cmd-options-grid mt-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('rowRange', locale) }}</div>
+              <div class="flex gap-4">
+                <div class="flex-1">
+                  <SiliconeInput v-model="start" :placeholder="t('startPlaceholder', locale)" class="w-full" />
                 </div>
-                <Icon icon="ri:crop-line" class="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    TODO
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
+                <div class="flex-1">
+                  <SiliconeInput v-model="end" :placeholder="t('endPlaceholder', locale)" class="w-full" />
                 </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
               </div>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
-              >
-                <Icon icon="ri:crop-line" class="w-3.5 h-3.5" />
-                {{ start || 0 }} - {{ end || "end" }}
-              </span>
+          <div class="cmd-stats-grid mt-4 mb-4">
+            <div class="cmd-stat-card cmd-stat-card-blue">
+              <div class="cmd-stat-value">{{ parseInt(end) - parseInt(start) || 0 }}</div>
+              <div class="cmd-stat-label">{{ t('slicedRows', locale) }}</div>
+            </div>
+            <div class="cmd-stat-card">
+              <div class="cmd-stat-value">TODO</div>
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
             </div>
           </div>
-        </div>
 
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('range', locale) }}: {{ start || 0 }} - {{ end || t('end', locale) }}</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Slice - Returns rows of a CSV file in the specified range"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('slice', locale)} - ${t('sliceDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>

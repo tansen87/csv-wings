@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
+import { onUnmounted, ref, watch, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdEnumer, useMarkdown } from "@/utils/markdown";
 import {
   useFlexible,
@@ -14,20 +13,33 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Enumerate Group] ${msg}`, type);
+};
 
 const path = ref("");
 const [currentRows, totalRows] = [ref(0), ref(0)];
-const [dialog, isLoading] = [ref(false), ref(false)];
+const [dialog, loading] = [ref(false), ref(false)];
 const [tableColumn, tableData] = [ref([]), ref([])];
 const sorted = ref(false);
 
 const indexColumnName = ref("Line Number");
 const groupByColumn = ref("");
-const sortedOpts = [
-  { label: "True", value: true },
-  { label: "False", value: false }
-];
+const sortedOpts = computed(() => [
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
+]);
 
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdEnumer);
@@ -36,7 +48,6 @@ const skiprows = useSkiprows();
 const progress = useProgress();
 const flexible = useFlexible();
 
-// 自动设置默认分组列为第一列
 watch(tableColumn, () => {
   if (tableColumn.value.length > 0 && !groupByColumn.value) {
     groupByColumn.value = tableColumn.value[0].prop;
@@ -70,24 +81,24 @@ async function selectFile() {
     if (columnView.length > 0) {
       groupByColumn.value = columnView[0].prop;
     }
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke enumerate_by_group
 async function enumerate() {
   if (path.value === "") {
-    message("File not selected", { type: "warning" });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (!groupByColumn.value) {
-    message("Please select a column to group by", { type: "warning" });
+    message(t('pleaseSelectColumnToGroupBy', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(t('startingEnumerateByGroupProcess', locale.value), 'info');
     const rtime: string = await invoke("enumer_by_group", {
       path: path.value,
       progress: progress.progress,
@@ -98,23 +109,13 @@ async function enumerate() {
       groupByColumn: groupByColumn.value,
       sorted: sorted.value
     });
-    message(`Enumerate by group done, elapsed time: ${rtime} s`, {
-      type: "success"
-    });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('enumerateByGroupDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('enumerateByGroupFailed', locale.value)}: ${e}`, 'error');
   } finally {
-    isLoading.value = false;
+    loading.value = false;
   }
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => enumerate(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path, indexColumnName, groupByColumn].forEach(r => (r.value = ""));
@@ -123,212 +124,221 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:group-line" />
-          Enumer Group
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Add a row number within each group
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('enumerateByGroup', locale) }}</h1>
+          <p>{{ t('enumerateByGroupDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="enumerate()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
+            </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="enumerate()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
+            </div>
+          </div>
 
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            INDEX COLUMN NAME
-          </label>
-          <SiliconeInput v-model="indexColumnName" placeholder="e.g. row_num" />
-        </div>
-
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            GROUP BY COLUMN
-          </label>
-          <SiliconeSelect v-model="groupByColumn" placeholder="Select column">
-            <el-option
-              v-for="col in tableColumn"
-              :key="col.prop"
-              :label="col.label"
-              :value="col.prop"
-            />
-          </SiliconeSelect>
-          <p class="mt-1 text-[10px] text-gray-400">
-            Rows will be numbered starting from 1 within each group.
-          </p>
-          <SiliconeTooltip
-            content="Only set it to True when the file is sorted"
-            placement="right"
-          >
-            <div class="mode-toggle-v h-[30px] mt-2">
-              <span
-                v-for="item in sortedOpts"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{ active: sorted === item.value }"
-                @click="sorted = item.value"
-              >
+          <div class="flex justify-center">
+            <div class="cmd-mode-toggle py-1">
+              <span v-for="item in sortedOpts" :key="String(item.value)" class="cmd-mode-item mx-0.5 w-24"
+                :class="{ active: sorted === item.value }" @click="sorted = item.value">
                 {{ item.label }}
               </span>
             </div>
-          </SiliconeTooltip>
-        </div>
-
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            PREVIEW
-          </label>
-          <div
-            class="text-xs text-blue-700 dark:text-blue-300 font-mono bg-white dark:bg-gray-700 p-2 rounded"
-          >
-            {{ indexColumnName }} = ROW_NUMBER() OVER (PARTITION BY
-            {{ groupByColumn }})
-          </div>
-        </div>
-
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
           </div>
 
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-              </div>
+          <div class="options-grid mt-4">
+            <div class="option-section">
+              <div class="option-label">{{ t('indexColumnName', locale) }}</div>
+              <SiliconeInput v-model="indexColumnName" :placeholder="t('indexColumnNamePlaceholder', locale)" class="w-full" />
             </div>
 
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
+            <div class="option-section">
+              <div class="option-label">{{ t('groupByColumn', locale) }}</div>
+              <SiliconeSelect v-model="groupByColumn" :placeholder="t('selectColumn', locale)" class="w-full">
+                <el-option v-for="col in tableColumn" :key="col.prop" :label="col.label" :value="col.prop" />
+              </SiliconeSelect>
+            </div>
+
+            <div class="preview-formula">
+              <span class="formula-label">{{ t('preview', locale) }}:</span>
+              <span class="formula-item">{{ indexColumnName }}</span>
+              <span class="formula-operator">=</span>
+              <span class="formula-item">ROW_NUMBER()</span>
+              <span class="formula-operator">OVER (PARTITION BY</span>
+              <span class="formula-item">{{ groupByColumn || t('column', locale) }}</span>
+              <span class="formula-operator">)</span>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
-              >
-                <Icon icon="ri:group-line" class="w-3.5 h-3.5" />
-                {{ indexColumnName }} per group: {{ groupByColumn }}
-              </span>
+          <div class="stats-grid mt-4 mb-4">
+            <div class="stat-card">
+              <div class="stat-label">{{ t('totalRows', locale) }}</div>
+              <div class="stat-value">{{ totalRows }}</div>
+            </div>
+            <div class="stat-card stat-blue">
+              <div class="stat-label">{{ t('progress', locale) }}</div>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
-        </div>
 
-        <div class="flex-1 overflow-auto p-2">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ t('groupBy', locale) }}: {{ groupByColumn || t('none', locale) }}</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Enumerate by Group - Add row numbers within each group (SQL ROW_NUMBER)"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('enumerateByGroup', locale)} - ${t('enumerateByGroupDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #f0f8ff, #e6f2ff);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #1e2a3a, #1a2535);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #409eff;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #66b1ff;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: linear-gradient(145deg, #f5f5f5, #e8e8e8);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .stat-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stat-value {
+  color: #e0e0e0;
+}
+
+.stat-card.stat-blue .stat-value {
+  color: #409eff;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.dark .stat-label {
+  color: #999;
+}
+</style>

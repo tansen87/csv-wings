@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdPinyin, useMarkdown } from "@/utils/markdown";
 import {
   useFlexible,
@@ -14,16 +13,30 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Pinyin] ${msg}`, type);
+};
 
 const pinyinStyle = ref("upper");
-const pyOptions = [
-  { label: "Upper", value: "upper" },
-  { label: "Lower", value: "lower" }
-];
+const pyOptions = computed(() => [
+  { label: t('upper', locale.value), value: "upper" },
+  { label: t('lower', locale.value), value: "lower" }
+]);
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [columns, path] = [ref(""), ref("")];
-const [isLoading, dialog] = [ref(false), ref(false)];
+const [loading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdPinyin);
@@ -56,25 +69,25 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke pinyin
 async function chineseToPinyin() {
   if (path.value === "") {
-    message("File not selected", { type: "warning" });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (columns.value.length === 0) {
-    message("Column not selected", { type: "warning" });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
     const cols = Object.values(columns.value).join("|");
+    addLog(t('startingPinyinConversion', locale.value), 'info');
     const rtime: string = await invoke("pinyin", {
       path: path.value,
       columns: cols,
@@ -84,20 +97,13 @@ async function chineseToPinyin() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    message(`Convert done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('pinyinConvertDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('pinyinConversionFailed', locale.value)}: ${e}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => chineseToPinyin(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [columns, path].forEach(r => (r.value = ""));
@@ -106,221 +112,127 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:translate-2" />
-          Pinyin
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Convert Chinese to Pinyin in CSV
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('pinyin', locale) }}</h1>
+          <p>{{ t('pinyinDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="chineseToPinyin()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            PINYIN STYLE
-          </label>
-          <div class="mode-toggle-v h-8">
-            <span
-              v-for="item in pyOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{ active: pinyinStyle === item.value }"
-              @click="pinyinStyle = item.value"
-            >
-              {{ item.label }}
-            </span>
-          </div>
-        </div>
-
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            COLUMNS ({{ columns.length }})
-          </label>
-          <SiliconeSelect
-            v-model="columns"
-            multiple
-            filterable
-            placeholder="Select column(s)"
-          >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </SiliconeSelect>
-          <p class="mt-1 text-[10px] text-gray-400">
-            Select columns containing Chinese text
-          </p>
-        </div>
-
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            STYLE PREVIEW
-          </label>
-          <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">中文(Upper)</span>
-              <span class="font-mono">ZHONGWEN</span>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">拼音(Lower)</span>
-              <span class="font-mono">pinyin</span>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="chineseToPinyin()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
             </div>
           </div>
-        </div>
 
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
-
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
-              >
-                <Icon icon="ri:translate-2" class="w-3.5 h-3.5" />
-                {{ columns.length }} columns
-              </span>
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded"
-              >
-                <Icon icon="ri:font-size" class="w-3.5 h-3.5" />
-                Style: {{ pinyinStyle }}
+          <div class="flex justify-center">
+            <div class="mode-toggle py-1">
+              <span v-for="item in pyOptions" :key="item.value" class="mode-item mx-0.5 w-24"
+                :class="{ active: pinyinStyle === item.value }" @click="pinyinStyle = item.value">
+                {{ item.label }}
               </span>
             </div>
           </div>
-        </div>
 
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="cmd-options-grid mt-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('columns', locale) }} ({{ columns.length }})</div>
+              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
+                <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+              </SiliconeSelect>
+            </div>
+
+            <div class="preview-formula">
+              <span class="formula-label">{{ t('preview', locale) }}:</span>
+              <span class="formula-item">{{ t('chinese', locale) }}</span>
+              <span class="formula-operator">→</span>
+              <span class="formula-item">{{ pinyinStyle === 'upper' ? t('upperPinyin', locale) : t('lowerPinyin', locale) }}</span>
+            </div>
+          </div>
+
+          <div class="cmd-stats-grid mt-4 mb-4">
+            <div class="cmd-stat-card">
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
+              <div class="cmd-stat-value">{{ totalRows }}</div>
+            </div>
+            <div class="cmd-stat-card cmd-stat-card-blue">
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
+            </div>
+          </div>
+
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ columns.length }} {{ t('columns', locale) }} | {{ pinyinStyle === 'upper' ? t('upper', locale) : t('lower', locale) }}</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noDataClickAboveToSelectFile', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Pinyin - Convert Chinese to Pinyin in CSV"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('pinyin', locale)} - ${t('pinyinDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #9c27b0;
+  font-weight: 600;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+</style>

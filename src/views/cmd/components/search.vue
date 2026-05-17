@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
-import { message } from "@/utils/message";
 import { useDynamicHeight } from "@/utils/utils";
 import { toJson, viewOpenFile, mapHeaders } from "@/utils/view";
 import { mdSearch, useMarkdown } from "@/utils/markdown";
@@ -15,15 +14,22 @@ import {
   useSkiprows,
   useThreads
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const mode = ref("equal");
-const placeholderText = ref(
-  "Search conditions, Separate by |.\nExample: tom|jack|jerry"
-);
 const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
 const [column, path, condition] = [ref(""), ref(""), ref("")];
-const [dialog, isLoading] = [ref(false), ref(false)];
+const [dialog, loading] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const { dynamicHeight } = useDynamicHeight(121);
 const { mdShow } = useMarkdown(mdSearch);
@@ -32,6 +38,10 @@ const skiprows = useSkiprows();
 const progress = useProgress();
 const flexible = useFlexible();
 const threads = useThreads();
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Search] ${msg}`, type);
+};
 
 listen("update-search-rows", (event: Event<number>) => {
   currentRows.value = event.payload;
@@ -57,19 +67,18 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke search
 async function searchData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (column.value.length === 0 && mode.value !== "irregular_regex") {
-    message("Column not selected", { type: "warning" });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (
@@ -77,12 +86,13 @@ async function searchData() {
     threads.threads !== 1 &&
     mode.value !== "irregular_regex"
   ) {
-    message("threads only support skiprows = 0", { type: "warning" });
+    message(t('threadsOnlySupportSkiprowsZero', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(t('startingSearch', locale.value), 'info');
     const res: string[] = await invoke("search", {
       path: path.value,
       column: column.value,
@@ -96,13 +106,11 @@ async function searchData() {
       threads: threads.threads
     });
     matchRows.value = Number(res[0]);
-    message(`Match ${res[0]} rows, elapsed time: ${res[1]} s`, {
-      type: "success"
-    });
+    addLog(`${t('matched', locale.value)} ${res[0]} ${t('rows', locale.value)}, ${t('elapsedTime', locale.value)}: ${res[1]} s`, 'success');
   } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('searchFailed', locale.value)}: ${err.toString()}`, 'error');
   }
-  isLoading.value = false;
+  loading.value = false;
 }
 
 interface FilterModeOption {
@@ -110,53 +118,36 @@ interface FilterModeOption {
   value: string;
   description?: string;
 }
-const filterModeOptions: FilterModeOption[] = [
-  // 精确匹配
-  { label: "equal", value: "equal" },
-  { label: "equal_multi", value: "equal_multi" },
-  { label: "not_equal", value: "not_equal" },
-  // 包含匹配
-  { label: "contains", value: "contains" },
-  { label: "contains_multi", value: "contains_multi" },
-  { label: "not_contains", value: "not_contains" },
-  // 前缀匹配
-  { label: "starts_with", value: "starts_with" },
-  { label: "starts_with_multi", value: "starts_with_multi" },
-  { label: "not_starts_with", value: "not_starts_with" },
-  // 后缀匹配
-  { label: "ends_with", value: "ends_with" },
-  { label: "ends_with_multi", value: "ends_with_multi" },
-  { label: "not_ends_with", value: "not_ends_with" },
-  // 正则匹配
-  { label: "regex", value: "regex" },
-  { label: "irregular_regex", value: "irregular_regex" },
-  // 空值判断
-  { label: "is_null", value: "is_null" },
-  { label: "is_not_null", value: "is_not_null" },
-  // 数值比较
-  { label: "gt(>)", value: "gt" },
-  { label: "ge(≥)", value: "ge" },
-  { label: "lt(<)", value: "lt" },
-  { label: "le(≤)", value: "le" },
-  { label: "between", value: "between" }
-];
+
+const filterModeOptions = computed(() => [
+  { label: t('equal', locale.value), value: "equal" },
+  { label: t('equalMulti', locale.value), value: "equal_multi" },
+  { label: t('notEqual', locale.value), value: "not_equal" },
+  { label: t('contains', locale.value), value: "contains" },
+  { label: t('containsMulti', locale.value), value: "contains_multi" },
+  { label: t('notContains', locale.value), value: "not_contains" },
+  { label: t('startsWith', locale.value), value: "starts_with" },
+  { label: t('startsWithMulti', locale.value), value: "starts_with_multi" },
+  { label: t('notStartsWith', locale.value), value: "not_starts_with" },
+  { label: t('endsWith', locale.value), value: "ends_with" },
+  { label: t('endsWithMulti', locale.value), value: "ends_with_multi" },
+  { label: t('notEndsWith', locale.value), value: "not_ends_with" },
+  { label: t('regex', locale.value), value: "regex" },
+  { label: t('irregularRegex', locale.value), value: "irregular_regex" },
+  { label: t('isNull', locale.value), value: "is_null" },
+  { label: t('isNotNull', locale.value), value: "is_not_null" },
+  { label: t('gt', locale.value), value: "gt" },
+  { label: t('ge', locale.value), value: "ge" },
+  { label: t('lt', locale.value), value: "lt" },
+  { label: t('le', locale.value), value: "le" },
+  { label: t('between', locale.value), value: "between" }
+]);
 
 const unique = ref(false);
-const uniqueOpts = [
-  { label: "by column", value: true },
-  { label: "by input", value: false }
-];
-
-const conditionsCollapsed = ref(false);
-const statisticsCollapsed = ref(false);
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => searchData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
+const uniqueOpts = computed(() => [
+  { label: t('byColumn', locale.value), value: true },
+  { label: t('byInput', locale.value), value: false }
+]);
 
 onUnmounted(() => {
   [column, path, condition].forEach(r => (r.value = ""));
@@ -165,259 +156,125 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:filter-2-line" />
-          Search
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400 tracking-wider">
-          Filter rows matching conditions
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('search', locale) }}</h1>
+          <p>{{ t('searchDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="searchData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4 min-w-[280px] h-full"
-      >
-        <div class="mb-4">
-          <div
-            class="flex items-center justify-between cursor-pointer mb-3"
-            @click="conditionsCollapsed = !conditionsCollapsed"
-          >
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              CONDITIONS
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
             </div>
-            <Icon
-              :icon="
-                conditionsCollapsed
-                  ? 'ri:arrow-down-s-line'
-                  : 'ri:arrow-up-s-line'
-              "
-              class="text-gray-400"
-            />
-          </div>
-
-          <div v-show="!conditionsCollapsed" class="space-y-3">
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-gray-500 dark:text-gray-400">
-                Column
-              </label>
-              <SiliconeSelect
-                v-model="column"
-                filterable
-                placeholder="Select column"
-              >
-                <el-option
-                  v-for="item in tableHeader"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </SiliconeSelect>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
             </div>
-
-            <div class="flex flex-col gap-1">
-              <label class="text-xs text-gray-500 dark:text-gray-400">
-                Mode
-              </label>
-              <SiliconeSelect v-model="mode" filterable>
-                <el-option
-                  v-for="option in filterModeOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </SiliconeSelect>
-            </div>
-
-            <div
-              class="flex flex-col gap-1"
-              v-if="
-                [
-                  'equal_multi',
-                  'contains_multi',
-                  'starts_with_multi',
-                  'ends_with_multi'
-                ].includes(mode)
-              "
-            >
-              <label class="text-xs text-gray-500 dark:text-gray-400">
-                Condition mode
-              </label>
-              <div class="mode-toggle w-full">
-                <span
-                  v-for="item in uniqueOpts"
-                  :key="String(item.value)"
-                  class="mode-item"
-                  :class="{ active: unique === item.value }"
-                  @click="unique = item.value"
-                >
-                  {{ item.label }}
-                </span>
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-1" v-if="unique === false">
-              <label class="text-xs text-gray-500 dark:text-gray-400">
-                Condition
-              </label>
-              <SiliconeInput
-                v-model="condition"
-                :autosize="{ minRows: 12, maxRows: 12 }"
-                type="textarea"
-                :placeholder="placeholderText"
-              />
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="searchData()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
             </div>
           </div>
-        </div>
 
-        <el-scrollbar class="mt-auto">
-          <div
-            class="flex items-center justify-between cursor-pointer mb-3"
-            @click="statisticsCollapsed = !statisticsCollapsed"
-          >
-            <div class="text-xs font-semibold text-gray-400 tracking-wider">
-              STATISTICS
-            </div>
-            <Icon
-              :icon="
-                statisticsCollapsed
-                  ? 'ri:arrow-down-s-line'
-                  : 'ri:arrow-up-s-line'
-              "
-              class="text-gray-400"
-            />
-          </div>
-
-          <div v-show="!statisticsCollapsed" class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total
-                  </div>
+          <div class="cmd-options-grid mt-4 mb-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('columnAndMode', locale) }}</div>
+              <div class="flex gap-4">
+                <div class="flex-1">
+                  <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)">
+                    <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+                  </SiliconeSelect>
                 </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
+                <div class="flex-1">
+                  <SiliconeSelect v-model="mode" filterable>
+                    <el-option v-for="option in filterModeOptions" :key="option.value" :label="option.label"
+                      :value="option.value" />
+                  </SiliconeSelect>
                 </div>
               </div>
             </div>
 
-            <div
-              class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-green-600 dark:text-green-400"
-                  >
-                    {{ matchRows }}
-                  </div>
-                  <div class="text-[12px] text-green-600 dark:text-green-400">
-                    Matched
-                  </div>
+            <div class="cmd-option-section" v-if="
+              [
+                'equal_multi',
+                'contains_multi',
+                'starts_with_multi',
+                'ends_with_multi'
+              ].includes(mode)
+            ">
+              <div class="cmd-option-label">{{ t('conditionMode', locale) }}</div>
+              <div class="flex justify-center">
+                <div class="cmd-mode-toggle py-1">
+                  <span v-for="item in uniqueOpts" :key="String(item.value)" class="cmd-mode-item mx-0.5 w-24"
+                    :class="{ active: unique === item.value }" @click="unique = item.value">
+                    {{ item.label }}
+                  </span>
                 </div>
-                <Icon
-                  icon="ri:checkbox-circle-line"
-                  class="w-6 h-6 text-green-500"
-                />
               </div>
             </div>
+
+            <div class="cmd-option-section" v-if="unique === false">
+              <div class="cmd-option-label">{{ t('condition', locale) }}</div>
+              <SiliconeInput v-model="condition" :autosize="{ minRows: 12, maxRows: 12 }" type="textarea"
+                :placeholder="t('searchConditionPlaceholder', locale)" class="w-full" />
+            </div>
           </div>
-        </el-scrollbar>
-      </aside>
 
-      <div
-        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
+          <div class="cmd-stats-grid mt-4" v-if="totalRows > 0">
+            <div class="cmd-stat-card">
+              <div class="cmd-stat-value">{{ totalRows }}</div>
+              <div class="cmd-stat-label">{{ t('total', locale) }}</div>
+            </div>
+            <div class="cmd-stat-card stat-blue">
+              <div class="cmd-stat-value">{{ currentRows }}</div>
+              <div class="cmd-stat-label">{{ t('scanned', locale) }}</div>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
+            </div>
+            <div class="cmd-stat-card stat-green">
+              <div class="cmd-stat-value">{{ matchRows }}</div>
+              <div class="cmd-stat-label">{{ t('matched', locale) }}</div>
+            </div>
+          </div>
 
-        <div class="flex-1 overflow-auto p-2">
-          <SiliconeTable
-            :data="tableData"
-            :height="'100%'"
-            empty-text="No data. (Ctrl+D) to Open File."
-            show-overflow-tooltip
-            :cell-style="{
-              borderBottom: '1px solid #f0f0f0'
-            }"
-            class="select-text"
-          >
-            <el-table-column
-              v-for="column in tableColumn"
-              :prop="column.prop"
-              :label="column.label"
-              :key="column.prop"
-            />
-          </SiliconeTable>
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noData', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label"
+                :key="col.prop" />
+            </SiliconeTable>
+          </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Search - Filter rows matching conditions"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('search', locale)} - ${t('searchDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>

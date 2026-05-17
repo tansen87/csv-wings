@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { ref, unref, watch, onBeforeMount, reactive } from "vue";
-import { debounce, useDark, useGlobal } from "@pureadmin/utils";
+import { ref } from "vue";
+import { useDark } from "@pureadmin/utils";
 import { emitter } from "@/utils/mitt";
-import { toggleTheme } from "@pureadmin/theme/dist/browser-utils";
-import { useAppStoreHook } from "@/store/modules/app";
-import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import {
-  ENCODING_OPTIONS,
   useDelimiter,
-  useEncoding,
   useFlexible,
   useProgress,
   useQuoting,
@@ -16,32 +11,11 @@ import {
   useThreads
 } from "@/store/modules/options";
 
-const { $storage } = useGlobal<GlobalPropertiesApi>();
-const { layoutTheme, dataThemeChange } = useDataThemeChange();
 const dialog = ref(false);
 
 emitter.on("openPanel", () => {
   dialog.value = true;
 });
-
-if (unref(layoutTheme)) {
-  const layout = unref(layoutTheme).layout;
-  const theme = unref(layoutTheme).theme;
-  toggleTheme({ scopeName: `layout-theme- ${theme}` });
-  setLayoutModel(layout);
-}
-
-const _settings = reactive({
-  showModel: $storage.configure.showModel,
-  multiTagsCache: $storage.configure.multiTagsCache
-});
-
-function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
-  const targetEl = target || document.body;
-  let { className } = targetEl;
-  className = className.replace(clsName, "").trim();
-  targetEl.className = flag ? `${className} ${clsName}` : className;
-}
 
 const quotingStore = useQuoting();
 const flexibleStore = useFlexible();
@@ -49,54 +23,6 @@ const skiprowsStore = useSkiprows();
 const progressStore = useProgress();
 const threadsStore = useThreads();
 const delimiterStore = useDelimiter();
-const encodingStore = useEncoding();
-
-const mixRef = ref();
-const verticalRef = ref();
-const horizontalRef = ref();
-
-function setFalse(Doms): any {
-  Doms.forEach(v => {
-    toggleClass(false, "is-select", unref(v));
-  });
-}
-
-function setLayoutModel(layout: string) {
-  layoutTheme.value.layout = layout;
-  window.document.body.setAttribute("layout", layout);
-  $storage.layout = {
-    layout,
-    theme: layoutTheme.value.theme,
-    darkMode: $storage.layout?.darkMode,
-    sidebarStatus: $storage.layout?.sidebarStatus,
-    epThemeColor: $storage.layout?.epThemeColor
-  };
-  useAppStoreHook().setLayout(layout);
-}
-
-watch($storage, ({ layout }) => {
-  switch (layout["layout"]) {
-    case "vertical":
-      toggleClass(true, "is-select", unref(verticalRef));
-      debounce(setFalse([horizontalRef]), 50);
-      debounce(setFalse([mixRef]), 50);
-      break;
-    case "horizontal":
-      toggleClass(true, "is-select", unref(horizontalRef));
-      debounce(setFalse([verticalRef]), 50);
-      debounce(setFalse([mixRef]), 50);
-      break;
-    case "mix":
-      toggleClass(true, "is-select", unref(mixRef));
-      debounce(setFalse([verticalRef]), 50);
-      debounce(setFalse([horizontalRef]), 50);
-      break;
-  }
-});
-
-onBeforeMount(() => {
-  dataThemeChange();
-});
 
 const opts = ref("general");
 const options = [
@@ -108,11 +34,11 @@ const { isDark } = useDark();
 
 <template>
   <SiliconeDialog v-model="dialog" title="Setting" width="70%">
-    <div class="mode-toggle w-[200px] ml-[0px] mb-1">
+    <div class="mode-toggle ml-[0px] mb-1 py-1">
       <span
         v-for="item in options"
         :key="item.value"
-        class="mode-item"
+        class="mode-item mx-0.5 w-24"
         :class="{
           active: opts === item.value,
           'active-dark': isDark && opts === item.value
@@ -124,26 +50,6 @@ const { isDark } = useDark();
     </div>
     <el-scrollbar max-height="60vh">
       <div v-if="opts === 'general'" class="mt-1">
-        <SiliconeCard class="mb-1">
-          <div class="setting-item">
-            <div class="setting-label">
-              <span class="setting-title">encoding</span>
-              <span class="setting-desc"> Text file encoding </span>
-            </div>
-            <SiliconeSelect
-              style="width: 180px"
-              v-model="encodingStore.encoding"
-              filterable
-            >
-              <el-option
-                v-for="opt in ENCODING_OPTIONS"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </SiliconeSelect>
-          </div>
-        </SiliconeCard>
         <SiliconeCard class="mb-1">
           <div class="setting-item">
             <div class="setting-label">

@@ -5,7 +5,6 @@ import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
-import { message } from "@/utils/message";
 import { viewOpenFile } from "@/utils/view";
 import { mdRename, useMarkdown } from "@/utils/markdown";
 import {
@@ -14,12 +13,26 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Rename] ${msg}`, type);
+};
 
 const tableData = ref([]);
 const [search, path] = [ref(""), ref("")];
 const [currentRows, totalRows] = [ref(0), ref(0)];
-const [dialog, isLoading] = [ref(false), ref(false)];
+const [dialog, loading] = [ref(false), ref(false)];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdRename);
 const quoting = useQuoting();
@@ -64,20 +77,22 @@ async function selectFile() {
       };
       tableData.value.push(colData);
     }
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke rename
 async function renameData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    const renamedCount = tableData.value.filter(row => row.col2 && row.col2 !== row.col1).length;
+    addLog(`${t('startingRename', locale.value)} ${t('with', locale.value)} ${renamedCount} ${t('columnsToRename', locale.value)}`, 'info');
+
     const headersStringArray = tableData.value.map((row: any) => row.col2);
     const headersString = headersStringArray.join(",");
     const rtime: string = await invoke("rename", {
@@ -88,11 +103,11 @@ async function renameData() {
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    message(`Rename done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('renameDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('renameFailed', locale.value)}: ${e}`, 'error');
   }
-  isLoading.value = false;
+  loading.value = false;
 }
 
 async function headerEdit(row: any) {
@@ -106,14 +121,6 @@ const renamedCount = computed(() => {
     .length;
 });
 
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => renameData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
-
 onUnmounted(() => {
   [search, path].forEach(r => (r.value = ""));
   [tableData].forEach(r => (r.value = []));
@@ -121,219 +128,154 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:heading" />
-          Rename
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Rename the columns of a CSV
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('rename', locale) }}</h1>
+          <p>{{ t('renameDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="renameData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SEARCH HEADER
-          </label>
-          <SiliconeInput
-            v-model="search"
-            placeholder="Type to search headers..."
-            clearable
-          >
-            <template #prefix>
-              <Icon icon="ri:search-line" class="w-4 h-4 text-gray-400" />
-            </template>
-          </SiliconeInput>
-          <div v-if="search" class="mt-1 text-[10px] text-gray-400">
-            Found {{ filterTableData.length }} / {{ totalColumns || 0 }} columns
-          </div>
-        </div>
-
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
+            </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="renameData()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
+            </div>
           </div>
 
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
-              </div>
+          <div class="cmd-stats-grid mt-4">
+            <div class="cmd-stat-card">
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
+              <div class="cmd-stat-value">{{ totalRows }}</div>
             </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
+            <div class="cmd-stat-card">
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
-
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalColumns || 0 }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Columns
-                  </div>
-                </div>
-                <Icon icon="ri:table-line" class="w-6 h-6 text-gray-400" />
-              </div>
-            </div>
-
-            <div
-              class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-green-600 dark:text-green-400"
-                  >
-                    {{ renamedCount }}
-                  </div>
-                  <div class="text-[12px] text-green-600 dark:text-green-400">
-                    Renamed Columns
-                  </div>
-                </div>
-                <Icon
-                  icon="ri:checkbox-circle-line"
-                  class="w-6 h-6 text-green-500"
-                />
-              </div>
+            <div class="cmd-stat-card cmd-stat-green">
+              <div class="cmd-stat-label">{{ t('toRename', locale) }}</div>
+              <div class="cmd-stat-value">{{ renamedCount }}</div>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2">
-          <SiliconeTable
-            :data="filterTableData"
-            :height="'100%'"
-            empty-text="No data. (Ctrl+D) to Open File."
-            show-overflow-tooltip
-            class="select-text"
-          >
-            <el-table-column prop="col1" label="Header" min-width="150">
-              <template #default="{ row }">
-                <span
-                  class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ row.col1 }}
-                </span>
+          <div class="rename-search-section mt-4 mb-4">
+            <div class="cmd-option-label">{{ t('searchHeader', locale) }}</div>
+            <SiliconeInput v-model="search" :placeholder="t('typeToSearchHeaders', locale)" clearable class="w-full">
+              <template #prefix>
+                <Icon icon="ri:search-line" class="w-4 h-4 text-gray-400" />
               </template>
-            </el-table-column>
+            </SiliconeInput>
+            <div v-if="search" class="mt-1 text-[10px] text-gray-400">
+              {{ t('found', locale) }} {{ filterTableData.length }} / {{ totalColumns || 0 }} {{ t('columns', locale) }}
+            </div>
+          </div>
 
-            <el-table-column prop="col2" label="New Header" min-width="150">
-              <template #default="{ row }">
-                <SiliconeInput
-                  v-model="row.col2"
-                  placeholder="Enter new header name"
-                  @blur="headerEdit(row)"
-                  @keyup.enter="headerEdit(row)"
-                  size="small"
-                />
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('columnEditor', locale) }} ({{ filterTableData.length }})</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="filterTableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noData', locale) }}
+                </div>
               </template>
-            </el-table-column>
-
-            <el-table-column label="Status" width="120">
-              <template #default="{ row }">
-                <span
-                  v-if="row.col2 && row.col2 !== row.col1"
-                  class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded"
-                >
-                  Changed
-                </span>
-                <span
-                  v-else
-                  class="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded"
-                >
-                  Unchanged
-                </span>
-              </template>
-            </el-table-column>
-          </SiliconeTable>
+              <el-table-column prop="col1" :label="t('header', locale)" min-width="150">
+                <template #default="{ row }">
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ row.col1 }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="col2" :label="t('newHeader', locale)" min-width="150">
+                <template #default="{ row }">
+                  <SiliconeInput v-model="row.col2" :placeholder="t('enterNewHeaderName', locale)" @blur="headerEdit(row)"
+                    @keyup.enter="headerEdit(row)" size="small" />
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('status', locale)" width="120">
+                <template #default="{ row }">
+                  <span v-if="row.col2 && row.col2 !== row.col1" class="status-changed">
+                    {{ t('changed', locale) }}
+                  </span>
+                  <span v-else class="status-unchanged">
+                    {{ t('unchanged', locale) }}
+                  </span>
+                </template>
+              </el-table-column>
+            </SiliconeTable>
+          </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Rename - Rename the columns of a CSV"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('rename', locale)} - ${t('renameDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.rename-search-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.cmd-stat-card.cmd-stat-green .cmd-stat-value {
+  color: #67c23a;
+}
+
+.status-changed {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #67c23a;
+  background: rgba(103, 194, 58, 0.1);
+  border-radius: 4px;
+}
+
+.dark .status-changed {
+  color: #67c23a;
+  background: rgba(103, 194, 58, 0.15);
+}
+
+.status-unchanged {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #999;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.dark .status-unchanged {
+  color: #888;
+  background: rgba(255, 255, 255, 0.05);
+}
+</style>

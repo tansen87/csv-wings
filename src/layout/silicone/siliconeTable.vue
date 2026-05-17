@@ -6,6 +6,9 @@
     show-overflow-tooltip
   >
     <slot />
+    <template v-for="(_, name) in $slots" :key="name" #[name]="scope">
+      <slot :name="name" v-bind="scope" />
+    </template>
   </el-table>
 </template>
 

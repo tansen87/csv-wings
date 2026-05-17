@@ -1,4 +1,3 @@
-import { TableColumnCtx } from "element-plus";
 import { ref, onMounted, onBeforeUnmount, computed, Ref } from "vue";
 
 export function shortFileName(path: string) {
@@ -29,20 +28,6 @@ export function useDynamicHeight(fixedHeight: number) {
     dynamicHeight
   };
 }
-
-interface FileStatus {
-  filename: string;
-  status: string;
-}
-
-export const filterFileStatus = (
-  value: string,
-  row: FileStatus,
-  column: TableColumnCtx<FileStatus>
-) => {
-  const property = column["property"];
-  return row[property] === value;
-};
 
 export interface ListenEvent {
   filename: string;

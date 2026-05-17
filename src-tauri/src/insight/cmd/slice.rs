@@ -11,7 +11,7 @@ use crate::{
 
 pub enum SliceMode {
   Index,
-  Lines,
+  Rows,
 }
 
 impl FromStr for SliceMode {
@@ -20,8 +20,8 @@ impl FromStr for SliceMode {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s.to_ascii_lowercase().as_ref() {
       "index" => Ok(SliceMode::Index),
-      "lines" => Ok(SliceMode::Lines),
-      _ => Err("expected 'index' or 'lines'"),
+      "rows" => Ok(SliceMode::Rows),
+      _ => Err("expected 'index' or 'rows'"),
     }
   }
 }
@@ -40,7 +40,7 @@ fn create_writer<P: AsRef<Path>>(
   )
 }
 
-pub async fn slice_csv_by_lines<P>(
+pub async fn slice_csv_by_rows<P>(
   path: P,
   quoting: bool,
   flexible: bool,
@@ -149,7 +149,7 @@ pub async fn slice(
 
       with_index(indexed_file, &path, flexible, start, end).await
     }
-    SliceMode::Lines => slice_csv_by_lines(path, quoting, flexible, start, end, skiprows).await,
+    SliceMode::Rows => slice_csv_by_rows(path, quoting, flexible, start, end, skiprows).await,
   };
 
   res.map_err(|e| format!("slice failed: {e}"))?;

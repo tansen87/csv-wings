@@ -1,4 +1,5 @@
 use std::{
+  collections::HashSet,
   fs::File,
   io::{BufRead, BufReader, BufWriter, Read, Write},
   path::PathBuf,
@@ -27,18 +28,20 @@ pub async fn equal<E>(
 ) -> Result<String>
 where
   E: EventEmitter + Send + Sync + 'static,
-{
+{  
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, cond: &[String]| cond.contains(&value.to_string());
+  let cond_set: HashSet<String> = conditions.into_iter().collect();
+  let match_fn = move |value: &str, _: &[String]| cond_set.contains(value);
+
   match jobs {
-    1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
+    1 => generic_search(rdr, wtr, column, vec![], progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
       generic_parallel_search(
         opts,
         &mut idx.unwrap(),
         wtr,
         column,
-        conditions,
+        vec![],
         jobs,
         match_fn,
       )
@@ -61,18 +64,20 @@ pub async fn not_equal<E>(
 ) -> Result<String>
 where
   E: EventEmitter + Send + Sync + 'static,
-{
+{  
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, cond: &[String]| !cond.contains(&value.to_string());
+  let cond_set: HashSet<String> = conditions.into_iter().collect();
+  let match_fn = move |value: &str, _: &[String]| !cond_set.contains(value);
+
   match jobs {
-    1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
+    1 => generic_search(rdr, wtr, column, vec![], progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
       generic_parallel_search(
         opts,
         &mut idx.unwrap(),
         wtr,
         column,
-        conditions,
+        vec![],
         jobs,
         match_fn,
       )
@@ -97,7 +102,8 @@ where
   E: EventEmitter + Send + Sync + 'static,
 {
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, cond: &[String]| cond.iter().any(|cond| value.contains(cond));
+  let conditions_clone = conditions.clone();
+  let match_fn = move |value: &str, _: &[String]| conditions_clone.iter().any(|cond| value.contains(cond));
   match jobs {
     1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
@@ -131,7 +137,8 @@ where
   E: EventEmitter + Send + Sync + 'static,
 {
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, conds: &[String]| !conds.iter().any(|cond| value.contains(cond));
+  let conditions_clone = conditions.clone();
+  let match_fn = move |value: &str, _: &[String]| !conditions_clone.iter().any(|cond| value.contains(cond));
   match jobs {
     1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
@@ -165,7 +172,8 @@ where
   E: EventEmitter + Send + Sync + 'static,
 {
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, cond: &[String]| cond.iter().any(|cond| value.starts_with(cond));
+  let conditions_clone = conditions.clone();
+  let match_fn = move |value: &str, _: &[String]| conditions_clone.iter().any(|cond| value.starts_with(cond));
   match jobs {
     1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
@@ -199,7 +207,8 @@ where
   E: EventEmitter + Send + Sync + 'static,
 {
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, conds: &[String]| !conds.iter().any(|cond| value.starts_with(cond));
+  let conditions_clone = conditions.clone();
+  let match_fn = move |value: &str, _: &[String]| !conditions_clone.iter().any(|cond| value.starts_with(cond));
   match jobs {
     1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
@@ -233,7 +242,8 @@ where
   E: EventEmitter + Send + Sync + 'static,
 {
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, conds: &[String]| conds.iter().any(|cond| value.ends_with(cond));
+  let conditions_clone = conditions.clone();
+  let match_fn = move |value: &str, _: &[String]| conditions_clone.iter().any(|cond| value.ends_with(cond));
   match jobs {
     1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {
@@ -267,7 +277,8 @@ where
   E: EventEmitter + Send + Sync + 'static,
 {
   let jobs = threads.unwrap_or(1);
-  let match_fn = |value: &str, conds: &[String]| !conds.iter().any(|cond| value.ends_with(cond));
+  let conditions_clone = conditions.clone();
+  let match_fn = move |value: &str, _: &[String]| !conditions_clone.iter().any(|cond| value.ends_with(cond));
   match jobs {
     1 => generic_search(rdr, wtr, column, conditions, progress, match_fn, emitter).await,
     _ => tokio::task::spawn_blocking(move || {

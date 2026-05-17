@@ -4,14 +4,27 @@ import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdReverse, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Reverse] ${msg}`, type);
+};
 
 const path = ref("");
 const [tableColumn, tableData] = [ref([]), ref([])];
-const [isLoading, dialog] = [ref(false), ref(false)];
+const [loading, dialog] = [ref(false), ref(false)];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdReverse);
 const quoting = useQuoting();
@@ -32,40 +45,34 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error", duration: 10000 });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke reverse
 async function reverseData() {
   if (path.value === "") {
-    message("File not selected", { type: "warning" });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('startingReverse', locale.value)}...`, 'info');
+
     const rtime: string = await invoke("reverse", {
       path: path.value,
       quoting: quoting.quoting,
       skiprows: skiprows.skiprows,
       flexible: flexible.flexible
     });
-    message(`Reverse done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('reverseDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('reverseFailed', locale.value)}: ${e}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => reverseData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -74,162 +81,167 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:arrow-up-down-line" />
-          Reverse
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Reverse order of rows in a CSV
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('reverse', locale) }}</h1>
+          <p>{{ t('reverseDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="reverseData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="p-3">
+        <div class="cmd-file-selection-bar" @click="selectFile()">
+          <div class="cmd-file-selection-icon">
+            <Icon icon="ri:folder-open-line" />
+          </div>
+          <div class="cmd-file-selection-text">
+            <template v-if="path">
+              <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="cmd-file-path">{{ path }}</span>
+            </template>
+            <template v-else>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <SiliconeButton @click.stop="reverseData()" :loading="loading" size="small">
+              {{ t('run', locale) }}
+            </SiliconeButton>
+          </div>
+        </div>
 
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <div class="flex items-start gap-2">
-            <Icon
-              icon="ri:information-line"
-              class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"
-            />
-            <div class="text-[11px] text-blue-700 dark:text-blue-300">
-              Reverses the order of all rows in the CSV file. The first row
-              becomes the last, and the last row becomes the first.
+        <div class="preview-formula mt-4">
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
+          <span class="formula-item">{{ t('reverse', locale).toUpperCase() }}</span>
+          <span class="formula-operator">{{ t('rows', locale).toUpperCase() }}</span>
+          <span class="formula-item">{{ tableData?.length || 0 }}</span>
+          <span class="formula-operator">{{ t('firstLast', locale) }}</span>
+        </div>
+
+        <div class="reverse-demo mt-4 mb-4">
+          <div class="demo-row">
+            <div class="demo-label">{{ t('before', locale) }}</div>
+            <div class="demo-items">
+              <span class="demo-item">1</span>
+              <span class="demo-item">2</span>
+              <span class="demo-item">3</span>
+            </div>
+          </div>
+          <div class="demo-arrow">
+            <Icon icon="ri:arrow-right-line" />
+          </div>
+          <div class="demo-row">
+            <div class="demo-label">{{ t('after', locale) }}</div>
+            <div class="demo-items">
+              <span class="demo-item reversed">3</span>
+              <span class="demo-item reversed">2</span>
+              <span class="demo-item reversed">1</span>
             </div>
           </div>
         </div>
 
-        <div
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider block mb-2"
-          >
-            BEFORE → AFTER
-          </label>
-          <div class="flex items-center justify-between text-xs">
-            <div class="text-center">
-              <div
-                class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1"
-              >
-                1
-              </div>
-              <div
-                class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded mb-1"
-              >
-                2
-              </div>
-              <div
-                class="font-mono bg-white dark:bg-gray-600 px-2 py-1 rounded"
-              >
-                3
-              </div>
-            </div>
-            <Icon icon="ri:arrow-right-line" class="w-4 h-4 text-gray-400" />
-            <div class="text-center">
-              <div
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1"
-              >
-                3
-              </div>
-              <div
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded mb-1"
-              >
-                2
-              </div>
-              <div
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded"
-              >
-                1
-              </div>
-            </div>
-          </div>
+        <div class="cmd-preview-header">
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+          <span class="cmd-mode-badge">{{ t('reverse', locale) }}</span>
         </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
-              >
-                <Icon icon="ri:arrow-up-down-line" class="w-3.5 h-3.5" />
-                Reverse Order
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
-            </SiliconeTable>
-          </div>
+        <div class="overflow-hidden rounded-lg">
+          <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+            <template #empty>
+              <div class="flex items-center justify-center gap-2 text-gray-500">
+                {{ t('noData', locale) }}
+              </div>
+            </template>
+            <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
+          </SiliconeTable>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Reverse - Reverse order of rows in a CSV"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('reverse', locale)} - ${t('reverseDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.reverse-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 10px;
+}
+
+.demo-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demo-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  border: 1px solid #e8e8e8;
+}
+
+.demo-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #888;
+}
+</style>

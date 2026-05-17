@@ -6,7 +6,6 @@ import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdFill, useMarkdown } from "@/utils/markdown";
 import {
   useFlexible,
@@ -14,23 +13,32 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Date Format] ${msg}`, type);
+};
 
 const [currentRows, totalRows] = [ref(0), ref(0)];
-const [isLoading, dialog] = [ref(false), ref(false)];
+const [loading, dialog] = [ref(false), ref(false)];
 const columns = ref<string[]>([]);
 const path = ref("");
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 
-// 每列对应的日期格式(key: 列名, value: format 字符串)
 const inputFormats = ref<Record<string, string>>({});
 const outputFormats = ref<Record<string, string>>({});
 
-// 日期格式选项
-// 输入格式（含 Auto detect）
 const dateFormats = [
-  { label: "Auto detect", value: "" },
-  // 无分隔符
+  { label: t('autoDetect', locale.value), value: "" },
   { label: "YYYYMMDD", value: "%Y%m%d" },
   { label: "YYYYMMDDHHMMSS", value: "%Y%m%d%H%M%S" },
   { label: "YYYYMMDDHHMM", value: "%Y%m%d%H%M" },
@@ -38,51 +46,35 @@ const dateFormats = [
   { label: "DDMMYYYYHHMMSS", value: "%d%m%Y%H%M%S" },
   { label: "MMDDYYYY", value: "%m%d%Y" },
   { label: "MMDDYYYYHHMMSS", value: "%m%d%Y%H%M%S" },
-
-  // YMD (年-月-日)
   { label: "YYYY-MM-DD", value: "%Y-%m-%d" },
   { label: "YYYY/MM/DD", value: "%Y/%m/%d" },
   { label: "YYYY-MM-DD HH:mm:ss", value: "%Y-%m-%d %H:%M:%S" },
   { label: "YYYY/MM/DD HH:mm:ss", value: "%Y/%m/%d %H:%M:%S" },
-
-  // YDM (年-日-月)
   { label: "YYYY-DD-MM", value: "%Y-%d-%m" },
   { label: "YYYY/DD/MM", value: "%Y/%d/%m" },
   { label: "YYYY-DD-MM HH:mm:ss", value: "%Y-%d-%m %H:%M:%S" },
   { label: "YYYY/DD/MM HH:mm:ss", value: "%Y/%d/%m %H:%M:%S" },
-
-  // MDY (月-日-年)
   { label: "MM-DD-YYYY", value: "%m-%d-%Y" },
   { label: "MM/DD/YYYY", value: "%m/%d/%Y" },
   { label: "MM-DD-YYYY HH:mm:ss", value: "%m-%d-%Y %H:%M:%S" },
   { label: "MM/DD/YYYY HH:mm:ss", value: "%m/%d/%Y %H:%M:%S" },
-
-  // MYD (月-年-日)
   { label: "MM-YYYY-DD", value: "%m-%Y-%d" },
   { label: "MM/YYYY/DD", value: "%m/%Y/%d" },
   { label: "MM-YYYY-DD HH:mm:ss", value: "%m-%Y-%d %H:%M:%S" },
   { label: "MM/YYYY/DD HH:mm:ss", value: "%m/%Y/%d %H:%M:%S" },
-
-  // DMY (日-月-年)
   { label: "DD-MM-YYYY", value: "%d-%m-%Y" },
   { label: "DD/MM/YYYY", value: "%d/%m/%Y" },
   { label: "DD-MM-YYYY HH:mm:ss", value: "%d-%m-%Y %H:%M:%S" },
   { label: "DD/MM/YYYY HH:mm:ss", value: "%d/%m/%Y %H:%M:%S" },
-
-  // DYM (日-年-月)
   { label: "DD-YYYY-MM", value: "%d-%Y-%m" },
   { label: "DD/YYYY/MM", value: "%d/%Y/%m" },
   { label: "DD-YYYY-MM HH:mm:ss", value: "%d-%Y-%m %H:%M:%S" },
   { label: "DD/YYYY/MM HH:mm:ss", value: "%d/%Y/%m %H:%M:%S" },
-
-  // 其他带时间格式
   { label: "YYYY-MM-DD HH:mm:ss.SSS", value: "%Y-%m-%d %H:%M:%S%.f" },
   { label: "YYYY-MM-DDTHH:mm:ss", value: "%Y-%m-%dT%H:%M:%S" },
   { label: "YYYY-MM-DDTHH:mm:ss.SSS", value: "%Y-%m-%dT%H:%M:%S%.f" },
   { label: "YYYY-MM-DD HH:mm", value: "%Y-%m-%d %H:%M" },
   { label: "YYYY/MM/DD HH:mm", value: "%Y/%m/%d %H:%M" },
-
-  // 中文格式
   { label: "YYYY年MM月DD日", value: "%Y年%m月%d日" },
   { label: "YYYY年MM月DD日 HH时MM分SS秒", value: "%Y年%m月%d日 %H时%M分%S秒" },
   { label: "YYYY年MM月DD日 HH:mm:ss", value: "%Y年%m月%d日 %H:%M:%S" },
@@ -92,13 +84,10 @@ const dateFormats = [
   { label: "MM月DD日YYYY年", value: "%m月%d日%Y年" },
   { label: "MM月DD日YYYY年 HH时MM分SS秒", value: "%m月%d日%Y年 %H时%M分%S秒" },
   { label: "MM月DD日YYYY年 HH:mm:ss", value: "%m月%d日%Y年 %H:%M:%S" },
-
-  // 时间在前
   { label: "HH:mm:ss YYYY-MM-DD", value: "%H:%M:%S %Y-%m-%d" },
   { label: "HH:mm YYYY-MM-DD", value: "%H:%M %Y-%m-%d" }
 ];
 
-// 输出格式
 const outputDateFormats = dateFormats.filter(fmt => fmt.value !== "");
 
 const { dynamicHeight } = useDynamicHeight(120);
@@ -148,6 +137,7 @@ async function selectFile() {
   }
 
   totalRows.value = 0;
+
   try {
     tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
     const { columnView, dataView } = await toJson(
@@ -156,18 +146,18 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
 async function convertDates() {
   if (!path.value) {
-    message("File not selected", { type: "warning" });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (columns.value.length === 0) {
-    message("No column selected", { type: "warning" });
+    message(t('noColumnSelected', locale.value), { type: 'warning' });
     return;
   }
 
@@ -187,7 +177,13 @@ async function convertDates() {
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('startingDateConversion', locale.value)}...`, 'info');
+
+    for (const [col, config] of Object.entries(columnConfigs)) {
+      addLog(`${t('column', locale.value)} ${col}: ${t('inputFormat', locale.value)} = ${config.inputFormat || t('auto', locale.value)}, ${t('outputFormat', locale.value)} = ${config.outputFormat}`, 'info');
+    }
+
     const rtime: string = await invoke("datefmt", {
       path: path.value,
       columnConfigs,
@@ -196,21 +192,13 @@ async function convertDates() {
       skiprows: skiprows.skiprows,
       progress: progress.progress
     });
-    message(`Date conversion completed, time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(`${err}`, { type: "error" });
+    addLog(`${t('dateConversionCompleted', locale.value)}, ${t('time', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('dateConversionFailed', locale.value)}: ${e}`, 'error');
   } finally {
-    isLoading.value = false;
+    loading.value = false;
   }
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => convertDates(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -219,233 +207,366 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:calendar-event-line" />
-          Date Format
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Convert date columns between formats
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('datefmt', locale) }}</h1>
+          <p>{{ t('datefmtDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="convertDates()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            DATE COLUMNS ({{ columns.length }})
-          </label>
-          <SiliconeSelect
-            v-model="columns"
-            multiple
-            filterable
-            placeholder="Select date columns"
-          >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </SiliconeSelect>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="p-3">
+        <div class="cmd-file-selection-bar" @click="selectFile()">
+          <div class="cmd-file-selection-icon">
+            <Icon icon="ri:folder-open-line" />
+          </div>
+          <div class="cmd-file-selection-text">
+            <template v-if="path">
+              <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="cmd-file-path">{{ path }}</span>
+            </template>
+            <template v-else>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <SiliconeButton @click.stop="convertDates()" :loading="loading" size="small">
+              {{ t('run', locale) }}
+            </SiliconeButton>
+          </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            FORMAT SETTINGS
-          </label>
-
-          <div v-if="columns.length === 0" class="p-4 text-center">
-            <Icon
-              icon="ri:calendar-line"
-              class="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2"
-            />
-            <p class="text-xs text-gray-400">No columns selected</p>
+        <div class="options-grid mt-4">
+          <div class="option-section full-width">
+            <div class="option-label">{{ t('dateColumns', locale) }} ({{ columns.length }})</div>
+            <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectDateColumns', locale)" class="w-full">
+              <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+            </SiliconeSelect>
           </div>
+        </div>
 
-          <div v-else class="space-y-3">
-            <div
-              v-for="col in columns"
-              :key="col"
-              class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex gap-2">
-                <div class="flex-1">
-                  <span
-                    class="text-[10px] text-blue-500 font-medium block mb-1"
-                  >
-                    IN FORMAT
-                  </span>
-                  <SiliconeSelect
-                    v-model="inputFormats[col]"
-                    filterable
-                    placeholder="Auto"
-                    size="small"
-                  >
-                    <el-option
-                      v-for="fmt in dateFormats"
-                      :key="fmt.value"
-                      :label="fmt.label"
-                      :value="fmt.value"
-                    />
-                  </SiliconeSelect>
-                </div>
-
-                <div class="flex-1">
-                  <span
-                    class="text-[10px] text-green-600 font-medium block mb-1"
-                  >
-                    OUT FORMAT
-                  </span>
-                  <SiliconeSelect
-                    v-model="outputFormats[col]"
-                    filterable
-                    placeholder="Select"
-                    size="small"
-                  >
-                    <el-option
-                      v-for="fmt in outputDateFormats"
-                      :key="fmt.value"
-                      :label="fmt.label"
-                      :value="fmt.value"
-                    />
-                  </SiliconeSelect>
-                </div>
+        <div v-if="columns.length > 0" class="format-cards mt-4">
+          <div v-for="col in columns" :key="col" class="format-card">
+            <div class="format-card-header">
+              <Icon icon="ri:calendar-line" class="format-icon" />
+              <span class="format-col-name">{{ col }}</span>
+            </div>
+            <div class="format-card-body">
+              <div class="format-section">
+                <span class="format-label">{{ t('in', locale) }}</span>
+                <SiliconeSelect v-model="inputFormats[col]" filterable :placeholder="t('auto', locale)" size="small" class="w-full">
+                  <el-option v-for="fmt in dateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
+                </SiliconeSelect>
+              </div>
+              <div class="format-arrow">
+                <Icon icon="ri:arrow-right-line" />
+              </div>
+              <div class="format-section">
+                <span class="format-label">{{ t('out', locale) }}</span>
+                <SiliconeSelect v-model="outputFormats[col]" filterable :placeholder="t('select', locale)" size="small"
+                  class="w-full">
+                  <el-option v-for="fmt in outputDateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
+                </SiliconeSelect>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="mt-auto" v-if="totalRows > 0">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
+        <div v-else class="format-empty mt-4">
+          <Icon icon="ri:calendar-line" class="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+          <p class="text-xs text-gray-400">{{ t('selectDateColumnsToConfigure', locale) }}</p>
+        </div>
 
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+        <div class="preview-formula mt-4">
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
+          <span class="formula-item">DATEFMT</span>
+          <span class="formula-operator">@</span>
+          <span class="formula-item">{{ columns.length }}</span>
+          <span class="formula-operator">{{ t('cols', locale) }}</span>
+        </div>
+
+        <div class="stats-grid mt-4 mb-4">
+          <div class="stats-card">
+            <div class="stats-icon">
+              <Icon icon="ri:database-line" />
+            </div>
+            <div class="stats-info">
+              <span class="stats-label">{{ t('totalRows', locale) }}</span>
+              <span class="stats-value">{{ totalRows }}</span>
+            </div>
+          </div>
+          <div class="stats-card blue">
+            <div class="stats-icon">
+              <Icon icon="ri:scan-line" />
+            </div>
+            <div class="stats-info">
+              <span class="stats-label">{{ t('progress', locale) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cmd-preview-header">
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} x {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
+        </div>
+        <div class="overflow-hidden rounded-lg">
+          <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+            <template #empty>
+              <div class="flex items-center justify-center gap-2 text-gray-500">
+                {{ t('noData', locale) }}
               </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
-              >
-                <Icon icon="ri:calendar-line" class="w-3.5 h-3.5" />
-                {{ columns.length }} date columns
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2">
-          <SiliconeTable
-            :data="tableData"
-            :height="'100%'"
-            empty-text="No data. (Ctrl+D) to Open File."
-            show-overflow-tooltip
-            class="select-text"
-          >
-            <el-table-column
-              v-for="column in tableColumn"
-              :prop="column.prop"
-              :label="column.label"
-              :key="column.prop"
-            />
+            </template>
+            <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
           </SiliconeTable>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" title="Date Format Converter" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('datefmt', locale)} - ${t('datefmtDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-section.full-width {
+  grid-column: 1 / -1;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.format-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.format-card {
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+}
+
+.dark .format-card {
+  background: var(--el-fill-color-dark, #2a2a2a);
+  border-color: #3a3a3a;
+}
+
+.format-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.format-icon {
+  font-size: 16px;
+  color: #6366f1;
+}
+
+.dark .format-icon {
+  color: #818cf8;
+}
+
+.format-col-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.dark .format-col-name {
+  color: #e0e0e0;
+}
+
+.format-card-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.format-section {
+  flex: 1;
+}
+
+.format-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #888;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.format-arrow {
+  font-size: 16px;
+  color: #6366f1;
+  flex-shrink: 0;
+}
+
+.format-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 10px;
+}
+
+.dark .format-empty {
+  background: var(--el-fill-color-dark, #2a2a2a);
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #eef2ff, #e0e7ff);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #1e1b4b, #1a1a35);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #818cf8;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stats-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .stats-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #3a3a3a;
+}
+
+.stats-card.blue {
+  background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+  border-color: #bae6fd;
+}
+
+.dark .stats-card.blue {
+  background: linear-gradient(145deg, #1e3a5f, #172554);
+  border-color: #1e40af;
+}
+
+.stats-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 8px;
+  font-size: 18px;
+  color: #666;
+}
+
+.dark .stats-icon {
+  background: #3a3a3a;
+  color: #999;
+}
+
+.stats-card.blue .stats-icon {
+  color: #0ea5e9;
+}
+
+.dark .stats-card.blue .stats-icon {
+  color: #38bdf8;
+}
+
+.stats-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stats-value {
+  color: #e8e8e8;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: #888;
+}
+
+@media (max-width: 768px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -6,7 +6,6 @@ import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdInsert, useMarkdown } from "@/utils/markdown";
 import {
   useFlexible,
@@ -14,9 +13,22 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
 
-const [isLoading, dialog] = [ref(false), ref(false)];
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Insert] ${msg}`, type);
+};
+
+const [loading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const [path, column, position, values] = [ref(""), ref(""), ref(""), ref("")];
@@ -53,20 +65,22 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('loaded', locale.value)} ${tableData.value.length} ${t('rows', locale.value)} with ${tableColumn.value.length} ${t('columns', locale.value)}`, 'success');
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke insert
 async function insertData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('startingInsert', locale.value)}...`, 'info');
+
     const rtime: string = await invoke("insert", {
       path: path.value,
       column: column.value,
@@ -77,20 +91,13 @@ async function insertData() {
       flexible: flexible.flexible,
       progress: progress.progress
     });
-    message(`Insert done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('insertDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('insertFailed', locale.value)}: ${e}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => insertData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path, column, position, values].forEach(r => (r.value = ""));
@@ -99,262 +106,356 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:insert-column-right" />
-          Insert
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Insert columns through index
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('insert', locale) }}</h1>
+          <p>{{ t('insertDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="insertData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            TARGET COLUMN
-          </label>
-          <SiliconeSelect
-            v-model="column"
-            filterable
-            placeholder="Select column"
-          >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </SiliconeSelect>
-          <p class="mt-1 text-[10px] text-gray-400">
-            Insert relative to this column
-          </p>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="p-3">
+        <div class="cmd-file-selection-bar" @click="selectFile()">
+          <div class="cmd-file-selection-icon">
+            <Icon icon="ri:folder-open-line" />
+          </div>
+          <div class="cmd-file-selection-text">
+            <template v-if="path">
+              <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="cmd-file-path">{{ path }}</span>
+            </template>
+            <template v-else>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <SiliconeButton @click.stop="insertData()" :loading="loading" size="small">
+              {{ t('run', locale) }}
+            </SiliconeButton>
+          </div>
         </div>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            POSITION
-          </label>
-          <SiliconeTooltip
-            content="left = before, right = after, or use index number"
-            placement="right"
-          >
-            <SiliconeInput
-              v-model="position"
-              placeholder="left | right | 1 | 2..."
-            />
-          </SiliconeTooltip>
+        <div class="options-grid mt-4">
+          <div class="option-section">
+            <div class="option-label">{{ t('targetColumn', locale) }}</div>
+            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+            </SiliconeSelect>
+          </div>
+
+          <div class="option-section">
+            <div class="option-label">{{ t('position', locale) }}</div>
+            <SiliconeInput v-model="position" :placeholder="t('positionPlaceholder', locale)" class="w-full" />
+          </div>
+
+          <div class="option-section">
+            <div class="option-label">{{ t('values', locale) }}</div>
+            <SiliconeInput v-model="values" :placeholder="t('valuesPlaceholder', locale)" class="w-full" />
+          </div>
         </div>
 
-        <!-- Values -->
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            VALUES
-          </label>
-          <SiliconeTooltip
-            content="Use | to separate multiple values"
-            placement="right"
-          >
-            <SiliconeInput v-model="values" placeholder="1 | | CNY..." />
-          </SiliconeTooltip>
-          <p class="mt-1 text-[10px] text-gray-400">
-            Use | to separate values, empty for blank
-          </p>
+        <div class="preview-formula mt-4">
+          <span class="formula-label">{{ t('preview', locale) }}:</span>
+          <span class="formula-item">INSERT</span>
+          <span class="formula-operator">{{ t('col', locale) }}</span>
+          <span class="formula-item">{{ column || t('column', locale) }}</span>
+          <span class="formula-operator">@</span>
+          <span class="formula-item">{{ position || t('left', locale) }}</span>
+          <span class="formula-operator">=</span>
+          <span class="formula-item">{{ values ? values.split('|').length : 0 }} {{ t('vals', locale) }}</span>
         </div>
 
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            PREVIEW
-          </label>
-          <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Column:</span>
-              <span class="font-mono">{{ column || "-" }}</span>
+        <div class="insert-demo mt-4">
+          <div class="demo-row">
+            <div class="demo-label">{{ t('before', locale) }}</div>
+            <div class="demo-items">
+              <span class="demo-item">A</span>
+              <span class="demo-item">B</span>
+              <span class="demo-item">C</span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Position:</span>
-              <span class="font-mono">{{ position || "left" }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Values:</span>
-              <span class="font-mono truncate max-w-[120px]">{{
-                values || "-"
-              }}</span>
+          </div>
+          <div class="demo-arrow">
+            <Icon icon="ri:arrow-right-line" />
+          </div>
+          <div class="demo-row">
+            <div class="demo-label">{{ t('after', locale) }}</div>
+            <div class="demo-items">
+              <span class="demo-item">A</span>
+              <span class="demo-item insert-highlight">X</span>
+              <span class="demo-item">B</span>
+              <span class="demo-item">C</span>
             </div>
           </div>
         </div>
 
-        <div
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-        >
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider block mb-2"
-          >
-            EXAMPLE
-          </label>
-          <div class="text-[10px] space-y-1">
-            <div class="flex items-center gap-1">
-              <span class="text-gray-500">Before:</span>
-              <span class="font-mono bg-white dark:bg-gray-600 px-1 rounded"
-                >A | B | C</span
-              >
+        <div class="stats-grid mt-4 mb-4">
+          <div class="stats-card">
+            <div class="stats-icon">
+              <Icon icon="ri:database-line" />
             </div>
-            <div class="flex items-center gap-1">
-              <Icon icon="ri:arrow-down-line" class="w-3 h-3 text-gray-400" />
+            <div class="stats-info">
+              <span class="stats-label">{{ t('totalRows', locale) }}</span>
+              <span class="stats-value">{{ totalRows }}</span>
             </div>
-            <div class="flex items-center gap-1">
-              <span class="text-gray-500">After:</span>
-              <span
-                class="font-mono bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-1 rounded"
-                >A | X | B | C</span
-              >
+          </div>
+          <div class="stats-card blue">
+            <div class="stats-icon">
+              <Icon icon="ri:scan-line" />
+            </div>
+            <div class="stats-info">
+              <span class="stats-label">{{ t('progress', locale) }}</span>
             </div>
           </div>
         </div>
 
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
-
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+        <div class="cmd-preview-header">
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} x {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
+          <span class="cmd-mode-badge">INSERT @ {{ position || t('left', locale) }}</span>
+        </div>
+        <div class="overflow-hidden rounded-lg">
+          <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip>
+            <template #empty>
+              <div class="flex items-center justify-center gap-2 text-gray-500">
+                {{ t('noData', locale) }}
               </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <span
-              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
-            >
-              <Icon icon="ri:pin-distance-line" class="w-3.5 h-3.5" />
-              {{ position || "left" }}
-            </span>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
-            </SiliconeTable>
-          </div>
+            </template>
+            <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
+          </SiliconeTable>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Insert - Insert columns through index"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('insert', locale)} - ${t('insertDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #ecfdf5, #d1fae5);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #1a2e25, #172219);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #34d399;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.insert-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-radius: 10px;
+}
+
+.dark .insert-demo {
+  background: var(--el-fill-color-dark, #2a2a2a);
+}
+
+.demo-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demo-items {
+  display: flex;
+  gap: 4px;
+}
+
+.demo-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .demo-item {
+  background: #3a3a3a;
+  color: #aaa;
+  border-color: #444;
+}
+
+.demo-item.insert-highlight {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #10b981;
+  border-color: #6ee7b7;
+}
+
+.dark .demo-item.insert-highlight {
+  background: linear-gradient(135deg, #1a2e25, #172219);
+  color: #34d399;
+  border-color: #065f46;
+}
+
+.demo-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #888;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stats-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .stats-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #3a3a3a;
+}
+
+.stats-card.blue {
+  background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+  border-color: #bae6fd;
+}
+
+.dark .stats-card.blue {
+  background: linear-gradient(145deg, #1e3a5f, #172554);
+  border-color: #1e40af;
+}
+
+.stats-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 8px;
+  font-size: 18px;
+  color: #666;
+}
+
+.dark .stats-icon {
+  background: #3a3a3a;
+  color: #999;
+}
+
+.stats-card.blue .stats-icon {
+  color: #0ea5e9;
+}
+
+.dark .stats-card.blue .stats-icon {
+  color: #38bdf8;
+}
+
+.stats-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stats-value {
+  color: #e8e8e8;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: #888;
+}
+
+@media (max-width: 768px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

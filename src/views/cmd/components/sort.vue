@@ -1,30 +1,42 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdSort, useMarkdown } from "@/utils/markdown";
 import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Sort] ${msg}`, type);
+};
 
 const mode = ref("Sort");
-const modeOptions = [
-  { label: "Sort", value: "Sort" },
-  { label: "ExtSort", value: "ExtSort" }
-];
-const numOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
-];
-const reverseOptions = [
-  { label: "True", value: true },
-  { label: "False", value: false }
-];
+const modeOptions = computed(() => [
+  { label: t('sort', locale.value), value: "Sort" },
+  { label: t('extSort', locale.value), value: "ExtSort" }
+]);
+const numOptions = computed(() => [
+  { label: t('true', locale.value), value: true },
+  { label: t('false', locale.value), value: false }
+]);
+const reverseOptions = computed(() => [
+  { label: t('asc', locale.value), value: false },
+  { label: t('desc', locale.value), value: true }
+]);
 const [column, path] = [ref(""), ref("")];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const [isLoading, dialog, numeric, reverse] = [
+const [loading, dialog, numeric, reverse] = [
   ref(false),
   ref(false),
   ref(false),
@@ -51,24 +63,25 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke sort
 async function sortData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (column.value.length === 0 && mode.value !== "index") {
-    message("Column not selected", { type: "warning" });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('starting', locale.value)} ${mode.value} ${t('process', locale.value)}...`, 'info');
+
     let rtime: string;
     if (mode.value == "Sort") {
       rtime = await invoke("sort", {
@@ -88,22 +101,13 @@ async function sortData() {
         quoting: quoting.quoting
       });
     }
-    message(`${mode.value} done, elapsed time: ${rtime} s`, {
-      type: "success"
-    });
+    addLog(`${mode.value} ${t('done', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
   } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${mode.value} ${t('failed', locale.value)}: ${err.toString()}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => sortData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path, column].forEach(r => (r.value = ""));
@@ -112,224 +116,185 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
-          <Icon icon="ri:sort-asc" />
-          Sort
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Sorts CSV data lexicographically
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
+          <Icon icon="ri:sort-alphabet-asc" />
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('sort', locale) }}</h1>
+          <p>{{ t('sortDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="sortData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SORT COLUMN
-          </label>
-          <SiliconeSelect
-            v-model="column"
-            filterable
-            placeholder="Select column"
-          >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </SiliconeSelect>
-        </div>
-
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SORT MODE
-          </label>
-          <div class="mode-toggle-v h-8">
-            <span
-              v-for="item in modeOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{ active: mode === item.value }"
-              @click="mode = item.value"
-            >
-              {{ item.label }}
-            </span>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
+            </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="sortData()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
+            </div>
           </div>
-        </div>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            NUMERIC SORT
-          </label>
-          <SiliconeTooltip
-            content="When True, sort by numerical size"
-            placement="right"
-          >
-            <div class="mode-toggle-v h-8">
-              <span
-                v-for="item in numOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{ active: numeric === item.value }"
-                @click="numeric = item.value"
-              >
+          <div class="flex justify-center">
+            <div class="cmd-mode-toggle py-1">
+              <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-24"
+                :class="{ active: mode === item.value }" @click="mode = item.value">
                 {{ item.label }}
               </span>
             </div>
-          </SiliconeTooltip>
-        </div>
+          </div>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            SORT ORDER
-          </label>
-          <SiliconeTooltip
-            content="When True, sort from large to small"
-            placement="right"
-          >
-            <div class="mode-toggle-v h-8">
-              <span
-                v-for="item in reverseOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{ active: reverse === item.value }"
-                @click="reverse = item.value"
-              >
-                {{ item.label }}
-              </span>
+          <div class="options-grid mt-4">
+            <div class="option-section">
+              <div class="option-label">{{ t('sortColumn', locale) }}</div>
+              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+                <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+              </SiliconeSelect>
             </div>
-          </SiliconeTooltip>
-        </div>
 
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            SORT CONFIG
-          </label>
-          <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Column:</span>
-              <span class="font-mono">{{ column || "-" }}</span>
+            <div class="option-section">
+              <div class="option-label">{{ t('numeric', locale) }}</div>
+              <div class="mode-toggle py-1">
+                <span v-for="item in numOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
+                  :class="{ active: numeric === item.value }" @click="numeric = item.value">
+                  {{ item.label }}
+                </span>
+              </div>
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Mode:</span>
-              <span class="font-mono">{{ mode }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Numeric:</span>
-              <span class="font-mono">{{ numeric }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Order:</span>
-              <span class="font-mono">{{ reverse ? "Desc ↓" : "Asc ↑" }}</span>
+
+            <div class="option-section">
+              <div class="option-label">{{ t('order', locale) }}</div>
+              <div class="mode-toggle py-1">
+                <span v-for="item in reverseOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
+                  :class="{ active: reverse === item.value }" @click="reverse = item.value">
+                  {{ item.label }}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
-              >
-                <Icon icon="ri:table-line" class="w-3.5 h-3.5" />
-                {{ column || "Select column" }}
-              </span>
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded"
-              >
-                <Icon
-                  :icon="reverse ? 'ri:sort-desc' : 'ri:sort-asc'"
-                  class="w-3.5 h-3.5"
-                />
-                {{ reverse ? "Descending" : "Ascending" }}
-              </span>
-            </div>
+          <div class="preview-formula mt-4 mb-4">
+            <span class="formula-label">{{ t('preview', locale) }}:</span>
+            <span class="formula-item">{{ mode }}</span>
+            <span class="formula-operator">{{ t('by', locale) }}</span>
+            <span class="formula-item">{{ column || t('column', locale) }}</span>
+            <span class="formula-operator">{{ numeric ? t('numericLabel', locale) : "" }}</span>
+            <span class="formula-operator">{{ reverse ? t('desc', locale) : t('asc', locale) }}</span>
           </div>
-        </div>
 
-        <div class="flex-1 overflow-auto p-2 min-h-0">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ mode }} | {{ column || t('none', locale) }} | {{ reverse ? t('desc', locale) : t('asc', locale) }}</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noData', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
             </SiliconeTable>
           </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Sort - Sorts CSV data lexicographically"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('sort', locale)} - ${t('sortDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #14532d, #166534);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #06b6d4;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #22d3ee;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+@media (max-width: 768px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

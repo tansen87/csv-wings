@@ -6,7 +6,6 @@ import type { Event } from "@tauri-apps/api/event";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdEnumer, useMarkdown } from "@/utils/markdown";
 import {
   useFlexible,
@@ -14,11 +13,25 @@ import {
   useQuoting,
   useSkiprows
 } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message"
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+import "./common.css";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Enumerate] ${msg}`, type);
+};
 
 const path = ref("");
 const [currentRows, totalRows] = [ref(0), ref(0)];
-const [dialog, isLoading] = [ref(false), ref(false)];
+const [dialog, loading] = [ref(false), ref(false)];
 const [tableColumn, tableData] = [ref([]), ref([])];
 const name = ref("row_number");
 const [start, step] = [ref("0"), ref("1")];
@@ -53,28 +66,28 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke enumer
 async function enumerate() {
   if (path.value === "") {
-    message("File not selected", { type: "warning" });
+    message(t('fileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (parseInt(start.value) < 0) {
-    message("start must be greater than 0", { type: "warning" });
+    message(t('startMustBeGreater', locale.value), { type: 'warning' });
     return;
   }
   if (parseInt(step.value) < 1) {
-    message("step must be greater than 1", { type: "warning" });
+    message(t('stepMustBeGreater', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('startingEnumerate', locale.value)}...`, 'info');
     const rtime: string = await invoke("enumer", {
       path: path.value,
       progress: progress.progress,
@@ -85,20 +98,12 @@ async function enumerate() {
       start: start.value,
       step: step.value
     });
-    message(`Enumerate done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('enumerateDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('enumerateFailed', locale.value)}: ${e}`, 'error');
   }
-  isLoading.value = false;
+  loading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => enumerate(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -107,214 +112,133 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:sort-number-asc" />
-          Enumerate
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Add a new column enumerating the lines of a CSV
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('enumerate', locale) }}</h1>
+          <p>{{ t('enumerateDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="enumerate()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            COLUMN NAME
-          </label>
-          <SiliconeInput v-model="name" placeholder="column name" />
-        </div>
-
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            START
-          </label>
-          <SiliconeInput v-model="start" placeholder="start" />
-          <p class="mt-1 text-[10px] text-gray-400">
-            The first row will have this value
-          </p>
-        </div>
-
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            STEP
-          </label>
-          <SiliconeInput v-model="step" placeholder="step" />
-          <p class="mt-1 text-[10px] text-gray-400">
-            Increment value for each row
-          </p>
-        </div>
-
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            PREVIEW
-          </label>
-          <div
-            class="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300"
-          >
-            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-              {{ name || "row_number" }}
-            </span>
-            <span>=</span>
-            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-              {{ parseInt(start) || 0 }}
-            </span>
-            <span>,</span>
-            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-              {{ (parseInt(start) || 0) + (parseInt(step) || 1) }}
-            </span>
-            <span>,</span>
-            <span class="font-mono bg-white dark:bg-gray-700 px-1 py-1 rounded">
-              {{ (parseInt(start) || 0) + 2 * (parseInt(step) || 1) }}
-            </span>
-          </div>
-        </div>
-
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
+            </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
+              </template>
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="enumerate()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
+            </div>
           </div>
 
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
+          <div class="cmd-options-grid mt-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('columnName', locale) }}</div>
+              <SiliconeInput v-model="name" :placeholder="t('columnNamePlaceholder', locale)" class="w-full" />
+            </div>
+
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('startStep', locale) }}</div>
+              <div class="flex gap-4">
+                <div class="flex-1">
+                  <SiliconeInput v-model="start" :placeholder="t('start', locale)" class="w-full" />
                 </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+                <div class="flex-1">
+                  <SiliconeInput v-model="step" :placeholder="t('step', locale)" class="w-full" />
+                </div>
               </div>
             </div>
 
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
+            <div class="preview-formula">
+              <span class="formula-label">{{ t('preview', locale) }}:</span>
+              <span class="formula-item">{{ name || "row_number" }}</span>
+              <span class="formula-operator">=</span>
+              <span class="formula-item">{{ parseInt(start) || 0 }}</span>
+              <span class="formula-operator">,</span>
+              <span class="formula-item">{{ (parseInt(start) || 0) + (parseInt(step) || 1) }}</span>
+              <span class="formula-operator">,</span>
+              <span class="formula-item">{{ (parseInt(start) || 0) + 2 * (parseInt(step) || 1) }}</span>
+              <span class="formula-operator">...</span>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 rounded"
-              >
-                <Icon icon="ri:sort-number-asc" class="w-3.5 h-3.5" />
-                {{ name || "row_number" }}: {{ start || 0 }} + {{ step || 1 }}
-              </span>
+          <div class="cmd-stats-grid mt-4 mb-4">
+            <div class="cmd-stat-card">
+              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
+              <div class="cmd-stat-value">{{ totalRows }}</div>
+            </div>
+            <div class="cmd-stat-card cmd-stat-card-blue">
+              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
-        </div>
 
-        <div class="flex-1 overflow-auto p-2">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+            <span class="cmd-mode-badge">{{ name || "row_number" }}: {{ start || 0 }} + {{ step || 1 }}</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noData', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
             </SiliconeTable>
           </div>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Enumerate - Add a new column enumerating the lines of a CSV"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('enumerate', locale)} - ${t('enumerateDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #409eff;
+  font-weight: 600;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+</style>

@@ -1,11 +1,11 @@
 [package]
-name = "insight-x"
+name = "cs"
 version = "0.5.5"
-description = "insight-x"
+description = "csv-wings"
 authors = ["tansen"]
 license = "MIT"
-repository = "https://github.com/tansen87/insight-x"
-default-run = "insight-x"
+repository = "https://github.com/tansen87/csv-wings"
+default-run = "cs"
 edition = "2024"
 rust-version = "1.91.0"
 
@@ -68,8 +68,6 @@ tauri-plugin-os = "2"
 
 xl = { git = "https://github.com/tansen87/xl.git", branch = "main" }
 json-objects-to-csv = { git = "https://github.com/tansen87/json-objects-to-csv", branch = "main"}
-
-large-text-core = { path = "../crates/large-text-core" }
 
 [features]
 # by default Tauri runs in production mode

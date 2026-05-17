@@ -4,25 +4,38 @@ import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
-import { message } from "@/utils/message";
 import { mdSeparate, useMarkdown } from "@/utils/markdown";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { useLocale, t } from "@/store/modules/locale";
+import { storeToRefs } from "pinia";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
 
 const [path, expectedColumns] = [ref(""), ref("0")];
-const [isLoading, dialog] = [ref(false), ref(false)];
+const [loading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
 const { dynamicHeight } = useDynamicHeight(120);
 const { mdShow } = useMarkdown(mdSeparate);
 const quoting = useQuoting();
 const skiprows = useSkiprows();
 
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[Separate] ${msg}`, type);
+};
+
 async function selectFile() {
   path.value = await viewOpenFile(false, "csv", ["*"]);
   if (path.value === null) {
     path.value = "";
+    addLog(t('fileSelectionCancelled', locale.value), 'info');
     return;
   }
+  addLog(`${t('selectedFile', locale.value)}: ${path.value}`, 'info');
 
   try {
     tableHeader.value = await mapHeaders(path.value, skiprows.skiprows);
@@ -32,40 +45,32 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)}: ${e}`, 'error');
   }
 }
 
-// invoke separate
 async function separateData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    addLog(t('csvFileNotSelected', locale.value), 'warning');
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('expectedColumns', locale.value)}: ${expectedColumns.value}`, 'info');
     const rtime: string = await invoke("separate", {
       path: path.value,
       quoting: quoting.quoting,
       expectedColumns: expectedColumns.value,
       skiprows: skiprows.skiprows
     });
-    message(`Separate done, elapsed time: ${rtime} s`, { type: "success" });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('separateDone', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('separationFailed', locale.value)}: ${e}`, 'error');
   }
-  isLoading.value = false;
+  loading.value = false;
 }
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => separateData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path].forEach(r => (r.value = ""));
@@ -74,126 +79,75 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
-          <Icon icon="ri:menu-search-line" />
-          Separate
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          Separate CSV into good and bad rows
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
+          <Icon icon="ri:list-check-3" />
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('separate', locale) }}</h1>
+          <p>{{ t('separateDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="separateData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            EXPECTED COLUMNS
-          </label>
-          <SiliconeTooltip content="Expected number of columns">
-            <SiliconeInput v-model="expectedColumns" placeholder="e.g. 5">
-              <template #prefix>
-                <Icon icon="ri:hashtag" class="w-4 h-4 text-gray-400" />
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="cmd-main">
+        <div class="p-3">
+          <div class="cmd-file-selection-bar" @click="selectFile()">
+            <div class="cmd-file-selection-icon">
+              <Icon icon="ri:folder-open-line" />
+            </div>
+            <div class="cmd-file-selection-text">
+              <template v-if="path">
+                <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+                <span class="cmd-file-path">{{ path }}</span>
               </template>
-            </SiliconeInput>
-          </SiliconeTooltip>
-        </div>
-
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
-
-          <div
-            class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {{ expectedColumns || 0 }}
-                </div>
-                <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                  Expected Columns
-                </div>
-              </div>
-              <Icon icon="ri:table-column" class="w-6 h-6 text-blue-500" />
+              <template v-else>
+                <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+              <SiliconeButton @click.stop="separateData()" :loading="loading" size="small">
+                {{ t('run', locale) }}
+              </SiliconeButton>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <div
-        class="flex-1 bg-white dark:bg-gray-800 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-2 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
+          <div class="cmd-options-grid mt-4 mb-4">
+            <div class="cmd-option-section">
+              <div class="cmd-option-label">{{ t('expectedColumns', locale) }}</div>
+              <SiliconeInput v-model="expectedColumns" :placeholder="t('expectedColumnsPlaceholder', locale)" class="w-full">
+                <template #prefix>
+                  <Icon icon="ri:hashtag" class="w-4 h-4 text-gray-400" />
+                </template>
+              </SiliconeInput>
+            </div>
+          </div>
 
-        <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
+          <div class="cmd-preview-header">
+            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+          </div>
+          <div class="overflow-hidden rounded-lg">
+            <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+              <template #empty>
+                <div class="flex items-center justify-center gap-2 text-gray-500">
+                  {{ t('noData', locale) }}
+                </div>
+              </template>
+              <el-table-column v-for="column in tableColumn" :prop="column.prop" :label="column.label"
+                :key="column.prop" />
+            </SiliconeTable>
           </div>
         </div>
-
-        <div class="flex-1 overflow-auto p-2">
-          <SiliconeTable
-            :data="tableData"
-            :height="'100%'"
-            empty-text="No data. (Ctrl+D) to Open File."
-            show-overflow-tooltip
-            :cell-style="{
-              borderBottom: '1px solid #f0f0f0'
-            }"
-            class="select-text"
-          >
-            <el-table-column
-              v-for="column in tableColumn"
-              :prop="column.prop"
-              :label="column.label"
-              :key="column.prop"
-            />
-          </SiliconeTable>
-        </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="Separate - Separate CSV into good and bad rows"
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('separate', locale)} - ${t('separateDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from "vue";
+import { onUnmounted, ref, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Event } from "@tauri-apps/api/event";
@@ -7,15 +8,26 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdStr, useMarkdown } from "@/utils/markdown";
-import { message } from "@/utils/message";
 import { useQuoting, useSkiprows } from "@/store/modules/options";
 import { useProgress } from "@/store/modules/options";
-import { useShortcuts } from "@/utils/globalShortcut";
+import { message } from "@/utils/message";
+import { useLocale, t } from "@/store/modules/locale";
+
+const emit = defineEmits<{
+  (e: 'add-log', message: string, type: string): void
+}>();
+
+const localeStore = useLocale();
+const { locale } = storeToRefs(localeStore);
+
+const addLog = (msg: string, type: string = 'info') => {
+  emit('add-log', `[String] ${msg}`, type);
+};
 
 const [column, path] = [ref(""), ref("")];
 const [n, length, by, activeTab] = [ref("4"), ref("5"), ref("-"), ref("left")];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const [isLoading, dialog, reverse] = [ref(false), ref(false), ref(false)];
+const [loading, dialog, reverse] = [ref(false), ref(false), ref(false)];
 const [currentRows, totalRows] = [ref(0), ref(0)];
 const reverseOptions = [
   { label: "True", value: true },
@@ -58,24 +70,25 @@ async function selectFile() {
     );
     tableColumn.value = columnView;
     tableData.value = dataView;
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+  } catch (e) {
+    addLog(`${t('failedToLoadFile', locale.value)} ${e}`, 'error');
   }
 }
 
-// invoke str_slice, str_split, str_pad
 async function StrData() {
   if (path.value === "") {
-    message("CSV file not selected", { type: "warning" });
+    message(t('csvFileNotSelected', locale.value), { type: 'warning' });
     return;
   }
   if (column.value.length === 0) {
-    message("Column not selected", { type: "warning" });
+    message(t('columnNotSelected', locale.value), { type: 'warning' });
     return;
   }
 
   try {
-    isLoading.value = true;
+    loading.value = true;
+    addLog(`${t('starting', locale.value)} ${t('operation', locale.value)}...`, 'info');
+
     let rtime: string;
     if (["left", "right", "slice"].includes(activeTab.value)) {
       rtime = await invoke("str_slice", {
@@ -89,8 +102,7 @@ async function StrData() {
         progress: progress.progress,
         skiprows: skiprows.skiprows
       });
-    }
-    if (["split_n", "split_max"].includes(activeTab.value)) {
+    } else if (["split_n", "split_max"].includes(activeTab.value)) {
       rtime = await invoke("str_split", {
         path: path.value,
         column: column.value,
@@ -101,8 +113,7 @@ async function StrData() {
         progress: progress.progress,
         skiprows: skiprows.skiprows
       });
-    }
-    if (["pad_left", "pad_right", "pad_both"].includes(activeTab.value)) {
+    } else if (["pad_left", "pad_right", "pad_both"].includes(activeTab.value)) {
       rtime = await invoke("str_pad", {
         path: path.value,
         column: column.value,
@@ -114,24 +125,15 @@ async function StrData() {
         skiprows: skiprows.skiprows
       });
     }
-    message(`${activeTab.value} done, elapsed time: ${rtime} s`, {
-      type: "success"
-    });
-  } catch (err) {
-    message(err.toString(), { type: "error" });
+    addLog(`${t('done', locale.value)}, ${t('elapsedTime', locale.value)}: ${rtime} s`, 'success');
+  } catch (e) {
+    addLog(`${t('operation', locale.value)} ${t('failed', locale.value)}: ${e}`, 'error');
+  } finally {
+    loading.value = false;
   }
-  isLoading.value = false;
 }
 
 const { mdShow } = useMarkdown(mdStr);
-
-useShortcuts({
-  onOpenFile: () => selectFile(),
-  onRun: () => StrData(),
-  onHelp: () => {
-    dialog.value = !dialog.value;
-  }
-});
 
 onUnmounted(() => {
   [path, column].forEach(r => (r.value = ""));
@@ -140,313 +142,279 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <el-form class="page-view">
-    <header
-      class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-    >
-      <div class="flex items-center gap-4">
-        <h1
-          class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2"
-          @click="dialog = true"
-        >
+  <div class="flex flex-col h-full overflow-hidden">
+    <div class="p-3">
+      <div class="cmd-header-content">
+        <div class="cmd-header-icon" @click="dialog = true">
           <Icon icon="ri:text" />
-          String
-        </h1>
-
-        <div class="h-5 w-px bg-gray-300 dark:bg-gray-600" />
-
-        <div class="text-xs font-semibold text-gray-400">
-          String expr: slice, split, pad...
+        </div>
+        <div class="cmd-header-text">
+          <h1>{{ t('string', locale) }}</h1>
+          <p>{{ t('stringDesc', locale) }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <SiliconeButton @click="selectFile()" :loading="isLoading" text>
-          Open File
-        </SiliconeButton>
-        <SiliconeButton @click="StrData()" :loading="isLoading" text>
-          Run
-        </SiliconeButton>
-      </div>
-    </header>
+    <el-scrollbar class="flex-1 min-h-0">
+      <div class="p-3">
+        <div class="cmd-file-selection-bar mb-4" @click="selectFile()">
+          <div class="cmd-file-selection-icon">
+            <Icon icon="ri:folder-open-line" />
+          </div>
+          <div class="cmd-file-selection-text">
+            <template v-if="path">
+              <span class="cmd-file-name">{{ path.split(/[/\\]/).pop() }}</span>
+              <span class="cmd-file-path">{{ path }}</span>
+            </template>
+            <template v-else>
+              <span class="cmd-file-prompt">{{ t('clickToSelectFile', locale) }}</span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <SiliconeButton @click.stop="StrData()" :loading="loading" size="small">
+              {{ t('run', locale) }}
+            </SiliconeButton>
+          </div>
+        </div>
 
-    <main class="flex-1 flex overflow-hidden">
-      <aside
-        class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col p-4"
-      >
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            OPERATION
-          </label>
-          <div class="mode-toggle-v h-28">
-            <span
-              v-for="item in modeOptions"
-              :key="item.value"
-              class="mode-item"
-              :class="{ active: activeTab === item.value }"
-              @click="activeTab = item.value"
-            >
+        <div class="flex justify-center">
+          <div class="cmd-mode-toggle py-1">
+            <span v-for="item in modeOptions" :key="item.value" class="cmd-mode-item mx-0.5 w-24"
+              :class="{ active: activeTab === item.value }" @click="activeTab = item.value">
               {{ item.label }}
             </span>
           </div>
         </div>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            TARGET COLUMN
-          </label>
-          <SiliconeSelect
-            v-model="column"
-            filterable
-            placeholder="Select column"
-          >
-            <el-option
-              v-for="item in tableHeader"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </SiliconeSelect>
-        </div>
+        <div class="options-grid mt-4">
+          <div class="option-section">
+            <div class="option-label">{{ t('targetColumn', locale) }}</div>
+            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
+            </SiliconeSelect>
+          </div>
 
-        <div class="mb-4">
-          <label
-            class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-          >
-            REVERSE
-          </label>
-          <SiliconeTooltip
-            content="Reverse the result or not"
-            placement="right"
-          >
-            <div class="mode-toggle-v h-8">
-              <span
-                v-for="item in reverseOptions"
-                :key="String(item.value)"
-                class="mode-item"
-                :class="{ active: reverse === item.value }"
-                @click="reverse = item.value"
-              >
+          <div class="option-section">
+            <div class="option-label">{{ t('reverse', locale) }}</div>
+            <div class="mode-toggle py-1">
+              <span v-for="item in reverseOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
+                :class="{ active: reverse === item.value }" @click="reverse = item.value">
                 {{ item.label }}
               </span>
             </div>
-          </SiliconeTooltip>
-        </div>
-
-        <div class="mb-4 space-y-3">
-          <div
-            v-if="
-              ['left', 'right', 'slice', 'split_n', 'split_max'].includes(
-                activeTab
-              )
-            "
-          >
-            <label
-              class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-            >
-              {{ activeTab === "slice" ? "START INDEX" : "N VALUE" }}
-            </label>
-            <SiliconeInput
-              v-model="n"
-              :placeholder="activeTab === 'slice' ? 'e.g. 0' : 'e.g. 10'"
-              size="small"
-            />
           </div>
 
-          <div
-            v-if="
-              ['slice', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)
-            "
-          >
-            <label
-              class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-            >
-              {{ activeTab === "slice" ? "LENGTH" : "PAD LENGTH" }}
-            </label>
-            <SiliconeInput
-              v-model="length"
-              :placeholder="activeTab === 'slice' ? 'e.g. 5' : 'e.g. 20'"
-              type="number"
-              size="small"
-            />
+          <div v-if="['left', 'right', 'slice', 'split_n', 'split_max'].includes(activeTab)" class="option-section">
+            <div class="option-label">{{ activeTab === 'slice' ? t('startIndex', locale) : t('nValue', locale) }}</div>
+            <SiliconeInput v-model="n" :placeholder="activeTab === 'slice' ? t('startIndexPlaceholder', locale) : t('nValuePlaceholder', locale)" class="w-full" />
           </div>
 
-          <div
-            v-if="
-              [
-                'split_n',
-                'split_max',
-                'pad_left',
-                'pad_right',
-                'pad_both'
-              ].includes(activeTab)
-            "
-          >
-            <label
-              class="text-xs font-semibold text-gray-400 tracking-wider mb-2 block"
-            >
-              {{ activeTab.includes("split") ? "SPLIT BY" : "PAD CHAR" }}
-            </label>
-            <SiliconeInput
-              v-model="by"
-              :placeholder="activeTab.includes('split') ? 'e.g. ,' : 'e.g. 0'"
-              size="small"
-            />
+          <div v-if="['slice', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)" class="option-section">
+            <div class="option-label">{{ activeTab === 'slice' ? t('length', locale) : t('padLength', locale) }}</div>
+            <SiliconeInput v-model="length" :placeholder="activeTab === 'slice' ? t('lengthPlaceholder', locale) : t('padLengthPlaceholder', locale)" type="number"
+              class="w-full" />
+          </div>
+
+          <div v-if="['split_n', 'split_max', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)"
+            class="option-section">
+            <div class="option-label">{{ activeTab.includes('split') ? t('splitBy', locale) : t('padChar', locale) }}</div>
+            <SiliconeInput v-model="by" :placeholder="activeTab.includes('split') ? t('splitByPlaceholder', locale) : t('padCharPlaceholder', locale)"
+              class="w-full" />
           </div>
         </div>
 
-        <div
-          class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-        >
-          <label
-            class="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2"
-          >
-            CONFIG
-          </label>
-          <div class="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Operation:</span>
-              <span class="font-mono">{{ activeTab }}</span>
+        <div class="stats-grid mt-4 mb-4">
+          <div class="stats-card">
+            <div class="stats-icon">
+              <Icon icon="ri:database-line" />
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Column:</span>
-              <span class="font-mono">{{ column || "-" }}</span>
+            <div class="stats-info">
+              <span class="stats-label">{{ t('totalRows', locale) }}</span>
+              <span class="stats-value">{{ totalRows }}</span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Reverse:</span>
-              <span class="font-mono">{{ reverse }}</span>
+          </div>
+          <div class="stats-card blue">
+            <div class="stats-icon">
+              <Icon icon="ri:scan-line" />
             </div>
-            <div v-if="n" class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">N:</span>
-              <span class="font-mono">{{ n }}</span>
-            </div>
-            <div v-if="length" class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">Length:</span>
-              <span class="font-mono">{{ length }}</span>
-            </div>
-            <div v-if="by" class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">By:</span>
-              <span class="font-mono">{{ by }}</span>
+            <div class="stats-info">
+              <span class="stats-label">{{ t('progress', locale) }}</span>
+              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
           </div>
         </div>
 
-        <div class="mt-auto">
-          <div class="text-xs font-semibold text-gray-400 tracking-wider mb-3">
-            STATISTICS
-          </div>
-
-          <div class="space-y-2">
-            <div
-              class="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-lg font-bold text-gray-800 dark:text-white">
-                    {{ totalRows }}
-                  </div>
-                  <div class="text-[12px] text-gray-500 dark:text-gray-400">
-                    Total Rows
-                  </div>
-                </div>
-                <Icon icon="ri:database-line" class="w-6 h-6 text-gray-400" />
+        <div class="cmd-preview-header">
+          <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
+        </div>
+        <div class="overflow-hidden rounded-lg">
+          <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
+            <template #empty>
+              <div class="flex items-center justify-center gap-2 text-gray-500">
+                {{ t('noData', locale) }}
               </div>
-            </div>
-
-            <div
-              class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
-              <div class="flex items-center justify-between">
-                <div>
-                  <div
-                    class="text-lg font-bold text-blue-600 dark:text-blue-400"
-                  >
-                    {{ currentRows }}
-                  </div>
-                  <div class="text-[12px] text-blue-600 dark:text-blue-400">
-                    Scanned Rows
-                  </div>
-                </div>
-                <div class="relative w-6 h-6 flex items-center justify-center">
-                  <Icon
-                    v-if="totalRows === 0 || !isFinite(currentRows / totalRows)"
-                    icon="ri:scan-line"
-                    class="w-6 h-6 text-blue-500"
-                  />
-                  <SiliconeProgress
-                    v-else
-                    :percentage="Math.round((currentRows / totalRows) * 100)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div
-        class="flex-1 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden"
-      >
-        <div
-          v-if="path"
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <SiliconeText :max-lines="1">{{ path }}</SiliconeText>
-        </div>
-
-        <div
-          class="px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              Preview ({{ tableData?.length || 0 }} rows)
-            </span>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded"
-              >
-                <Icon icon="ri:text" class="w-3.5 h-3.5" />
-                {{ activeTab }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-2">
-          <div
-            class="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <SiliconeTable
-              :data="tableData"
-              :height="'100%'"
-              empty-text="No data. (Ctrl+D) to Open File."
-              show-overflow-tooltip
-              class="select-text"
-            >
-              <el-table-column
-                v-for="column in tableColumn"
-                :prop="column.prop"
-                :label="column.label"
-                :key="column.prop"
-              />
-            </SiliconeTable>
-          </div>
+            </template>
+            <el-table-column v-for="col in tableColumn" :prop="col.prop" :label="col.label" :key="col.prop" />
+          </SiliconeTable>
         </div>
       </div>
-    </main>
+    </el-scrollbar>
 
-    <SiliconeDialog
-      v-model="dialog"
-      title="String - String expr: slice, split, pad..."
-      width="70%"
-    >
+    <SiliconeDialog v-model="dialog" :title="`${t('string', locale)} - ${t('stringDesc', locale)}`" width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>
     </SiliconeDialog>
-  </el-form>
+  </div>
 </template>
+
+<style scoped>
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.preview-formula {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(145deg, #faf5ff, #f3e8ff);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.dark .preview-formula {
+  background: linear-gradient(145deg, #2e1f3d, #271a35);
+}
+
+.formula-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formula-item {
+  font-family: ui-monospace, monospace;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+.dark .formula-item {
+  background: #2a2a2a;
+  color: #a78bfa;
+}
+
+.formula-operator {
+  color: #888;
+  font-size: 12px;
+}
+
+.dark .formula-operator {
+  color: #999;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stats-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+}
+
+.dark .stats-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #3a3a3a;
+}
+
+.stats-card.blue {
+  background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+  border-color: #bae6fd;
+}
+
+.dark .stats-card.blue {
+  background: linear-gradient(145deg, #1e3a5f, #172554);
+  border-color: #1e40af;
+}
+
+.stats-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 8px;
+  font-size: 18px;
+  color: #666;
+}
+
+.dark .stats-icon {
+  background: #3a3a3a;
+  color: #999;
+}
+
+.stats-card.blue .stats-icon {
+  color: #0ea5e9;
+}
+
+.dark .stats-card.blue .stats-icon {
+  color: #38bdf8;
+}
+
+.stats-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.dark .stats-value {
+  color: #e8e8e8;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: #888;
+}
+
+@media (max-width: 768px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
