@@ -31,7 +31,7 @@ const addLog = (msg: string, type: string = 'info') => {
 
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
+const [currentRows, totalRows, replacedRows] = [ref(0), ref(0), ref(0)];
 const [column, path, regexPattern, replacement] = [
   ref(""),
   ref(""),
@@ -103,7 +103,7 @@ async function replaceData() {
       flexible: flexible.flexible,
       threads: threads.threads
     });
-    matchRows.value = Number(res[0]);
+    replacedRows.value = Number(res[0]);
     addLog(`${t('replaced', locale.value)} ${res[0]} ${t('rows', locale.value)}, ${t('elapsedTime', locale.value)}: ${res[1]} s`, 'success');
   } catch (e) {
     addLog(`${t('replaceFailed', locale.value)}: ${e}`, 'error');
@@ -182,7 +182,7 @@ onUnmounted(() => {
           <div class="stats-grid mt-4 mb-4">
             <div class="stat-card stat-green">
               <div class="stat-label">{{ t('replacedRows', locale) }}</div>
-              <div class="stat-value">{{ matchRows }}</div>
+              <div class="stat-value">{{ replacedRows }}</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">{{ t('totalRows', locale) }}</div>
@@ -193,6 +193,26 @@ onUnmounted(() => {
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
+          </div>
+
+          <div class="cmd-progress-card mt-4 mb-4">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-success">{{ replacedRows }}</span>
+                <span class="cmd-progress-label">{{ t('replacedRows', locale) }}</span>
+              </div>
+            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
 
           <div class="cmd-preview-header">

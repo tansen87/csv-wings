@@ -401,3 +401,79 @@
   background-color: #d8d7d7;
   color: #000000;
 }
+
+/* Progress Card Styles */
+.cmd-progress-card {
+  padding: 16px 20px;
+  background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.dark .cmd-progress-card {
+  background: linear-gradient(145deg, #2a2a2a, #222);
+  border-color: #333;
+}
+
+.cmd-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cmd-progress-info {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.cmd-progress-current {
+  font-size: 28px;
+  font-weight: 700;
+  color: #409eff;
+}
+
+.dark .cmd-progress-current {
+  color: #66b3ff;
+}
+
+.cmd-progress-divider {
+  font-size: 18px;
+  color: #999;
+  margin: 0 2px;
+}
+
+.dark .cmd-progress-divider {
+  color: #666;
+}
+
+.cmd-progress-total {
+  font-size: 18px;
+  font-weight: 500;
+  color: #666;
+}
+
+.dark .cmd-progress-total {
+  color: #999;
+}
+
+.cmd-progress-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.dark .cmd-progress-label {
+  color: #999;
+}
+
+.cmd-progress-success {
+  font-size: 24px;
+  font-weight: 700;
+  color: #67c23a;
+}
+
+.dark .cmd-progress-success {
+  color: #85ce61;
+}

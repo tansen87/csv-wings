@@ -53,7 +53,7 @@ export const useProgress = defineStore("progress", {
 
 export const useThreads = defineStore("threads", {
   state: () => ({
-    threads: 0
+    threads: 1
   }),
   actions: {
     setThreads(value: string) {

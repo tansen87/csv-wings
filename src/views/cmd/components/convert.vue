@@ -90,8 +90,8 @@ const quoteOptions = [
 ];
 
 const csvModeOptions = computed(() => [
-  { label: t('one', locale.value), value: "one" },
-  { label: t('multi', locale.value), value: "multi" }
+  { label: t('csvOne', locale.value), value: "one" },
+  { label: t('csvMulti', locale.value), value: "multi" }
 ]);
 
 const iErrOptions = computed(() => [
@@ -473,7 +473,7 @@ onUnmounted(() => {
                 <div class="cmd-option-item">
                   <div class="cmd-option-label">{{ t('mode', locale) }}</div>
                   <div class="mode-toggle py-1">
-                    <span v-for="item in csvModeOptions" :key="item.value" class="mode-item mx-0.5 w-24"
+                    <span v-for="item in csvModeOptions" :key="item.value" class="mode-item mx-0.5 w-40"
                       :class="{ active: csvMode === item.value }" @click="csvMode = item.value">
                       {{ item.label }}
                     </span>

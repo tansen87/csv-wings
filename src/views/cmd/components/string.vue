@@ -223,29 +223,23 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="stats-grid mt-4 mb-4">
-          <div class="stats-card">
-            <div class="stats-icon">
-              <Icon icon="ri:database-line" />
+        <div class="cmd-progress-card mt-4" v-if="totalRows > 0">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
             </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('totalRows', locale) }}</span>
-              <span class="stats-value">{{ totalRows }}</span>
-            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
-          <div class="stats-card blue">
-            <div class="stats-icon">
-              <Icon icon="ri:scan-line" />
-            </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('progress', locale) }}</span>
-              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
-                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
-            </div>
-          </div>
-        </div>
 
-        <div class="cmd-preview-header">
+        <div class="cmd-preview-header mt-4">
           <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
         </div>
         <div class="overflow-hidden rounded-lg">

@@ -164,9 +164,9 @@ onUnmounted(() => {
           <span class="formula-label">{{ t('preview', locale) }}:</span>
           <span class="formula-item">INSERT</span>
           <span class="formula-operator">{{ t('col', locale) }}</span>
-          <span class="formula-item">{{ column || t('column', locale) }}</span>
+          <span class="formula-item">{{ column }}</span>
           <span class="formula-operator">@</span>
-          <span class="formula-item">{{ position || t('left', locale) }}</span>
+          <span class="formula-item">{{ position || t('insertLeft', locale) }}</span>
           <span class="formula-operator">=</span>
           <span class="formula-item">{{ values ? values.split('|').length : 0 }} {{ t('vals', locale) }}</span>
         </div>
@@ -194,29 +194,25 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="stats-grid mt-4 mb-4">
-          <div class="stats-card">
-            <div class="stats-icon">
-              <Icon icon="ri:database-line" />
+        <div class="cmd-progress-card mt-4" v-if="totalRows > 0">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
             </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('totalRows', locale) }}</span>
-              <span class="stats-value">{{ totalRows }}</span>
-            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
-          <div class="stats-card blue">
-            <div class="stats-icon">
-              <Icon icon="ri:scan-line" />
-            </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('progress', locale) }}</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="cmd-preview-header">
+        <div class="cmd-preview-header mt-4">
           <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} x {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
-          <span class="cmd-mode-badge">INSERT @ {{ position || t('left', locale) }}</span>
+          <span class="cmd-mode-badge">INSERT @ {{ position || t('insertLeft', locale) }}</span>
         </div>
         <div class="overflow-hidden rounded-lg">
           <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip>

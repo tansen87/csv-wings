@@ -161,28 +161,26 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="options-grid mt-4">
+          <div class="flex justify-center mt-4 mb-4 gap-4">
             <div class="option-section">
               <div class="option-label">{{ t('sortColumn', locale) }}</div>
               <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
-
             <div class="option-section">
               <div class="option-label">{{ t('numeric', locale) }}</div>
-              <div class="mode-toggle py-1">
-                <span v-for="item in numOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
+              <div class="cmd-mode-toggle py-1">
+                <span v-for="item in numOptions" :key="String(item.value)" class="cmd-mode-item mx-0.5 w-24"
                   :class="{ active: numeric === item.value }" @click="numeric = item.value">
                   {{ item.label }}
                 </span>
               </div>
             </div>
-
             <div class="option-section">
               <div class="option-label">{{ t('order', locale) }}</div>
-              <div class="mode-toggle py-1">
-                <span v-for="item in reverseOptions" :key="String(item.value)" class="mode-item mx-0.5 w-32"
+              <div class="cmd-mode-toggle py-1">
+                <span v-for="item in reverseOptions" :key="String(item.value)" class="cmd-mode-item mx-0.5 w-24"
                   :class="{ active: reverse === item.value }" @click="reverse = item.value">
                   {{ item.label }}
                 </span>

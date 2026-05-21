@@ -236,21 +236,24 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="cmd-stats-grid mt-4" v-if="totalRows > 0">
-            <div class="cmd-stat-card">
-              <div class="cmd-stat-value">{{ totalRows }}</div>
-              <div class="cmd-stat-label">{{ t('total', locale) }}</div>
+          <div class="cmd-progress-card mt-2 mb-3">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-success">{{ matchRows }}</span>
+                <span class="cmd-progress-label">{{ t('matched', locale) }}</span>
+              </div>
             </div>
-            <div class="cmd-stat-card stat-blue">
-              <div class="cmd-stat-value">{{ currentRows }}</div>
-              <div class="cmd-stat-label">{{ t('scanned', locale) }}</div>
-              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
-                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
-            </div>
-            <div class="cmd-stat-card stat-green">
-              <div class="cmd-stat-value">{{ matchRows }}</div>
-              <div class="cmd-stat-label">{{ t('matched', locale) }}</div>
-            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
 
           <div class="cmd-preview-header">

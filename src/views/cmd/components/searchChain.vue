@@ -210,6 +210,26 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <div class="cmd-progress-card mt-4">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-success">{{ matchRows }}</span>
+                <span class="cmd-progress-label">{{ t('matched', locale) }}</span>
+              </div>
+            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
+          </div>
+
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('filters', locale) }} ({{ columnConfigs.length }})</div>
