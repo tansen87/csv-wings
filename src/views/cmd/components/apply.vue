@@ -43,7 +43,7 @@ const { locale } = storeToRefs(localeStore);
 const modeOptions = computed(() => [
   { label: t('operations', locale.value), value: "operations" },
   { label: t('calcConv', locale.value), value: "calcconv" },
-  { label: t('dynFmt', locale.value), value: "cat" }
+  { label: t('dynFmt', locale.value), value: "dynfmt" }
 ]);
 
 const placeholderText = computed(() => `${t('formatStr', locale.value)} \n${t('formatExample', locale.value)}`);
@@ -107,7 +107,7 @@ async function applyData() {
 
   let finalColumns = [...columns.value];
   if (
-    (mode.value === "cat" || mode.value === "calcconv") &&
+    (mode.value === "dynfmt" || mode.value === "calcconv") &&
     finalColumns.length === 0 &&
     tableHeader.value.length > 0
   ) {
@@ -149,7 +149,7 @@ async function applyData() {
 }
 
 function addNewColumn() {
-  if (mode.value === "cat" || mode.value === "calcconv") {
+  if (mode.value === "dynfmt" || mode.value === "calcconv") {
     newColumn.value = true;
     return;
   }
@@ -157,7 +157,7 @@ function addNewColumn() {
 }
 
 watch(mode, newMode => {
-  if (newMode === "cat" || newMode === "calcconv") {
+  if (newMode === "dynfmt" || newMode === "calcconv") {
     newColumn.value = true;
   }
 });
