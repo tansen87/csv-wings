@@ -173,21 +173,21 @@ onUnmounted(() => {
           <div class="options-grid mt-4 mb-4">
             <div class="option-section">
               <div class="option-label">{{ t('data1Column', locale) }}</div>
-              <SiliconeSelect v-model="sel1" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <SiliconeSelect v-model="sel1" filterable :placeholder="t('selectColumn', locale)">
                 <el-option v-for="item in tableHeader1" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('data2Column', locale) }}</div>
-              <SiliconeSelect v-model="sel2" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <SiliconeSelect v-model="sel2" filterable :placeholder="t('selectColumn', locale)">
                 <el-option v-for="item in tableHeader2" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('joinType', locale) }}</div>
-              <SiliconeSelect v-model="joinType" class="w-full">
+              <SiliconeSelect v-model="joinType">
                 <el-option :label="t('inner', locale)" value="inner" />
                 <el-option :label="t('left', locale)" value="left" />
                 <el-option :label="t('right', locale)" value="right" />

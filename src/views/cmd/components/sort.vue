@@ -164,7 +164,7 @@ onUnmounted(() => {
           <div class="flex justify-center mt-4 mb-4 gap-4">
             <div class="option-section">
               <div class="option-label">{{ t('sortColumn', locale) }}</div>
-              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>

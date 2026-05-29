@@ -144,19 +144,19 @@ onUnmounted(() => {
         <div class="options-grid mt-4">
           <div class="option-section">
             <div class="option-label">{{ t('targetColumn', locale) }}</div>
-            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
 
           <div class="option-section">
             <div class="option-label">{{ t('position', locale) }}</div>
-            <SiliconeInput v-model="position" :placeholder="t('positionPlaceholder', locale)" class="w-full" />
+            <SiliconeInput v-model="position" :placeholder="t('positionPlaceholder', locale)" />
           </div>
 
           <div class="option-section">
             <div class="option-label">{{ t('values', locale) }}</div>
-            <SiliconeInput v-model="values" :placeholder="t('valuesPlaceholder', locale)" class="w-full" />
+            <SiliconeInput v-model="values" :placeholder="t('valuesPlaceholder', locale)" />
           </div>
         </div>
 

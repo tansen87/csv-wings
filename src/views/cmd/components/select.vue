@@ -213,7 +213,7 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('columns', locale) }} ({{ selColumns.length }} / {{ originalColumns.length }})</div>
-              <SiliconeSelect v-model="selColumns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
+              <SiliconeSelect v-model="selColumns" multiple filterable :placeholder="t('selectColumns', locale)">
                 <template #header>
                   <div class="flex items-center justify-between px-2 py-1">
                     <el-checkbox v-model="checkAll" :indeterminate="indeterminate" @change="handleCheckAll"

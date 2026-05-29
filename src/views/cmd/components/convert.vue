@@ -398,8 +398,9 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale)
-                }}</span>
+                <span class="cmd-file-name">
+                  {{ fileSelect.length }} {{ t('file', locale) }} {{ t('selected', locale)}}
+                </span>
               </template>
               <template v-else>
                 <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
@@ -547,7 +548,7 @@ onUnmounted(() => {
                 </div>
               </template>
               <el-table-column prop="filename" :label="t('fileName', locale)" min-width="150" />
-              <el-table-column prop="status" width="70">
+              <el-table-column prop="status" :label="t('status', locale)" width="70">
                 <template #default="scope">
                   <ElIcon v-if="scope.row.status === 'loading'" class="is-loading">
                     <Loading />

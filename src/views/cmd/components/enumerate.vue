@@ -151,17 +151,17 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('columnName', locale) }}</div>
-              <SiliconeInput v-model="name" :placeholder="t('columnNamePlaceholder', locale)" class="w-full" />
+              <SiliconeInput v-model="name" :placeholder="t('columnNamePlaceholder', locale)" />
             </div>
 
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('startStep', locale) }}</div>
               <div class="flex gap-4">
                 <div class="flex-1">
-                  <SiliconeInput v-model="start" :placeholder="t('start', locale)" class="w-full" />
+                  <SiliconeInput v-model="start" :placeholder="t('start', locale)" />
                 </div>
                 <div class="flex-1">
-                  <SiliconeInput v-model="step" :placeholder="t('step', locale)" class="w-full" />
+                  <SiliconeInput v-model="step" :placeholder="t('step', locale)" />
                 </div>
               </div>
             </div>

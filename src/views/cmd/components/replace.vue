@@ -158,19 +158,19 @@ onUnmounted(() => {
           <div class="options-grid mt-4">
             <div class="option-section">
               <div class="option-label">{{ t('column', locale) }}</div>
-              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('regexPattern', locale) }}</div>
-              <SiliconeInput v-model="regexPattern" :placeholder="t('regexPatternPlaceholder', locale)" class="w-full" />
+              <SiliconeInput v-model="regexPattern" :placeholder="t('regexPatternPlaceholder', locale)" />
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('replacement', locale) }}</div>
-              <SiliconeInput v-model="replacement" :placeholder="t('replacementPlaceholder', locale)" class="w-full" />
+              <SiliconeInput v-model="replacement" :placeholder="t('replacementPlaceholder', locale)" />
             </div>
 
             <div class="preview-formula">

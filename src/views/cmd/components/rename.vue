@@ -186,7 +186,7 @@ onUnmounted(() => {
 
           <div class="rename-search-section mt-4 mb-4">
             <div class="cmd-option-label">{{ t('searchHeader', locale) }}</div>
-            <SiliconeInput v-model="search" :placeholder="t('typeToSearchHeaders', locale)" clearable class="w-full">
+            <SiliconeInput v-model="search" :placeholder="t('typeToSearchHeaders', locale)" clearable>
               <template #prefix>
                 <Icon icon="ri:search-line" class="w-4 h-4 text-gray-400" />
               </template>

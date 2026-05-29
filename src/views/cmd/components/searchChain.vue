@@ -255,11 +255,11 @@ onUnmounted(() => {
                   </div>
 
                   <SiliconeInput v-model="cfg.condition" :placeholder="t('valueUsePipeForMultiple', locale)" type="textarea"
-                    :autosize="{ minRows: 2, maxRows: 2 }" class="w-full mb-2" />
+                    :autosize="{ minRows: 2, maxRows: 2 }" />
 
                   <div v-if="index < columnConfigs.length - 1" class="logic-select">
                     <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">{{ t('logic', locale) }}</div>
-                    <SiliconeSelect v-model="logics[index]" :placeholder="t('logic', locale)" size="small" class="w-full">
+                    <SiliconeSelect v-model="logics[index]" :placeholder="t('logic', locale)" size="small">
                       <el-option v-for="option in logicOptions" :key="option.value" :label="option.label"
                         :value="option.value" />
                     </SiliconeSelect>

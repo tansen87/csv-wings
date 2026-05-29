@@ -287,7 +287,7 @@ onUnmounted(() => {
               <div class="cmd-option-section full-width">
                 <div class="cmd-option-label">{{ t('formulaFormat', locale) }}</div>
                 <SiliconeInput v-model="formatstr" :autosize="{ minRows: 4, maxRows: 6 }" type="textarea"
-                  :placeholder="placeholderText" class="w-full" />
+                  :placeholder="placeholderText" />
               </div>
             </template>
           </div>

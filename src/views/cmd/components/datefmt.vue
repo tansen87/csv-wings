@@ -245,7 +245,7 @@ onUnmounted(() => {
         <div class="options-grid mt-4">
           <div class="option-section full-width">
             <div class="option-label">{{ t('dateColumns', locale) }} ({{ columns.length }})</div>
-            <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectDateColumns', locale)" class="w-full">
+            <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectDateColumns', locale)">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
@@ -260,7 +260,7 @@ onUnmounted(() => {
             <div class="format-card-body">
               <div class="format-section">
                 <span class="format-label">{{ t('in', locale) }}</span>
-                <SiliconeSelect v-model="inputFormats[col]" filterable :placeholder="t('auto', locale)" size="small" class="w-full">
+                <SiliconeSelect v-model="inputFormats[col]" filterable :placeholder="t('auto', locale)" size="small">
                   <el-option v-for="fmt in dateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
                 </SiliconeSelect>
               </div>
@@ -269,8 +269,7 @@ onUnmounted(() => {
               </div>
               <div class="format-section">
                 <span class="format-label">{{ t('out', locale) }}</span>
-                <SiliconeSelect v-model="outputFormats[col]" filterable :placeholder="t('select', locale)" size="small"
-                  class="w-full">
+                <SiliconeSelect v-model="outputFormats[col]" filterable :placeholder="t('select', locale)" size="small">
                   <el-option v-for="fmt in outputDateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
                 </SiliconeSelect>
               </div>

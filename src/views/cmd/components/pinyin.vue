@@ -160,7 +160,7 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('columns', locale) }} ({{ columns.length }})</div>
-              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
+              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>

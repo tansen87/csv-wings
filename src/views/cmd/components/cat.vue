@@ -273,7 +273,7 @@ onUnmounted(() => {
           </div>
 
           <div v-if="mode === 'excel'" class="mb-4 mt-4 flex justify-center">
-            <SiliconeTooltip :content="t('mergeAllSheetsOrSelect', locale)" placement="right">
+            <SiliconeTooltip :content="t('mergeAllSheetsOrSelect', locale)">
               <div class="cmd-mode-toggle py-1">
                 <span v-for="item in sheetsOptions" :key="String(item.value)" @click="allSheets = item.value"
                   class="cmd-mode-item mx-0.5 w-28" :class="{ active: allSheets === item.value }">

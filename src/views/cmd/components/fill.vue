@@ -160,14 +160,14 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('columns', locale) }} ({{ columns.length }})</div>
-              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
+              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="cmd-option-section" v-if="mode === 'fill'">
               <div class="cmd-option-label">{{ t('fillValue', locale) }}</div>
-              <SiliconeInput v-model="fillChar" :placeholder="t('enterFillValue', locale)" class="w-full" />
+              <SiliconeInput v-model="fillChar" :placeholder="t('enterFillValue', locale)" />
             </div>
           </div>
 

@@ -192,6 +192,26 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <div class="cmd-progress-card mt-2 mb-3">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-success">{{ matchRows }}</span>
+                <span class="cmd-progress-label">{{ t('matched', locale) }}</span>
+              </div>
+            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
+          </div>
+
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('columnAndMode', locale) }}</div>
@@ -232,28 +252,8 @@ onUnmounted(() => {
             <div class="cmd-option-section" v-if="unique === false">
               <div class="cmd-option-label">{{ t('condition', locale) }}</div>
               <SiliconeInput v-model="condition" :autosize="{ minRows: 12, maxRows: 12 }" type="textarea"
-                :placeholder="t('searchConditionPlaceholder', locale)" class="w-full" />
+                :placeholder="t('searchConditionPlaceholder', locale)" />
             </div>
-          </div>
-
-          <div class="cmd-progress-card mt-2 mb-3">
-            <div class="cmd-progress-header">
-              <div class="cmd-progress-info">
-                <span class="cmd-progress-current">{{ currentRows }}</span>
-                <span class="cmd-progress-divider">/</span>
-                <span class="cmd-progress-total">{{ totalRows }}</span>
-                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
-              </div>
-              <div class="cmd-progress-info">
-                <span class="cmd-progress-success">{{ matchRows }}</span>
-                <span class="cmd-progress-label">{{ t('matched', locale) }}</span>
-              </div>
-            </div>
-            <SiliconeProgress 
-              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
-              :percentage="Math.round((currentRows / totalRows) * 100)"
-              class="mr-[-16px]"
-            />
           </div>
 
           <div class="cmd-preview-header">
