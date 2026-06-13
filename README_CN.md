@@ -1,31 +1,19 @@
-<h1>insight-x</h1>
+<h1>csv wings</h1>
 
 [English](./README.md) | 中文
 
-> insight-x是一个基于Tauri的数据处理工具箱，旨在简化数据操作和管理。它提供了一个直观的图形用户界面(GUI)。支持多种文件格式的处理，包括 Excel、CSV 等。用户可以通过简单的操作完成复杂的数据处理任务，如数据查询、转换、合并、连接、排序、切片、格式转换等。
+> csv wings是一个基于Tauri的数据处理工具箱，旨在简化数据操作和管理。它提供了一个直观的图形用户界面(GUI)。支持多种文件格式的处理，包括 Excel、CSV 等。用户可以通过简单的操作完成复杂的数据处理任务，如数据查询、转换、合并、连接、排序、切片、格式转换等。
 
 
 ## 📷截图
-* Large Text View
-  
-  ![view.png](/docs/img/text_view.png)
-  
-* Flow
-  ![flow.gif](/docs/img/flow.gif)
+![light](/docs/img/light.jpg)
 
-  ![flow.png](/docs/img/csv_flow.png)
-
-* command
-  ![cmd.png](/docs/img/cmd.png)
-
-  ![count.png](/docs/img/count.png)
+![dark](/docs/img/dark.jpg)
 
 
 ## ✨Features
 | Function | Description |
 | ------- | ----------- |
-| View | 可查看超过10GB的文本文件 |
-| [Flow](./src-tauri/src/lib/flow/mod.rs) | CSV工作流 |
 | [Apply](./docs/apply.md) | 对CSV的列进行字符操作 |
 | [Cat](./docs/cat.md) | 将多个CSV或Excel文件合并为一个CSV |
 | [Convert](./src-tauri/src/lib/cmd/convert/mod.rs) | 文件类型转换 (access转csv, 格式化csv, csv转xlsx, dbf转csv, excel转csv, json转csv, jsonl转csv) |
@@ -84,8 +72,3 @@
 
 ### 演示视频
 * [bilibili](https://www.bilibili.com/video/BV1XS411c7zd/?spm_id_from=333.999.0.0&vd_source=5ee5270944c6e7a459e1311330bf455c) (视频很久未更新了)
-
-
-### See also
-* [tauri-pure-admin](https://github.com/pure-admin/tauri-pure-admin)
-* [qsv](https://github.com/jqnatividad/qsv)

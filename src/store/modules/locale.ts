@@ -821,7 +821,7 @@ export const i18nMapping = {
     endsWithMulti: "后缀匹配(多选)",
     notEndsWith: "不以后缀结束",
     regex: "正则匹配",
-    irregularRegex: "跨行正则",
+    irregularRegex: "忽略分割符-正则匹配",
     isNull: "为空",
     isNotNull: "不为空",
     gt: "大于(>)",

@@ -250,7 +250,7 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale) }}</span>
+                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }} {{ t('selected', locale) }}</span>
               </template>
               <template v-else>
                 <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
