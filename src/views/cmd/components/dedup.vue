@@ -5,7 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdDedup, useMarkdown } from "@/utils/markdown";
-import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
+import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";

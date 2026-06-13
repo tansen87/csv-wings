@@ -12,7 +12,7 @@ import {
   useProgress,
   useQuoting,
   useSkiprows
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -160,7 +160,8 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="flex justify-center">
+          <div class="flex justify-center items-center">
+            <div class="cmd-option-label">{{ t('sorted', locale) }}</div>
             <div class="cmd-mode-toggle py-1">
               <span v-for="item in sortedOpts" :key="String(item.value)" class="cmd-mode-item mx-0.5 w-24"
                 :class="{ active: sorted === item.value }" @click="sorted = item.value">
@@ -169,15 +170,16 @@ onUnmounted(() => {
             </div>
           </div>
 
+
           <div class="options-grid mt-4">
             <div class="option-section">
               <div class="option-label">{{ t('indexColumnName', locale) }}</div>
-              <SiliconeInput v-model="indexColumnName" :placeholder="t('indexColumnNamePlaceholder', locale)" class="w-full" />
+              <SiliconeInput v-model="indexColumnName" :placeholder="t('indexColumnNamePlaceholder', locale)"/>
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('groupByColumn', locale) }}</div>
-              <SiliconeSelect v-model="groupByColumn" :placeholder="t('selectColumn', locale)" class="w-full">
+              <SiliconeSelect v-model="groupByColumn" :placeholder="t('selectColumn', locale)">
                 <el-option v-for="col in tableColumn" :key="col.prop" :label="col.label" :value="col.prop" />
               </SiliconeSelect>
             </div>
@@ -193,21 +195,23 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="stats-grid mt-4 mb-4">
-            <div class="stat-card">
-              <div class="stat-label">{{ t('totalRows', locale) }}</div>
-              <div class="stat-value">{{ totalRows }}</div>
+          <div class="cmd-progress-card mt-4" v-if="totalRows > 0">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
             </div>
-            <div class="stat-card stat-blue">
-              <div class="stat-label">{{ t('progress', locale) }}</div>
-              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
-                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
-            </div>
+            <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)" class="mr-[-16px]" />
           </div>
 
-          <div class="cmd-preview-header">
-            <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
-            <span class="cmd-mode-badge">{{ t('groupBy', locale) }}: {{ groupByColumn || t('none', locale) }}</span>
+          <div class="cmd-preview-header mt-4">
+            <span class="cmd-preview-title">
+              {{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})
+            </span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">
@@ -224,7 +228,8 @@ onUnmounted(() => {
       </div>
     </el-scrollbar>
 
-    <SiliconeDialog v-model="dialog" :title="`${t('enumerateByGroup', locale)} - ${t('enumerateByGroupDesc', locale)}`" width="70%">
+    <SiliconeDialog v-model="dialog" :title="`${t('enumerateByGroup', locale)} - ${t('enumerateByGroupDesc', locale)}`"
+      width="70%">
       <el-scrollbar :height="dynamicHeight * 0.7">
         <div v-html="mdShow" />
       </el-scrollbar>

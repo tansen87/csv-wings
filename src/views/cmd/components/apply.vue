@@ -7,7 +7,7 @@ import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { CheckboxValueType } from "element-plus";
 import { mdApply, useMarkdown } from "@/utils/markdown";
-import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
+import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import "./common.css";
@@ -43,7 +43,7 @@ const { locale } = storeToRefs(localeStore);
 const modeOptions = computed(() => [
   { label: t('operations', locale.value), value: "operations" },
   { label: t('calcConv', locale.value), value: "calcconv" },
-  { label: t('dynFmt', locale.value), value: "cat" }
+  { label: t('dynFmt', locale.value), value: "dynfmt" }
 ]);
 
 const placeholderText = computed(() => `${t('formatStr', locale.value)} \n${t('formatExample', locale.value)}`);
@@ -107,7 +107,7 @@ async function applyData() {
 
   let finalColumns = [...columns.value];
   if (
-    (mode.value === "cat" || mode.value === "calcconv") &&
+    (mode.value === "dynfmt" || mode.value === "calcconv") &&
     finalColumns.length === 0 &&
     tableHeader.value.length > 0
   ) {
@@ -149,7 +149,7 @@ async function applyData() {
 }
 
 function addNewColumn() {
-  if (mode.value === "cat" || mode.value === "calcconv") {
+  if (mode.value === "dynfmt" || mode.value === "calcconv") {
     newColumn.value = true;
     return;
   }
@@ -157,7 +157,7 @@ function addNewColumn() {
 }
 
 watch(mode, newMode => {
-  if (newMode === "cat" || newMode === "calcconv") {
+  if (newMode === "dynfmt" || newMode === "calcconv") {
     newColumn.value = true;
   }
 });
@@ -228,7 +228,7 @@ onUnmounted(() => {
             <template v-if="mode === 'operations'">
               <div class="cmd-option-section">
                 <div class="cmd-option-label">{{ t('columns', locale) }} ({{ columns.length }})</div>
-                <SiliconeSelect v-model="columns" filterable multiple :placeholder="t('selectColumns', locale)" class="w-full">
+                <SiliconeSelect v-model="columns" filterable multiple :placeholder="t('selectColumns', locale)">
                   <template #header>
                     <div class="flex items-center justify-between px-2 py-1">
                       <el-checkbox v-model="checkAll" :indeterminate="indeterminate" @change="handleCheckAll">
@@ -244,7 +244,7 @@ onUnmounted(() => {
               </div>
               <div class="cmd-option-section">
                 <div class="cmd-option-label">{{ t('operations', locale) }} ({{ operations.length }})</div>
-                <SiliconeSelect v-model="operations" filterable multiple :placeholder="t('selectColumns', locale)" class="w-full">
+                <SiliconeSelect v-model="operations" filterable multiple>
                   <el-option :label="t('copy', locale)" value="copy" />
                   <el-option :label="t('len', locale)" value="len" />
                   <el-option :label="t('lower', locale)" value="lower" />
@@ -287,7 +287,7 @@ onUnmounted(() => {
               <div class="cmd-option-section full-width">
                 <div class="cmd-option-label">{{ t('formulaFormat', locale) }}</div>
                 <SiliconeInput v-model="formatstr" :autosize="{ minRows: 4, maxRows: 6 }" type="textarea"
-                  :placeholder="placeholderText" class="w-full" />
+                  :placeholder="placeholderText" />
               </div>
             </template>
           </div>
@@ -297,7 +297,6 @@ onUnmounted(() => {
         <div class="p-3 mt-[-8px]">
           <div class="cmd-preview-header">
             <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
-            <span class="cmd-mode-badge">{{ t('mode', locale) }} {{ mode }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'400px'" show-overflow-tooltip class="select-text">

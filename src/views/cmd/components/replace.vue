@@ -13,7 +13,7 @@ import {
   useQuoting,
   useSkiprows,
   useThreads
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -31,7 +31,7 @@ const addLog = (msg: string, type: string = 'info') => {
 
 const [isLoading, dialog] = [ref(false), ref(false)];
 const [tableHeader, tableColumn, tableData] = [ref([]), ref([]), ref([])];
-const [currentRows, totalRows, matchRows] = [ref(0), ref(0), ref(0)];
+const [currentRows, totalRows, replacedRows] = [ref(0), ref(0), ref(0)];
 const [column, path, regexPattern, replacement] = [
   ref(""),
   ref(""),
@@ -103,7 +103,7 @@ async function replaceData() {
       flexible: flexible.flexible,
       threads: threads.threads
     });
-    matchRows.value = Number(res[0]);
+    replacedRows.value = Number(res[0]);
     addLog(`${t('replaced', locale.value)} ${res[0]} ${t('rows', locale.value)}, ${t('elapsedTime', locale.value)}: ${res[1]} s`, 'success');
   } catch (e) {
     addLog(`${t('replaceFailed', locale.value)}: ${e}`, 'error');
@@ -158,19 +158,19 @@ onUnmounted(() => {
           <div class="options-grid mt-4">
             <div class="option-section">
               <div class="option-label">{{ t('column', locale) }}</div>
-              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+              <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('regexPattern', locale) }}</div>
-              <SiliconeInput v-model="regexPattern" :placeholder="t('regexPatternPlaceholder', locale)" class="w-full" />
+              <SiliconeInput v-model="regexPattern" :placeholder="t('regexPatternPlaceholder', locale)" />
             </div>
 
             <div class="option-section">
               <div class="option-label">{{ t('replacement', locale) }}</div>
-              <SiliconeInput v-model="replacement" :placeholder="t('replacementPlaceholder', locale)" class="w-full" />
+              <SiliconeInput v-model="replacement" :placeholder="t('replacementPlaceholder', locale)" />
             </div>
 
             <div class="preview-formula">
@@ -182,7 +182,7 @@ onUnmounted(() => {
           <div class="stats-grid mt-4 mb-4">
             <div class="stat-card stat-green">
               <div class="stat-label">{{ t('replacedRows', locale) }}</div>
-              <div class="stat-value">{{ matchRows }}</div>
+              <div class="stat-value">{{ replacedRows }}</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">{{ t('totalRows', locale) }}</div>
@@ -193,6 +193,26 @@ onUnmounted(() => {
               <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
                 :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
             </div>
+          </div>
+
+          <div class="cmd-progress-card mt-4 mb-4">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-success">{{ replacedRows }}</span>
+                <span class="cmd-progress-label">{{ t('replacedRows', locale) }}</span>
+              </div>
+            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
 
           <div class="cmd-preview-header">

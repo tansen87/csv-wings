@@ -1,31 +1,19 @@
-<h1>insight-x</h1>
+<h1>csv wings</h1>
 
 English | [中文](./README_CN.md)
 
-> insight-x is a Tauri based data processing toolbox designed to simplify data operations and management. It provides an intuitive graphical user interface (GUI). Supports processing of multiple file formats, including Excel, CSV, etc. Users can complete complex data processing tasks such as data queries, transformations, merges, joins, sorts, slices, format conversions, etc. through simple operations.
+> csv wings is a Tauri based data processing toolbox designed to simplify data operations and management. It provides an intuitive graphical user interface (GUI). Supports processing of multiple file formats, including Excel, CSV, etc. Users can complete complex data processing tasks such as data queries, transformations, merges, joins, sorts, slices, format conversions, etc. through simple operations.
 
 
 ## 📷ScreenShot
-* Large Text View
-  
-  ![view.png](/docs/img/text_view.png)
-  
-* Flow
-  ![flow.gif](/docs/img/flow.gif)
+![light](/docs/img/light.jpg)
 
-  ![flow.png](/docs/img/csv_flow.png)
-  
-* command
-  ![cmd.png](/docs/img/cmd.png)
-  
-  ![count.png](/docs/img/count.png)
+![dark](/docs/img/dark.jpg)
 
 
 ## ✨Features
 | Function | Description |
 | ------- | ----------- |
-| View | Large text file viewer to handle > 10GB text file reading |
-| [Flow](./src-tauri/src/lib/flow/mod.rs) | Csv Flow |
 | [Apply](./docs/apply.md) | Apply series of string, math transformations to given CSV column/s |
 | [Cat](./docs/cat.md) | Merge multiple CSV or Excel files into one CSV |
 | [Convert](./src-tauri/src/lib/cmd/convert/mod.rs) | File type conversion (access to csv, format csv, csv to xlsx, dbf to csv, excel to csv, json to csv, jsonl to csv) |
@@ -85,8 +73,3 @@ English | [中文](./README_CN.md)
 
 ### video
 * [bilibili](https://www.bilibili.com/video/BV1XS411c7zd/?spm_id_from=333.999.0.0&vd_source=5ee5270944c6e7a459e1311330bf455c) (The video hasn't been updated for a long time)
-
-
-### See also
-* [tauri-pure-admin](https://github.com/pure-admin/tauri-pure-admin)
-* [qsv](https://github.com/jqnatividad/qsv)

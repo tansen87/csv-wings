@@ -5,7 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdSeparate, useMarkdown } from "@/utils/markdown";
-import { useQuoting, useSkiprows } from "@/store/modules/options";
+import { useQuoting, useSkiprows } from "@/store/modules/setting";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
 
@@ -118,7 +118,7 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('expectedColumns', locale) }}</div>
-              <SiliconeInput v-model="expectedColumns" :placeholder="t('expectedColumnsPlaceholder', locale)" class="w-full">
+              <SiliconeInput v-model="expectedColumns" :placeholder="t('expectedColumnsPlaceholder', locale)">
                 <template #prefix>
                   <Icon icon="ri:hashtag" class="w-4 h-4 text-gray-400" />
                 </template>

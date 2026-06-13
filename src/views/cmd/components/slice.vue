@@ -5,7 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdSlice, useMarkdown } from "@/utils/markdown";
-import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/options";
+import { useFlexible, useQuoting, useSkiprows } from "@/store/modules/setting";
 import { message } from "@/utils/message"
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -133,28 +133,17 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="cmd-options-grid mt-4">
+          <div class="cmd-options-grid mt-4 flex flex-col items-center">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('rowRange', locale) }}</div>
               <div class="flex gap-4">
                 <div class="flex-1">
-                  <SiliconeInput v-model="start" :placeholder="t('startPlaceholder', locale)" class="w-full" />
+                  <SiliconeInput v-model="start" :placeholder="t('startPlaceholder', locale)" />
                 </div>
                 <div class="flex-1">
-                  <SiliconeInput v-model="end" :placeholder="t('endPlaceholder', locale)" class="w-full" />
+                  <SiliconeInput v-model="end" :placeholder="t('endPlaceholder', locale)" />
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div class="cmd-stats-grid mt-4 mb-4">
-            <div class="cmd-stat-card cmd-stat-card-blue">
-              <div class="cmd-stat-value">{{ parseInt(end) - parseInt(start) || 0 }}</div>
-              <div class="cmd-stat-label">{{ t('slicedRows', locale) }}</div>
-            </div>
-            <div class="cmd-stat-card">
-              <div class="cmd-stat-value">TODO</div>
-              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
             </div>
           </div>
 

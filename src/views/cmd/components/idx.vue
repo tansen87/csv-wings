@@ -3,7 +3,7 @@ import { onUnmounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "@iconify/vue";
-import { useQuoting, useSkiprows } from "@/store/modules/options";
+import { useQuoting, useSkiprows } from "@/store/modules/setting";
 import { mapHeaders, viewOpenFile, toJson, detectSeparator } from "@/utils/view";
 import { message } from "@/utils/message"
 import { useLocale, t } from "@/store/modules/locale";

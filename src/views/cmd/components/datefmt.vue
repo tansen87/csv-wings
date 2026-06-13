@@ -12,7 +12,7 @@ import {
   useProgress,
   useQuoting,
   useSkiprows
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -245,7 +245,7 @@ onUnmounted(() => {
         <div class="options-grid mt-4">
           <div class="option-section full-width">
             <div class="option-label">{{ t('dateColumns', locale) }} ({{ columns.length }})</div>
-            <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectDateColumns', locale)" class="w-full">
+            <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectDateColumns', locale)">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
@@ -260,7 +260,7 @@ onUnmounted(() => {
             <div class="format-card-body">
               <div class="format-section">
                 <span class="format-label">{{ t('in', locale) }}</span>
-                <SiliconeSelect v-model="inputFormats[col]" filterable :placeholder="t('auto', locale)" size="small" class="w-full">
+                <SiliconeSelect v-model="inputFormats[col]" filterable :placeholder="t('auto', locale)" size="small">
                   <el-option v-for="fmt in dateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
                 </SiliconeSelect>
               </div>
@@ -269,8 +269,7 @@ onUnmounted(() => {
               </div>
               <div class="format-section">
                 <span class="format-label">{{ t('out', locale) }}</span>
-                <SiliconeSelect v-model="outputFormats[col]" filterable :placeholder="t('select', locale)" size="small"
-                  class="w-full">
+                <SiliconeSelect v-model="outputFormats[col]" filterable :placeholder="t('select', locale)" size="small">
                   <el-option v-for="fmt in outputDateFormats" :key="fmt.value" :label="fmt.label" :value="fmt.value" />
                 </SiliconeSelect>
               </div>
@@ -291,27 +290,23 @@ onUnmounted(() => {
           <span class="formula-operator">{{ t('cols', locale) }}</span>
         </div>
 
-        <div class="stats-grid mt-4 mb-4">
-          <div class="stats-card">
-            <div class="stats-icon">
-              <Icon icon="ri:database-line" />
+        <div class="cmd-progress-card mt-4" v-if="totalRows > 0">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
             </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('totalRows', locale) }}</span>
-              <span class="stats-value">{{ totalRows }}</span>
-            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
-          <div class="stats-card blue">
-            <div class="stats-icon">
-              <Icon icon="ri:scan-line" />
-            </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('progress', locale) }}</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="cmd-preview-header">
+        <div class="cmd-preview-header mt-4">
           <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }} x {{ tableColumn?.length || 0 }} {{ t('cols', locale) }})</span>
         </div>
         <div class="overflow-hidden rounded-lg">

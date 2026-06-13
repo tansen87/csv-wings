@@ -5,7 +5,7 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { viewOpenFile, toJson } from "@/utils/view";
 import { mdSplit, useMarkdown } from "@/utils/markdown";
-import { useSkiprows } from "@/store/modules/options";
+import { useSkiprows } from "@/store/modules/setting";
 import { message } from "@/utils/message"
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -24,8 +24,8 @@ const addLog = (msg: string, type: string = 'info') => {
 
 const [path, size, mode] = [ref(""), ref(1000000), ref("rows")];
 const modeOptions = computed(() => [
-  { label: t('rows', locale.value), value: "rows" },
-  { label: t('lines', locale.value), value: "lines" }
+  { label: "rows", value: "rows" },
+  { label: "lines", value: "lines" }
 ]);
 const [tableColumn, tableData] = [ref([]), ref([])];
 const [loading, dialog] = [ref(false), ref(false)];
@@ -129,31 +129,15 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="cmd-options-grid mt-4 flex">
+          <div class="cmd-options-grid mt-4 flex flex-col items-center">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('splitSize', locale) }}</div>
-              <SiliconeInputNumber v-model="size" :min="1" :placeholder="t('enterSplitSize', locale)" class="w-full" />
-            </div>
-          </div>
-
-          <div class="cmd-stats-grid mt-4 mb-4">
-            <div class="stat-card stat-blue">
-              <div class="cmd-stat-label">{{ t('rowsPerFile', locale) }}</div>
-              <div class="cmd-stat-value">{{ size }}</div>
-            </div>
-            <div class="cmd-stat-card">
-              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
-              <div class="cmd-stat-value">TODO</div>
-            </div>
-            <div class="cmd-stat-card stat-green">
-              <div class="cmd-stat-label">{{ t('outputFiles', locale) }}</div>
-              <div class="cmd-stat-value">TODO</div>
+              <SiliconeInputNumber v-model="size" :min="1" :placeholder="t('enterSplitSize', locale)" />
             </div>
           </div>
 
           <div class="cmd-preview-header">
             <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
-            <span class="cmd-mode-badge">{{ t('mode', locale) }}: {{ mode === 'rows' ? t('rows', locale) : t('lines', locale) }}</span>
           </div>
           <div class="overflow-hidden rounded-lg">
             <SiliconeTable :data="tableData" :height="'350px'" show-overflow-tooltip class="select-text">

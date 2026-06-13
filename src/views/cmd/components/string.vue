@@ -8,8 +8,8 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mapHeaders, viewOpenFile, toJson } from "@/utils/view";
 import { mdStr, useMarkdown } from "@/utils/markdown";
-import { useQuoting, useSkiprows } from "@/store/modules/options";
-import { useProgress } from "@/store/modules/options";
+import { useQuoting, useSkiprows } from "@/store/modules/setting";
+import { useProgress } from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 
@@ -189,7 +189,7 @@ onUnmounted(() => {
         <div class="options-grid mt-4">
           <div class="option-section">
             <div class="option-label">{{ t('targetColumn', locale) }}</div>
-            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)" class="w-full">
+            <SiliconeSelect v-model="column" filterable :placeholder="t('selectColumn', locale)">
               <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
             </SiliconeSelect>
           </div>
@@ -206,46 +206,38 @@ onUnmounted(() => {
 
           <div v-if="['left', 'right', 'slice', 'split_n', 'split_max'].includes(activeTab)" class="option-section">
             <div class="option-label">{{ activeTab === 'slice' ? t('startIndex', locale) : t('nValue', locale) }}</div>
-            <SiliconeInput v-model="n" :placeholder="activeTab === 'slice' ? t('startIndexPlaceholder', locale) : t('nValuePlaceholder', locale)" class="w-full" />
+            <SiliconeInput v-model="n" :placeholder="activeTab === 'slice' ? t('startIndexPlaceholder', locale) : t('nValuePlaceholder', locale)" />
           </div>
 
           <div v-if="['slice', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)" class="option-section">
             <div class="option-label">{{ activeTab === 'slice' ? t('length', locale) : t('padLength', locale) }}</div>
-            <SiliconeInput v-model="length" :placeholder="activeTab === 'slice' ? t('lengthPlaceholder', locale) : t('padLengthPlaceholder', locale)" type="number"
-              class="w-full" />
+            <SiliconeInput v-model="length" :placeholder="activeTab === 'slice' ? t('lengthPlaceholder', locale) : t('padLengthPlaceholder', locale)" type="number" />
           </div>
 
           <div v-if="['split_n', 'split_max', 'pad_left', 'pad_right', 'pad_both'].includes(activeTab)"
             class="option-section">
             <div class="option-label">{{ activeTab.includes('split') ? t('splitBy', locale) : t('padChar', locale) }}</div>
-            <SiliconeInput v-model="by" :placeholder="activeTab.includes('split') ? t('splitByPlaceholder', locale) : t('padCharPlaceholder', locale)"
-              class="w-full" />
+            <SiliconeInput v-model="by" :placeholder="activeTab.includes('split') ? t('splitByPlaceholder', locale) : t('padCharPlaceholder', locale)" />
           </div>
         </div>
 
-        <div class="stats-grid mt-4 mb-4">
-          <div class="stats-card">
-            <div class="stats-icon">
-              <Icon icon="ri:database-line" />
+        <div class="cmd-progress-card mt-4" v-if="totalRows > 0">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
             </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('totalRows', locale) }}</span>
-              <span class="stats-value">{{ totalRows }}</span>
-            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
-          <div class="stats-card blue">
-            <div class="stats-icon">
-              <Icon icon="ri:scan-line" />
-            </div>
-            <div class="stats-info">
-              <span class="stats-label">{{ t('progress', locale) }}</span>
-              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
-                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
-            </div>
-          </div>
-        </div>
 
-        <div class="cmd-preview-header">
+        <div class="cmd-preview-header mt-4">
           <span class="cmd-preview-title">{{ t('preview', locale) }} ({{ tableData?.length || 0 }} {{ t('rows', locale) }})</span>
         </div>
         <div class="overflow-hidden rounded-lg">

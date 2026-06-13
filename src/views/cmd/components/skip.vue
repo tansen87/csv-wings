@@ -148,7 +148,7 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('skipLines', locale) }}</div>
-              <SiliconeInput v-model="skiprows" :placeholder="t('skipLinesPlaceholder', locale)" clearable class="w-full" />
+              <SiliconeInput v-model="skiprows" :placeholder="t('skipLinesPlaceholder', locale)" clearable />
             </div>
           </div>
 

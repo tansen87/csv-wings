@@ -3,17 +3,10 @@ use std::{collections::HashMap, ops::Neg, path::Path, time::Instant};
 use anyhow::{Result, anyhow};
 use cpc::{eval, units::Unit};
 use dynfmt::Format;
-use rayon::{
-  iter::{IndexedParallelIterator, ParallelIterator},
-  prelude::IntoParallelRefIterator,
-};
 use regex::Regex;
 use smallvec::SmallVec;
 
-use crate::{
-  io::csv::{config::CsvConfigBuilder, options::CsvOptions},
-  utils,
-};
+use crate::io::csv::{config::CsvConfigBuilder, options::CsvOptions};
 
 #[macro_export]
 macro_rules! regex_oncelock {
@@ -73,16 +66,69 @@ enum ApplyCmd {
   Cat,
 }
 
-fn replace_column_value(
-  record: &csv::StringRecord,
-  column_index: usize,
-  new_value: &str,
-) -> csv::StringRecord {
-  record
-    .into_iter()
-    .enumerate()
-    .map(|(i, v)| if i == column_index { new_value } else { v })
+fn trim_bytes(s: &[u8]) -> &[u8] {
+  let start = s
+    .iter()
+    .position(|&c| !c.is_ascii_whitespace())
+    .unwrap_or(s.len());
+  let end = s
+    .iter()
+    .rposition(|&c| !c.is_ascii_whitespace())
+    .map_or(0, |i| i + 1);
+  &s[start..end]
+}
+
+fn trim_start_bytes(s: &[u8]) -> &[u8] {
+  let start = s
+    .iter()
+    .position(|&c| !c.is_ascii_whitespace())
+    .unwrap_or(s.len());
+  &s[start..]
+}
+
+fn trim_end_bytes(s: &[u8]) -> &[u8] {
+  let end = s
+    .iter()
+    .rposition(|&c| !c.is_ascii_whitespace())
+    .map_or(0, |i| i + 1);
+  &s[..end]
+}
+
+fn strip_newlines_bytes(s: &[u8]) -> Vec<u8> {
+  s.iter()
+    .filter(|&&c| c != b'\r' && c != b'\n')
+    .cloned()
     .collect()
+}
+
+fn squeeze_bytes(s: &[u8]) -> Vec<u8> {
+  let trimmed = trim_bytes(s);
+  if trimmed.is_empty() {
+    return Vec::new();
+  }
+
+  let mut result = Vec::with_capacity(trimmed.len());
+  let mut in_whitespace = false;
+
+  for &c in trimmed {
+    if c.is_ascii_whitespace() {
+      if !in_whitespace {
+        result.push(b' ');
+        in_whitespace = true;
+      }
+    } else {
+      result.push(c);
+      in_whitespace = false;
+    }
+  }
+
+  result
+}
+
+fn reverse_bytes(s: &[u8]) -> Vec<u8> {
+  let mut result = s.to_vec();
+  result.reverse();
+  result
 }
 
 fn round_num(dec_f64: f64, places: u32) -> String {
@@ -135,80 +181,144 @@ fn validate_operations(
   Ok((ops_vec, round_places))
 }
 
-fn apply_operations(
+fn apply_operations_bytes(
   ops_vec: &SmallVec<[Operations; 4]>,
-  cell: &mut String,
-  comparand: &str,
-  replacement: &str,
+  cell: &[u8],
+  comparand: &[u8],
+  replacement: &[u8],
   round_places: Option<u32>,
-) {
-  for op in ops_vec {
-    match op {
-      Operations::Len => {
-        itoa::Buffer::new().format(cell.len()).clone_into(cell);
-      }
+) -> Vec<u8> {
+  let ops_count = ops_vec.len();
+
+  if ops_count == 1 {
+    return match ops_vec[0] {
+      Operations::Trim => trim_bytes(cell).to_vec(),
+      Operations::Ltrim => trim_start_bytes(cell).to_vec(),
+      Operations::Rtrim => trim_end_bytes(cell).to_vec(),
+      Operations::Strip => strip_newlines_bytes(cell),
+      Operations::Squeeze => squeeze_bytes(cell),
       Operations::Lower => {
-        *cell = cell.to_lowercase();
+        if let Ok(s) = std::str::from_utf8(cell) {
+          s.to_lowercase().as_bytes().to_vec()
+        } else {
+          cell.to_vec()
+        }
       }
       Operations::Upper => {
-        *cell = cell.to_uppercase();
+        if let Ok(s) = std::str::from_utf8(cell) {
+          s.to_uppercase().as_bytes().to_vec()
+        } else {
+          cell.to_vec()
+        }
       }
-      Operations::Trim => {
-        *cell = String::from(cell.trim());
+      Operations::Len => itoa::Buffer::new().format(cell.len()).as_bytes().to_vec(),
+      Operations::Reverse => reverse_bytes(cell),
+      Operations::Abs
+      | Operations::Neg
+      | Operations::Round
+      | Operations::Normalize
+      | Operations::Replace
+      | Operations::Copy => cell.to_vec(),
+    };
+  }
+
+  let mut result = cell.to_vec();
+
+  for op in ops_vec {
+    result = match op {
+      Operations::Len => itoa::Buffer::new().format(result.len()).as_bytes().to_vec(),
+      Operations::Lower => {
+        if let Ok(s) = std::str::from_utf8(&result) {
+          s.to_lowercase().as_bytes().to_vec()
+        } else {
+          result
+        }
       }
-      Operations::Ltrim => {
-        *cell = String::from(cell.trim_start());
+      Operations::Upper => {
+        if let Ok(s) = std::str::from_utf8(&result) {
+          s.to_uppercase().as_bytes().to_vec()
+        } else {
+          result
+        }
       }
-      Operations::Rtrim => {
-        *cell = String::from(cell.trim_end());
-      }
+      Operations::Trim => trim_bytes(&result).to_vec(),
+      Operations::Ltrim => trim_start_bytes(&result).to_vec(),
+      Operations::Rtrim => trim_end_bytes(&result).to_vec(),
       Operations::Replace => {
-        *cell = cell.replace(comparand, replacement);
+        if let Ok(s) = std::str::from_utf8(&result) {
+          if let Ok(c) = std::str::from_utf8(comparand) {
+            if let Ok(r) = std::str::from_utf8(replacement) {
+              s.replace(c, r).as_bytes().to_vec()
+            } else {
+              result
+            }
+          } else {
+            result
+          }
+        } else {
+          result
+        }
       }
       Operations::Round => {
-        if let Ok(num) = cell.parse::<f64>() {
-          let places = round_places.unwrap_or(2);
-          *cell = round_num(num, places);
-        }
-      }
-      Operations::Squeeze => {
-        let trimmed = cell.trim();
-        if trimmed.is_empty() {
-          cell.clear();
+        if let Ok(s) = std::str::from_utf8(&result) {
+          if let Ok(num) = s.parse::<f64>() {
+            round_num(num, round_places.unwrap_or(2))
+              .as_bytes()
+              .to_vec()
+          } else {
+            result
+          }
         } else {
-          *cell = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
+          result
         }
       }
-      Operations::Strip => {
-        cell.retain(|c| c != '\r' && c != '\n');
-      }
+      Operations::Squeeze => squeeze_bytes(&result),
+      Operations::Strip => strip_newlines_bytes(&result),
       Operations::Normalize => {
-        let normalizer: &'static Regex = regex_oncelock!(r"^(\d+(?:\.\d+)?)([+-])$");
-        if let Some(caps) = normalizer.captures(cell) {
-          let number = &caps[1];
-          let sign = &caps[2];
-          *cell = match sign {
-            "-" => format!("-{number}"),
-            _ => format!("{number}"), // "+"
-          };
+        if let Ok(s) = std::str::from_utf8(&result) {
+          let normalizer: &'static Regex = regex_oncelock!(r"^(\d+(?:\.\d+)?)([+-])$");
+          if let Some(caps) = normalizer.captures(s) {
+            let number = &caps[1];
+            let sign = &caps[2];
+            match sign {
+              "-" => format!("-{number}").as_bytes().to_vec(),
+              _ => number.as_bytes().to_vec(),
+            }
+          } else {
+            result
+          }
+        } else {
+          result
         }
       }
-      Operations::Reverse => {
-        *cell = cell.as_str().chars().rev().collect::<String>();
-      }
+      Operations::Reverse => reverse_bytes(&result),
       Operations::Abs => {
-        if let Ok(num) = cell.parse::<f64>() {
-          *cell = num.abs().to_string()
+        if let Ok(s) = std::str::from_utf8(&result) {
+          if let Ok(num) = s.parse::<f64>() {
+            num.abs().to_string().as_bytes().to_vec()
+          } else {
+            result
+          }
+        } else {
+          result
         }
       }
       Operations::Neg => {
-        if let Ok(num) = cell.parse::<f64>() {
-          *cell = num.neg().to_string()
+        if let Ok(s) = std::str::from_utf8(&result) {
+          if let Ok(num) = s.parse::<f64>() {
+            num.neg().to_string().as_bytes().to_vec()
+          } else {
+            result
+          }
+        } else {
+          result
         }
       }
-      Operations::Copy => {} // copy is a noop
-    }
+      Operations::Copy => result,
+    };
   }
+
+  result
 }
 
 async fn apply_perform<P: AsRef<Path> + Send + Sync>(
@@ -235,11 +345,11 @@ async fn apply_perform<P: AsRef<Path> + Send + Sync>(
   let sep_char = sep as char;
   let output_path = opts.output_path(Some("apply"), None)?;
 
-  let force_new_column = mode == "cat" || mode == "calcconv";
+  let force_new_column = mode == "dynfmt" || mode == "calcconv";
   let effective_new_column = new_column_flag || force_new_column;
 
   let new_column: Option<String> = if effective_new_column {
-    let suffix = if mode == "cat" {
+    let suffix = if mode == "dynfmt" {
       "_dynfmt"
     } else if mode == "calcconv" {
       "_calcconv"
@@ -290,7 +400,7 @@ async fn apply_perform<P: AsRef<Path> + Send + Sync>(
     })
     .collect::<Result<Vec<usize>, _>>()
     .map_err(|err| anyhow!(err))?;
-  let column_index_next = *column_index.iter().next().unwrap(); // safe due to columns.is_empty() check
+  let column_index_next = *column_index.iter().next().unwrap();
 
   let mut headers = rdr.headers()?.clone();
 
@@ -301,7 +411,7 @@ async fn apply_perform<P: AsRef<Path> + Send + Sync>(
   }
   wtr.write_record(&headers)?;
 
-  let dynfmt_template = if (mode == "calcconv") || (mode == "cat") {
+  let dynfmt_template = if (mode == "calcconv") || (mode == "dynfmt") {
     let mut dynfmt_template_wrk = formatstr.clone();
     let mut dynfmt_fields = Vec::new();
 
@@ -342,96 +452,103 @@ async fn apply_perform<P: AsRef<Path> + Send + Sync>(
     ApplyCmd::Cat
   };
 
-  let mut batch_record = csv::StringRecord::new();
-  let max_cpus = num_cpus::get();
-  let njobs = utils::njobs(Some(max_cpus));
-  let batchsize = utils::batch_size(&opts, njobs);
-  let mut batch = Vec::with_capacity(batchsize);
-  let mut batch_results = Vec::with_capacity(batchsize);
+  let comparand_bytes = comparand.as_bytes();
+  let replacement_bytes = replacement.as_bytes();
 
-  'batch_loop: loop {
-    for _ in 0..batchsize {
-      match rdr.read_record(&mut batch_record) {
-        Ok(true) => batch.push(std::mem::take(&mut batch_record)),
-        Ok(false) => break,
-        Err(err) => return Err(anyhow!("Error reading file: {err}")),
+  let mut record = csv::ByteRecord::new();
+
+  while rdr.read_byte_record(&mut record)? {
+    match apply_cmd {
+      ApplyCmd::Operations => {
+        if new_column.is_some() {
+          for &col_idx in &column_index {
+            if col_idx < record.len() {
+              let cell = record.get(col_idx).unwrap_or(&[]);
+              let result = apply_operations_bytes(
+                &ops_vec,
+                cell,
+                comparand_bytes,
+                replacement_bytes,
+                round_places,
+              );
+              record.push_field(&result);
+            }
+          }
+        } else {
+          let mut new_record = csv::ByteRecord::new();
+          for (i, field) in record.iter().enumerate() {
+            if column_index.contains(&i) {
+              let result = apply_operations_bytes(
+                &ops_vec,
+                field,
+                comparand_bytes,
+                replacement_bytes,
+                round_places,
+              );
+              new_record.push_field(&result);
+            } else {
+              new_record.push_field(field);
+            }
+          }
+          record = new_record;
+        }
+      }
+      ApplyCmd::CalcConv => {
+        let result = if column_index_next >= record.len() || record[column_index_next].is_empty() {
+          Vec::new()
+        } else {
+          let cell = String::from_utf8_lossy(&record[column_index_next]);
+          let record_vec: Vec<String> = record
+            .iter()
+            .map(|f| String::from_utf8_lossy(f).to_string())
+            .collect();
+
+          let mut formatted = cell.to_string();
+          if let Ok(f) = dynfmt::SimpleCurlyFormat.format(&dynfmt_template, &record_vec) {
+            formatted = f.to_string();
+          }
+
+          let mut append_unit = false;
+          let cell_for_eval = if formatted.ends_with("<UNIT>") {
+            append_unit = true;
+            formatted.trim_end_matches("<UNIT>")
+          } else {
+            &formatted
+          };
+
+          match eval(cell_for_eval, true, Unit::Celsius, false) {
+            Ok(answer) => {
+              if append_unit {
+                format!("{} {:?}", answer.value, answer.unit).into_bytes()
+              } else {
+                answer.value.to_string().into_bytes()
+              }
+            }
+            Err(e) => format!("ERROR: {e}").into_bytes(),
+          }
+        };
+        record.push_field(&result);
+      }
+      ApplyCmd::Cat => {
+        let cell = if column_index_next >= record.len() || record[column_index_next].is_empty() {
+          Vec::new()
+        } else {
+          let record_vec: Vec<String> = record
+            .iter()
+            .map(|f| String::from_utf8_lossy(f).to_string())
+            .collect();
+
+          if let Ok(formatted) = dynfmt::SimpleCurlyFormat.format(&dynfmt_template, &record_vec) {
+            formatted.to_string().into_bytes()
+          } else {
+            record[column_index_next].to_vec()
+          }
+        };
+        record.push_field(&cell);
       }
     }
 
-    if batch.is_empty() {
-      break 'batch_loop;
-    }
-
-    batch
-      .par_iter()
-      .with_min_len(1024)
-      .map(|record_item| {
-        let mut record = record_item.clone();
-        match apply_cmd {
-          ApplyCmd::Operations => {
-            let mut cell = String::new();
-            for col_index in &*column_index {
-              record[*col_index].clone_into(&mut cell);
-              apply_operations(&ops_vec, &mut cell, &comparand, &replacement, round_places);
-              if new_column.is_some() {
-                record.push_field(&cell);
-              } else {
-                record = replace_column_value(&record, *col_index, &cell);
-              }
-            }
-          }
-          ApplyCmd::CalcConv => {
-            let result = if record[column_index_next].is_empty() {
-              String::new()
-            } else {
-              let mut cell = record[column_index_next].to_owned();
-              let record_vec: Vec<String> = record.iter().map(|f| f.to_string()).collect();
-              if let Ok(formatted) = dynfmt::SimpleCurlyFormat.format(&dynfmt_template, record_vec)
-              {
-                cell = formatted.to_string();
-              }
-
-              let mut append_unit = false;
-              let cell_for_eval = if cell.ends_with("<UNIT>") {
-                append_unit = true;
-                cell.trim_end_matches("<UNIT>")
-              } else {
-                &cell
-              };
-              match eval(cell_for_eval, true, Unit::Celsius, false) {
-                Ok(answer) => {
-                  if append_unit {
-                    format!("{} {:?}", answer.value, answer.unit)
-                  } else {
-                    answer.value.to_string()
-                  }
-                }
-                Err(e) => format!("ERROR: {e}"),
-              }
-            };
-            record.push_field(&result);
-          }
-          ApplyCmd::Cat => {
-            let mut cell = record[column_index_next].to_owned();
-            if !cell.is_empty() {
-              let record_vec: Vec<String> = record.iter().map(|f| f.to_string()).collect();
-              if let Ok(formatted) = dynfmt::SimpleCurlyFormat.format(&dynfmt_template, record_vec)
-              {
-                cell = formatted.to_string();
-              }
-            }
-            record.push_field(&cell);
-          }
-        }
-        record
-      })
-      .collect_into_vec(&mut batch_results);
-
-    for result_record in &batch_results {
-      wtr.write_record(result_record)?;
-    }
-
-    batch.clear();
+    wtr.write_record(&record)?;
   }
 
   Ok(wtr.flush()?)

@@ -6,7 +6,7 @@ import { Icon } from "@iconify/vue";
 import { useDynamicHeight } from "@/utils/utils";
 import { mdCat, useMarkdown } from "@/utils/markdown";
 import { trimOpenFile } from "@/utils/view";
-import { useQuoting, useSkiprows } from "@/store/modules/options";
+import { useQuoting, useSkiprows } from "@/store/modules/setting";
 import { message } from "@/utils/message";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -250,7 +250,7 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale) }}</span>
+                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }} {{ t('selected', locale) }}</span>
               </template>
               <template v-else>
                 <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
@@ -273,7 +273,7 @@ onUnmounted(() => {
           </div>
 
           <div v-if="mode === 'excel'" class="mb-4 mt-4 flex justify-center">
-            <SiliconeTooltip :content="t('mergeAllSheetsOrSelect', locale)" placement="right">
+            <SiliconeTooltip :content="t('mergeAllSheetsOrSelect', locale)">
               <div class="cmd-mode-toggle py-1">
                 <span v-for="item in sheetsOptions" :key="String(item.value)" @click="allSheets = item.value"
                   class="cmd-mode-item mx-0.5 w-28" :class="{ active: allSheets === item.value }">

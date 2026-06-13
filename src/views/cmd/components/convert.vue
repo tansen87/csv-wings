@@ -15,7 +15,7 @@ import {
   useQuoting,
   useSkiprows,
   useThreads
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
 import "./common.css";
@@ -90,8 +90,8 @@ const quoteOptions = [
 ];
 
 const csvModeOptions = computed(() => [
-  { label: t('one', locale.value), value: "one" },
-  { label: t('multi', locale.value), value: "multi" }
+  { label: t('csvOne', locale.value), value: "one" },
+  { label: t('csvMulti', locale.value), value: "multi" }
 ]);
 
 const iErrOptions = computed(() => [
@@ -398,8 +398,9 @@ onUnmounted(() => {
             </div>
             <div class="cmd-file-selection-text">
               <template v-if="path">
-                <span class="cmd-file-name">{{ fileSelect.length }} {{ t('file', locale) }}(s) {{ t('selected', locale)
-                }}</span>
+                <span class="cmd-file-name">
+                  {{ fileSelect.length }} {{ t('file', locale) }} {{ t('selected', locale)}}
+                </span>
               </template>
               <template v-else>
                 <span class="cmd-file-prompt">{{ t('clickToSelectFiles', locale) }}</span>
@@ -473,7 +474,7 @@ onUnmounted(() => {
                 <div class="cmd-option-item">
                   <div class="cmd-option-label">{{ t('mode', locale) }}</div>
                   <div class="mode-toggle py-1">
-                    <span v-for="item in csvModeOptions" :key="item.value" class="mode-item mx-0.5 w-24"
+                    <span v-for="item in csvModeOptions" :key="item.value" class="mode-item mx-0.5 w-40"
                       :class="{ active: csvMode === item.value }" @click="csvMode = item.value">
                       {{ item.label }}
                     </span>
@@ -547,7 +548,7 @@ onUnmounted(() => {
                 </div>
               </template>
               <el-table-column prop="filename" :label="t('fileName', locale)" min-width="150" />
-              <el-table-column prop="status" width="70">
+              <el-table-column prop="status" :label="t('status', locale)" width="70">
                 <template #default="scope">
                   <ElIcon v-if="scope.row.status === 'loading'" class="is-loading">
                     <Loading />

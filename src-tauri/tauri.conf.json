@@ -58,7 +58,7 @@
         "width": 840,
         "height": 660,
         "resizable": true,
-        "title": "cs",
+        "title": "csv",
         "dragDropEnabled": false,
         "center": true,
         "decorations": true,

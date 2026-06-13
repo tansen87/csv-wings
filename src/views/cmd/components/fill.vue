@@ -12,7 +12,7 @@ import {
   useProgress,
   useQuoting,
   useSkiprows
-} from "@/store/modules/options";
+} from "@/store/modules/setting";
 import { message } from "@/utils/message"
 import { useLocale, t } from "@/store/modules/locale";
 import { storeToRefs } from "pinia";
@@ -160,27 +160,31 @@ onUnmounted(() => {
           <div class="cmd-options-grid mt-4 mb-4">
             <div class="cmd-option-section">
               <div class="cmd-option-label">{{ t('columns', locale) }} ({{ columns.length }})</div>
-              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)" class="w-full">
+              <SiliconeSelect v-model="columns" multiple filterable :placeholder="t('selectColumns', locale)">
                 <el-option v-for="item in tableHeader" :key="item.value" :label="item.label" :value="item.value" />
               </SiliconeSelect>
             </div>
 
             <div class="cmd-option-section" v-if="mode === 'fill'">
               <div class="cmd-option-label">{{ t('fillValue', locale) }}</div>
-              <SiliconeInput v-model="fillChar" :placeholder="t('enterFillValue', locale)" class="w-full" />
+              <SiliconeInput v-model="fillChar" :placeholder="t('enterFillValue', locale)" />
             </div>
           </div>
 
-          <div class="cmd-stats-grid mt-4" v-if="totalRows > 0">
-            <div class="cmd-stat-card">
-              <div class="cmd-stat-label">{{ t('totalRows', locale) }}</div>
-              <div class="cmd-stat-value">{{ totalRows }}</div>
+          <div class="cmd-progress-card mt-4 mb-4" v-if="totalRows > 0">
+            <div class="cmd-progress-header">
+              <div class="cmd-progress-info">
+                <span class="cmd-progress-current">{{ currentRows }}</span>
+                <span class="cmd-progress-divider">/</span>
+                <span class="cmd-progress-total">{{ totalRows }}</span>
+                <span class="cmd-progress-label">{{ t('totalRows', locale) }}</span>
+              </div>
             </div>
-            <div class="cmd-stat-card cmd-stat-card-blue">
-              <div class="cmd-stat-label">{{ t('progress', locale) }}</div>
-              <SiliconeProgress v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
-                :percentage="Math.round((currentRows / totalRows) * 100)" class="mt-2" />
-            </div>
+            <SiliconeProgress 
+              v-if="totalRows > 0 && isFinite(currentRows / totalRows)"
+              :percentage="Math.round((currentRows / totalRows) * 100)"
+              class="mr-[-16px]"
+            />
           </div>
 
           <div class="cmd-preview-header">
