@@ -95,18 +95,6 @@ pub async fn to_json(path: String, skiprows: usize) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn xlsx_to_json(
-  path: String,
-  sheet_name: String,
-  nrows: usize,
-) -> Result<String, String> {
-  match async { tojson::excel_to_json(path, sheet_name, nrows) }.await {
-    Ok(result) => Ok(result),
-    Err(err) => Err(format!("{err}")),
-  }
-}
-
-#[tauri::command]
 pub async fn preview_n_lines(path: String, n: usize) -> Result<Vec<String>, String> {
   let file = File::open(&path).map_err(|e| e.to_string())?;
   let reader = BufReader::new(file);

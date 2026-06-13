@@ -79,7 +79,7 @@ fn main() {
         .icon(app.default_window_icon().unwrap().clone())
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
-        .tooltip("cs")
+        .tooltip("csv")
         .on_tray_icon_event(|tray, event| match event {
           TrayIconEvent::Click {
             button: MouseButton::Left,
@@ -130,7 +130,6 @@ fn main() {
       command::inter_headers,
       command::dupli_headers,
       command::to_json,
-      command::xlsx_to_json,
       command::preview_n_lines,
       command::detect_separator,
       apply::apply,
